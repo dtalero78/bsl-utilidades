@@ -3,7 +3,7 @@ import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from upload_to_drive_oauth import subir_pdf_a_drive_oauth
+from drive_uploader import subir_pdf_a_drive  # ✅ Cambiado
 from gcs_uploader import subir_pdf_a_gcs
 
 # Cargar variables de entorno
@@ -61,8 +61,7 @@ def generar_pdf():
 
         # Paso 3: Subir a destino elegido
         if DESTINO == "drive":
-            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-            enlace = subir_pdf_a_drive_oauth(local_filename, f"{documento}.pdf", folder_id)
+            enlace = subir_pdf_a_drive(local_filename, f"{documento}.pdf")  # ✅ Cambiado
         else:
             enlace = subir_pdf_a_gcs(local_filename, f"{documento}.pdf")
 
@@ -78,7 +77,6 @@ def generar_pdf():
     except Exception as e:
         print(f"❌ Error al generar o subir PDF: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
