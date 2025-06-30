@@ -1,21 +1,33 @@
 import os
+import base64
+import tempfile
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from dotenv import load_dotenv
 
 load_dotenv()
 
-CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE")
-DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+# Leer credencial desde base64
+base64_str = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+if not base64_str:
+    raise Exception("❌ Falta GOOGLE_CREDENTIALS_BASE64 en .env")
 
-if not CREDENTIALS_FILE or not DRIVE_FOLDER_ID:
-    raise Exception("❌ Faltan variables GOOGLE_CREDENTIALS_FILE o GOOGLE_DRIVE_FOLDER_ID en .env")
+# Decodificar y guardar temporalmente el archivo de credenciales
+decoded_bytes = base64.b64decode(base64_str)
+temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+temp_file.write(decoded_bytes)
+temp_file.close()
+CREDENTIALS_FILE = temp_file.name
+
+DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+if not DRIVE_FOLDER_ID:
+    raise Exception("❌ Falta GOOGLE_DRIVE_FOLDER_ID en .env")
 
 def subir_pdf_a_drive(nombre_archivo_local, nombre_visible):
     """Sube el PDF a Google Drive y retorna el enlace público"""
     print(f"🚀 Subiendo {nombre_visible} a Google Drive...")
-    
+
     creds = service_account.Credentials.from_service_account_file(
         CREDENTIALS_FILE,
         scopes=['https://www.googleapis.com/auth/drive.file']
