@@ -19,7 +19,6 @@ venv/
 .DS_Store
 
 # Archivos de tokens o credenciales
-*.pkl
 token_*.json
 credentials*.json
 
