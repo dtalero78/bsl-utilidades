@@ -3,16 +3,18 @@ import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from drive_uploader import subir_pdf_a_drive  # ✅ Cambiado
+
+from upload_to_drive_oauth import subir_pdf_a_drive_oauth
 from gcs_uploader import subir_pdf_a_gcs
+from drive_uploader import subir_pdf_a_drive
 
 # Cargar variables de entorno
 load_dotenv()
 
 API2PDF_KEY = os.getenv("API2PDF_KEY")
-DESTINO = os.getenv("STORAGE_DESTINATION", "gcs")  # "gcs" o "drive"
+DESTINO = os.getenv("STORAGE_DESTINATION", "gcs")  # "gcs", "drive" o "drive-oauth"
 
-# Inicializar Flask y configurar CORS solo para la ruta /generar-pdf
+# Inicializar Flask y configurar CORS
 app = Flask(__name__)
 CORS(app, resources={r"/generar-pdf": {"origins": "https://www.bsl.com.co"}})
 
@@ -59,9 +61,12 @@ def generar_pdf():
             f.write(r.content)
         print(f"✅ PDF guardado como: {local_filename}")
 
-        # Paso 3: Subir a destino elegido
-        if DESTINO == "drive":
-            enlace = subir_pdf_a_drive(local_filename, f"{documento}.pdf")  # ✅ Cambiado
+        # Paso 3: Subir a destino
+        if DESTINO == "drive-oauth":
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+            enlace = subir_pdf_a_drive_oauth(local_filename, f"{documento}.pdf", folder_id)
+        elif DESTINO == "drive":
+            enlace = subir_pdf_a_drive(local_filename, f"{documento}.pdf")
         else:
             enlace = subir_pdf_a_gcs(local_filename, f"{documento}.pdf")
 
