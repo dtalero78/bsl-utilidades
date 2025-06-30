@@ -52,5 +52,11 @@ def subir_pdf_a_drive_oauth(ruta_local, nombre_visible, folder_id=None):
         fields='id, webViewLink'
     ).execute()
 
+    # Hacer público el PDF subido (¡esto es clave!)
+    service.permissions().create(
+        fileId=archivo["id"],
+        body={'role': 'reader', 'type': 'anyone'}
+    ).execute()
+
     print(f"✅ PDF subido a Drive: {archivo['webViewLink']}")
     return archivo['webViewLink']
