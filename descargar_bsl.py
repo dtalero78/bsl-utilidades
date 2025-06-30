@@ -61,7 +61,7 @@ def generar_pdf():
 
         # Paso 3: Subir a destino elegido
         if DESTINO == "drive":
-            folder_id = os.getenv("GOOGLE_DRIVE_UPLOAD_FOLDER_ID")
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
             enlace = subir_pdf_a_drive_oauth(local_filename, f"{documento}.pdf", folder_id)
         else:
             enlace = subir_pdf_a_gcs(local_filename, f"{documento}.pdf")
