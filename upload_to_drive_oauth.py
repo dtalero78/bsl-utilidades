@@ -1,17 +1,29 @@
 import os
 import pickle
+import base64
+import tempfile
+from dotenv import load_dotenv
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from dotenv import load_dotenv
 
 # Este es el scope necesario para acceder solo a los archivos que subas con tu app
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 load_dotenv()
 
-CREDENTIALS_FILE = os.getenv("GOOGLE_OAUTH_CREDENTIALS_FILE")
-TOKEN_FILE = os.getenv("GOOGLE_OAUTH_TOKEN_FILE")
+TOKEN_FILE = os.getenv("GOOGLE_OAUTH_TOKEN_FILE", "token.pickle")
+base64_secret = os.getenv("GOOGLE_OAUTH_CREDENTIALS_BASE64")
+
+if not base64_secret:
+    raise Exception("❌ Falta GOOGLE_OAUTH_CREDENTIALS_BASE64 en .env")
+
+# Guardar credenciales como archivo temporal
+decoded_bytes = base64.b64decode(base64_secret)
+temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+temp_file.write(decoded_bytes)
+temp_file.close()
+CREDENTIALS_FILE = temp_file.name
 
 def get_authenticated_service():
     creds = None
@@ -30,10 +42,10 @@ def get_authenticated_service():
 def subir_pdf_a_drive_oauth(ruta_local, nombre_visible, folder_id=None):
     """Sube un PDF a Google Drive (modo usuario OAuth)"""
 
-    # 🔍 Verificación de existencia del archivo
     if not ruta_local or not os.path.exists(ruta_local):
         raise Exception(f"❌ El archivo '{ruta_local}' no existe o es inválido")
 
+    print(f"📁 Carpeta destino: {folder_id}")
     service = get_authenticated_service()
 
     file_metadata = {'name': nombre_visible}
