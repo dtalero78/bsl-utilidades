@@ -64,6 +64,7 @@ def generar_pdf():
         # Paso 3: Subir a destino
         if DESTINO == "drive-oauth":
             folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+            print("📁 Carpeta destino:", folder_id)  # 👈 Añade esta línea
             enlace = subir_pdf_a_drive_oauth(local_filename, f"{documento}.pdf", folder_id)
         elif DESTINO == "drive":
             enlace = subir_pdf_a_drive(local_filename, f"{documento}.pdf")
