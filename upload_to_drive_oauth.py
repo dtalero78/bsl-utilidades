@@ -25,6 +25,7 @@ temp_file.close()
 CREDENTIALS_FILE = temp_file.name
 
 def get_authenticated_service():
+    print(f"📄 Buscando token en: {TOKEN_FILE}")
     if not os.path.exists(TOKEN_FILE):
         raise Exception("❌ El archivo de token no existe. Debes generarlo localmente y subirlo al servidor.")
 
