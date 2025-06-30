@@ -28,7 +28,12 @@ def get_authenticated_service():
     return build('drive', 'v3', credentials=creds)
 
 def subir_pdf_a_drive_oauth(ruta_local, nombre_visible, folder_id=None):
-    """Sube un PDF a Google Drive (personal) y devuelve el enlace de visualización"""
+    """Sube un PDF a Google Drive (modo usuario OAuth)"""
+
+    # 🔍 Verificación de existencia del archivo
+    if not ruta_local or not os.path.exists(ruta_local):
+        raise Exception(f"❌ El archivo '{ruta_local}' no existe o es inválido")
+
     service = get_authenticated_service()
 
     file_metadata = {'name': nombre_visible}
