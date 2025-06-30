@@ -23,7 +23,6 @@ if not DRIVE_FOLDER_ID:
     raise Exception("❌ Falta GOOGLE_DRIVE_FOLDER_ID en .env")
 
 def subir_pdf_a_drive(nombre_archivo_local, nombre_visible):
-    """Sube el PDF a Google Drive y retorna el enlace público"""
     print(f"🚀 Subiendo {nombre_visible} a Google Drive...")
 
     creds = service_account.Credentials.from_service_account_file(
@@ -44,7 +43,7 @@ def subir_pdf_a_drive(nombre_archivo_local, nombre_visible):
         fields='id, webViewLink'
     ).execute()
 
-    # Hacerlo público (imprescindible si quieres que cualquiera lo vea)
+    # Hacer público el archivo para cualquiera
     service.permissions().create(
         fileId=uploaded_file["id"],
         body={'role': 'reader', 'type': 'anyone'}
