@@ -1,63 +1,60 @@
 import os
-import requests
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import pickle
+import base64
+import tempfile
 from dotenv import load_dotenv
-from upload_to_drive_oauth import subir_pdf_a_drive_oauth
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 load_dotenv()
 
-API2PDF_KEY = os.getenv("API2PDF_KEY")
-DEST = os.getenv("STORAGE_DESTINATION", "drive-oauth")  # solo "drive-oauth"
+TOKEN_FILE = os.getenv("GOOGLE_OAUTH_TOKEN_FILE", "token_drive_oauth.pkl")
+base64_secret = os.getenv("GOOGLE_OAUTH_CREDENTIALS_BASE64")
 
-app = Flask(__name__)
-CORS(app, resources={r"/generar-pdf": {"origins": "https://www.bsl.com.co"}})
+if not base64_secret:
+    raise Exception("❌ Falta GOOGLE_OAUTH_CREDENTIALS_BASE64 en .env")
 
-@app.route("/generar-pdf", methods=["OPTIONS"])
-def options_pdf():
-    return ("", 204, {
-        "Access-Control-Allow-Origin": "https://www.bsl.com.co",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-    })
+decoded_bytes = base64.b64decode(base64_secret)
+temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+temp_file.write(decoded_bytes)
+temp_file.close()
+CREDENTIALS_FILE = temp_file.name
 
-@app.route("/generar-pdf", methods=["POST"])
-def generar_pdf():
-    try:
-        documento = request.json.get("documento")
-        # 1) Generar PDF con API2PDF
-        api2pdf_url = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
-        res = requests.post(api2pdf_url, headers={
-            "Authorization": API2PDF_KEY,
-            "Content-Type": "application/json"
-        }, json={
-            "url": url_obj,
-            "inlinePdf": False,
-            "fileName": f"{documento}.pdf"
-        })
-        data = res.json()
-        if not data.get("success"):
-            raise Exception(data.get("error", "Error generando PDF"))
-        pdf_url = data["pdf"]
+def get_authenticated_service():
+    print(f"📄 Buscando token en: {TOKEN_FILE}")
+    if not os.path.exists(TOKEN_FILE):
+        raise Exception("❌ El archivo de token no existe. Debes generarlo localmente y subirlo al servidor.")
 
-        # 2) Descargar PDF localmente
-        local = f"{documento}.pdf"
-        r2 = requests.get(pdf_url)
-        with open(local, "wb") as f:
-            f.write(r2.content)
+    with open(TOKEN_FILE, 'rb') as token:
+        creds = pickle.load(token)
 
-        # 3) Subir a Google Drive (OAuth)
-        folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-        enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
+    return build('drive', 'v3', credentials=creds)
 
-        # 4) Borra el archivo local
-        os.remove(local)
-        return jsonify({"message": "✅ OK", "url": enlace})
+def subir_pdf_a_drive_oauth(ruta_local, nombre_visible, folder_id=None):
+    if not ruta_local or not os.path.exists(ruta_local):
+        raise Exception(f"❌ El archivo '{ruta_local}' no existe o es inválido")
 
-    except Exception as e:
-        print("❌", e)
-        return jsonify({"error": str(e)}), 500
+    service = get_authenticated_service()
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    file_metadata = {'name': nombre_visible}
+    if folder_id:
+        file_metadata['parents'] = [folder_id]
+
+    media = MediaFileUpload(ruta_local, mimetype='application/pdf')
+
+    archivo = service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id, webViewLink'
+    ).execute()
+
+    # HACER EL ARCHIVO PÚBLICO PARA QUE CUALQUIERA LO VEA:
+    service.permissions().create(
+        fileId=archivo["id"],
+        body={'role': 'reader', 'type': 'anyone'}
+    ).execute()
+
+    print(f"✅ PDF subido a Drive: {archivo['webViewLink']}")
+    return archivo['webViewLink']
