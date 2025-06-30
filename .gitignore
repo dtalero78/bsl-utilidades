@@ -1,0 +1,27 @@
+# Entornos y dependencias
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# Configuración de entorno
+.env
+.env.*
+
+# Archivos temporales o de sesión
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+
+# Archivos de tokens o credenciales
+*.pkl
+token_*.json
+credentials*.json
+
+# Archivos generados
+*.pdf
