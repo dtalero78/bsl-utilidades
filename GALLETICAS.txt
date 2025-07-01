@@ -1,5 +1,3 @@
-python descargar_bsl.py
-
 git add .
 git commit -m "m"
 git push
