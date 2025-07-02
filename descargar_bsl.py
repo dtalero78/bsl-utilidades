@@ -1,13 +1,20 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Reconstruir token OAuth desde base64 si es necesario
+app = Flask(__name__, static_folder="static")
+
+CORS(app, resources={
+    r"/generar-pdf": {"origins": "https://www.bsl.com.co"},
+    r"/descargar-pdf-empresas": {"origins": "https://www.bsl.com.co"}
+})
+
+# --- Token OAuth (si usas Google Drive con OAuth, puedes dejar este bloque) ---
 TOKEN_B64 = os.getenv("GOOGLE_OAUTH_TOKEN_B64")
 TOKEN_PATH = os.getenv("GOOGLE_OAUTH_TOKEN_FILE", "token_drive_oauth.pkl")
 if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
@@ -17,7 +24,7 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
 API2PDF_KEY = os.getenv("API2PDF_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
 
-# Importa la función correcta según el destino
+# --- Importar funciones para almacenamiento externo ---
 if DEST == "drive":
     from drive_uploader import subir_pdf_a_drive
 elif DEST == "drive-oauth":
@@ -27,12 +34,7 @@ elif DEST == "gcs":
 else:
     raise Exception(f"Destino {DEST} no soportado")
 
-app = Flask(__name__)
-CORS(app, resources={
-    r"/generar-pdf": {"origins": "https://www.bsl.com.co"},
-    r"/descargar-pdf-empresas": {"origins": "https://www.bsl.com.co"}
-})
-
+# --- Endpoint: GENERAR PDF Y SUBIR A STORAGE ---
 @app.route("/generar-pdf", methods=["OPTIONS"])
 def options_pdf():
     return ("", 204, {
@@ -48,7 +50,6 @@ def generar_pdf():
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # 1. Generar PDF desde la web
         api2 = "https://v2018.api2pdf.com/chrome/url"
         url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
         res = requests.post(api2, headers={
@@ -60,13 +61,12 @@ def generar_pdf():
             raise Exception(data.get("error", "Error API2PDF"))
         pdf_url = data["pdf"]
 
-        # 2. Descargar PDF localmente
         local = f"{documento}.pdf"
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
 
-        # 3. Subir a almacenamiento correspondiente
+        # Subir a almacenamiento
         if DEST == "drive":
             enlace = subir_pdf_a_drive(local, f"{documento}.pdf")
         elif DEST == "drive-oauth":
@@ -77,7 +77,6 @@ def generar_pdf():
         else:
             raise Exception(f"Destino {DEST} no soportado")
 
-        # 4. Limpiar archivo local
         os.remove(local)
         return jsonify({"message": "✅ OK", "url": enlace})
 
@@ -85,6 +84,7 @@ def generar_pdf():
         print("❌", e)
         return jsonify({"error": str(e)}), 500
 
+# --- Endpoint: GENERAR Y DESCARGAR PDF DIRECTO ---
 @app.route("/descargar-pdf-empresas", methods=["OPTIONS"])
 def options_descargar_pdf_empresas():
     return ("", 204, {
@@ -100,7 +100,6 @@ def descargar_pdf_empresas():
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # 1. Generar PDF desde la web
         api2 = "https://v2018.api2pdf.com/chrome/url"
         url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
         res = requests.post(api2, headers={
@@ -112,13 +111,11 @@ def descargar_pdf_empresas():
             raise Exception(data.get("error", "Error API2PDF"))
         pdf_url = data["pdf"]
 
-        # 2. Descargar PDF localmente
         local = f"{documento}.pdf"
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
 
-        # 3. Enviar el PDF directamente al usuario
         response = send_file(
             local,
             mimetype='application/pdf',
@@ -141,6 +138,15 @@ def descargar_pdf_empresas():
         resp = jsonify({"error": str(e)})
         resp.headers["Access-Control-Allow-Origin"] = "https://www.bsl.com.co"
         return resp, 500
+
+# --- Servir el FRONTEND estático ---
+@app.route("/")
+def serve_frontend():
+    return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    return send_from_directory(app.static_folder, filename)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
