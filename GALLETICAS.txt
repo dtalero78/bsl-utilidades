@@ -1,3 +1,3 @@
 git add .
-git commit -m "mimetype"
+git commit -m "nuevo front"
 git push
