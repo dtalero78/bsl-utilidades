@@ -1,10 +1,9 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
-from flask import send_file
 
 load_dotenv()
 
@@ -29,7 +28,10 @@ else:
     raise Exception(f"Destino {DEST} no soportado")
 
 app = Flask(__name__)
-CORS(app, resources={r"/generar-pdf": {"origins": "https://www.bsl.com.co"}})
+CORS(app, resources={
+    r"/generar-pdf": {"origins": "https://www.bsl.com.co"},
+    r"/descargar-pdf-empresas": {"origins": "https://www.bsl.com.co"}
+})
 
 @app.route("/generar-pdf", methods=["OPTIONS"])
 def options_pdf():
@@ -83,7 +85,13 @@ def generar_pdf():
         print("❌", e)
         return jsonify({"error": str(e)}), 500
 
-
+@app.route("/descargar-pdf-empresas", methods=["OPTIONS"])
+def options_descargar_pdf_empresas():
+    return ("", 204, {
+        "Access-Control-Allow-Origin": "https://www.bsl.com.co",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+    })
 
 @app.route("/descargar-pdf-empresas", methods=["POST"])
 def descargar_pdf_empresas():
@@ -117,6 +125,7 @@ def descargar_pdf_empresas():
             as_attachment=True,
             download_name=f"{documento}.pdf"
         )
+        response.headers["Access-Control-Allow-Origin"] = "https://www.bsl.com.co"
 
         @response.call_on_close
         def cleanup():
@@ -129,9 +138,9 @@ def descargar_pdf_empresas():
 
     except Exception as e:
         print("❌", e)
-        return jsonify({"error": str(e)}), 500
-
-
+        resp = jsonify({"error": str(e)})
+        resp.headers["Access-Control-Allow-Origin"] = "https://www.bsl.com.co"
+        return resp, 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
