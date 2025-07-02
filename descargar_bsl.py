@@ -4,6 +4,7 @@ import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from flask import send_file
 
 load_dotenv()
 
@@ -81,6 +82,56 @@ def generar_pdf():
     except Exception as e:
         print("❌", e)
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route("/descargar-pdf-empresas", methods=["POST"])
+def descargar_pdf_empresas():
+    try:
+        documento = request.json.get("documento")
+        if not documento:
+            raise Exception("No se recibió el nombre del documento.")
+
+        # 1. Generar PDF desde la web
+        api2 = "https://v2018.api2pdf.com/chrome/url"
+        url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
+        res = requests.post(api2, headers={
+            "Authorization": API2PDF_KEY,
+            "Content-Type": "application/json"
+        }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
+        data = res.json()
+        if not data.get("success"):
+            raise Exception(data.get("error", "Error API2PDF"))
+        pdf_url = data["pdf"]
+
+        # 2. Descargar PDF localmente
+        local = f"{documento}.pdf"
+        r2 = requests.get(pdf_url)
+        with open(local, "wb") as f:
+            f.write(r2.content)
+
+        # 3. Enviar el PDF directamente al usuario
+        response = send_file(
+            local,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"{documento}.pdf"
+        )
+
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.remove(local)
+            except Exception:
+                pass
+
+        return response
+
+    except Exception as e:
+        print("❌", e)
+        return jsonify({"error": str(e)}), 500
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
