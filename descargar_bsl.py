@@ -9,10 +9,10 @@ load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 
-# Configurar CORS para ambas empresas
+# Configurar CORS para todas las aplicaciones
 CORS(app, resources={
-    r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgsplataforma.com/"]},
-    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgsplataforma.com/"]}
+    r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
+    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]}
 })
 
 # Configuración de carpetas por empresa
@@ -24,7 +24,12 @@ EMPRESA_FOLDERS = {
 # Configuración de dominios por empresa
 EMPRESA_DOMAINS = {
     "BSL": "https://www.bsl.com.co",
-    "LGS": "https://www.lgsplataforma.com/"
+    "LGS": "https://www.lgs.com.co"
+}
+
+# Dominios adicionales para plataformas
+PLATAFORMA_DOMAINS = {
+    "LGS": "https://www.lgsplataforma.com"
 }
 
 # --- Token OAuth (si usas Google Drive con OAuth, puedes dejar este bloque) ---
@@ -53,14 +58,14 @@ def determinar_empresa(request):
     origin = request.headers.get('Origin', '')
     if 'bsl.com.co' in origin:
         return 'BSL'
-    elif 'lgsplataforma.com' in origin:
+    elif 'lgs.com.co' in origin or 'lgsplataforma.com' in origin:
         return 'LGS'
     
     # Verificar el header Referer como fallback
     referer = request.headers.get('Referer', '')
     if 'bsl.com.co' in referer:
         return 'BSL'
-    elif 'lgsplataforma.com' in referer:
+    elif 'lgs.com.co' in referer or 'lgsplataforma.com' in referer:
         return 'LGS'
     
     # Verificar si viene como parámetro en el JSON
@@ -74,7 +79,10 @@ def determinar_empresa(request):
 
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
-    return list(EMPRESA_DOMAINS.values())
+    origins = list(EMPRESA_DOMAINS.values())
+    # Agregar dominios de plataformas
+    origins.extend(PLATAFORMA_DOMAINS.values())
+    return origins
 
 # --- Endpoint: GENERAR PDF Y SUBIR A STORAGE ---
 @app.route("/generar-pdf", methods=["OPTIONS"])
