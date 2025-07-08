@@ -9,10 +9,23 @@ load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 
+# Configurar CORS para ambas empresas
 CORS(app, resources={
-    r"/generar-pdf": {"origins": "https://www.bsl.com.co"},
-    r"/descargar-pdf-empresas": {"origins": "https://www.bsl.com.co"}
+    r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgsplataforma.com/"]},
+    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgsplataforma.com/"]}
 })
+
+# Configuración de carpetas por empresa
+EMPRESA_FOLDERS = {
+    "BSL": os.getenv("GOOGLE_DRIVE_FOLDER_ID_BSL", os.getenv("GOOGLE_DRIVE_FOLDER_ID")),  # Backward compatibility
+    "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf")
+}
+
+# Configuración de dominios por empresa
+EMPRESA_DOMAINS = {
+    "BSL": "https://www.bsl.com.co",
+    "LGS": "https://www.lgsplataforma.com/"
+}
 
 # --- Token OAuth (si usas Google Drive con OAuth, puedes dejar este bloque) ---
 TOKEN_B64 = os.getenv("GOOGLE_OAUTH_TOKEN_B64")
@@ -34,84 +47,158 @@ elif DEST == "gcs":
 else:
     raise Exception(f"Destino {DEST} no soportado")
 
+def determinar_empresa(request):
+    """Determina la empresa basándose en el origen de la solicitud o parámetro"""
+    # Verificar el header Origin
+    origin = request.headers.get('Origin', '')
+    if 'bsl.com.co' in origin:
+        return 'BSL'
+    elif 'lgsplataforma.com' in origin:
+        return 'LGS'
+    
+    # Verificar el header Referer como fallback
+    referer = request.headers.get('Referer', '')
+    if 'bsl.com.co' in referer:
+        return 'BSL'
+    elif 'lgsplataforma.com' in referer:
+        return 'LGS'
+    
+    # Verificar si viene como parámetro en el JSON
+    data = request.get_json() or {}
+    empresa = data.get('empresa', '').upper()
+    if empresa in EMPRESA_FOLDERS:
+        return empresa
+    
+    # Default a BSL para backward compatibility
+    return 'BSL'
+
+def get_allowed_origins():
+    """Retorna la lista de orígenes permitidos para CORS"""
+    return list(EMPRESA_DOMAINS.values())
+
 # --- Endpoint: GENERAR PDF Y SUBIR A STORAGE ---
 @app.route("/generar-pdf", methods=["OPTIONS"])
 def options_pdf():
-    return ("", 204, {
-        "Access-Control-Allow-Origin": "https://www.bsl.com.co",
+    allowed_origins = get_allowed_origins()
+    origin = request.headers.get('Origin')
+    
+    response_headers = {
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type"
-    })
+    }
+    
+    if origin in allowed_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin
+    
+    return ("", 204, response_headers)
 
 @app.route("/generar-pdf", methods=["POST"])
 def generar_pdf():
     try:
+        # Determinar empresa
+        empresa = determinar_empresa(request)
+        folder_id = EMPRESA_FOLDERS.get(empresa)
+        
+        if not folder_id:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        
         documento = request.json.get("documento")
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
+        # Construir URL basándose en la empresa
+        domain = EMPRESA_DOMAINS.get(empresa, EMPRESA_DOMAINS['BSL'])
         api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
+        url_obj = f"{domain}/descarga-whp/{documento}"
+        
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
         }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
+        
         data = res.json()
         if not data.get("success"):
             raise Exception(data.get("error", "Error API2PDF"))
         pdf_url = data["pdf"]
 
-        local = f"{documento}.pdf"
+        # Descargar PDF localmente
+        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
 
-        # Subir a almacenamiento
+        # Subir a almacenamiento según el destino configurado
         if DEST == "drive":
-            enlace = subir_pdf_a_drive(local, f"{documento}.pdf")
+            enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
         elif DEST == "drive-oauth":
-            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
             enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
         elif DEST == "gcs":
-            enlace = subir_pdf_a_gcs(local, f"{documento}.pdf")
+            # Para GCS, podrías usar un prefijo en el nombre del archivo
+            enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
         else:
             raise Exception(f"Destino {DEST} no soportado")
 
         os.remove(local)
-        return jsonify({"message": "✅ OK", "url": enlace})
+        
+        # Preparar respuesta con CORS
+        response = jsonify({"message": "✅ OK", "url": enlace, "empresa": empresa})
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
+        
+        return response
 
     except Exception as e:
         print("❌", e)
-        return jsonify({"error": str(e)}), 500
+        response = jsonify({"error": str(e)})
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
+        return response, 500
 
 # --- Endpoint: GENERAR Y DESCARGAR PDF DIRECTO ---
 @app.route("/descargar-pdf-empresas", methods=["OPTIONS"])
 def options_descargar_pdf_empresas():
-    return ("", 204, {
-        "Access-Control-Allow-Origin": "https://www.bsl.com.co",
+    allowed_origins = get_allowed_origins()
+    origin = request.headers.get('Origin')
+    
+    response_headers = {
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type"
-    })
+    }
+    
+    if origin in allowed_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin
+    
+    return ("", 204, response_headers)
 
 @app.route("/descargar-pdf-empresas", methods=["POST"])
 def descargar_pdf_empresas():
     try:
+        # Determinar empresa
+        empresa = determinar_empresa(request)
+        
         documento = request.json.get("documento")
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
+        # Construir URL basándose en la empresa
+        domain = EMPRESA_DOMAINS.get(empresa, EMPRESA_DOMAINS['BSL'])
         api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"https://www.bsl.com.co/descarga-whp/{documento}"
+        url_obj = f"{domain}/descarga-whp/{documento}"
+        
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
         }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
+        
         data = res.json()
         if not data.get("success"):
             raise Exception(data.get("error", "Error API2PDF"))
         pdf_url = data["pdf"]
 
-        local = f"{documento}.pdf"
+        # Descargar PDF localmente
+        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
@@ -122,7 +209,11 @@ def descargar_pdf_empresas():
             as_attachment=True,
             download_name=f"{documento}.pdf"
         )
-        response.headers["Access-Control-Allow-Origin"] = "https://www.bsl.com.co"
+        
+        # Configurar CORS
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
 
         @response.call_on_close
         def cleanup():
@@ -136,7 +227,9 @@ def descargar_pdf_empresas():
     except Exception as e:
         print("❌", e)
         resp = jsonify({"error": str(e)})
-        resp.headers["Access-Control-Allow-Origin"] = "https://www.bsl.com.co"
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            resp.headers["Access-Control-Allow-Origin"] = origin
         return resp, 500
 
 # --- Servir el FRONTEND estático ---

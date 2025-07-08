@@ -1,3 +1,3 @@
 git add .
-git commit -m "nuevo front"
+git commit -m "multiempresas desde claude"
 git push

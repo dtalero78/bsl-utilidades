@@ -18,12 +18,25 @@ temp_file.write(decoded_bytes)
 temp_file.close()
 CREDENTIALS_FILE = temp_file.name
 
-DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-if not DRIVE_FOLDER_ID:
-    raise Exception("❌ Falta GOOGLE_DRIVE_FOLDER_ID en .env")
+# Mantener compatibilidad con la variable original
+DEFAULT_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
-def subir_pdf_a_drive(nombre_archivo_local, nombre_visible):
-    print(f"🚀 Subiendo {nombre_visible} a Google Drive...")
+def subir_pdf_a_drive(nombre_archivo_local, nombre_visible, folder_id=None):
+    """
+    Sube un PDF a Google Drive
+    
+    Args:
+        nombre_archivo_local: Ruta del archivo local
+        nombre_visible: Nombre que tendrá el archivo en Drive
+        folder_id: ID de la carpeta donde subir (opcional, usa default si no se especifica)
+    """
+    # Usar folder_id específico o el default
+    target_folder_id = folder_id or DEFAULT_DRIVE_FOLDER_ID
+    
+    if not target_folder_id:
+        raise Exception("❌ No se especificó folder_id y falta GOOGLE_DRIVE_FOLDER_ID en .env")
+    
+    print(f"🚀 Subiendo {nombre_visible} a Google Drive (carpeta: {target_folder_id})...")
 
     creds = service_account.Credentials.from_service_account_file(
         CREDENTIALS_FILE,
@@ -33,7 +46,7 @@ def subir_pdf_a_drive(nombre_archivo_local, nombre_visible):
 
     file_metadata = {
         'name': nombre_visible,
-        'parents': [DRIVE_FOLDER_ID]
+        'parents': [target_folder_id]
     }
 
     media = MediaFileUpload(nombre_archivo_local, mimetype='application/pdf')
