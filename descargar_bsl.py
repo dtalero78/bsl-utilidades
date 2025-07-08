@@ -21,10 +21,22 @@ EMPRESA_FOLDERS = {
     "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf")
 }
 
-# Configuración de dominios por empresa
+# Configuración de dominios y rutas por empresa
+EMPRESA_CONFIG = {
+    "BSL": {
+        "domain": "https://www.bsl.com.co",
+        "path": "/descarga-whp/"
+    },
+    "LGS": {
+        "domain": "https://www.lgsplataforma.com", 
+        "path": "/contrato/"
+    }
+}
+
+# Para compatibilidad con código existente
 EMPRESA_DOMAINS = {
-    "BSL": "https://www.bsl.com.co",
-    "LGS": "https://www.lgs.com.co"
+    "BSL": EMPRESA_CONFIG["BSL"]["domain"],
+    "LGS": EMPRESA_CONFIG["LGS"]["domain"]
 }
 
 # Dominios adicionales para plataformas
@@ -114,10 +126,15 @@ def generar_pdf():
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # Construir URL basándose en la empresa
-        domain = EMPRESA_DOMAINS.get(empresa, EMPRESA_DOMAINS['BSL'])
+        # Construir URL basándose en la empresa y su configuración específica
+        empresa_config = EMPRESA_CONFIG.get(empresa)
+        if not empresa_config:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+            
+        domain = empresa_config["domain"]
+        path = empresa_config["path"]
         api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"{domain}/descarga-whp/{documento}"
+        url_obj = f"{domain}{path}{documento}"
         
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
@@ -190,10 +207,15 @@ def descargar_pdf_empresas():
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # Construir URL basándose en la empresa
-        domain = EMPRESA_DOMAINS.get(empresa, EMPRESA_DOMAINS['BSL'])
+        # Construir URL basándose en la empresa y su configuración específica
+        empresa_config = EMPRESA_CONFIG.get(empresa)
+        if not empresa_config:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+            
+        domain = empresa_config["domain"]
+        path = empresa_config["path"]
         api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"{domain}/descarga-whp/{documento}"
+        url_obj = f"{domain}{path}{documento}"
         
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
