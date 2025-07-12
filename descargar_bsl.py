@@ -11,8 +11,9 @@ app = Flask(__name__, static_folder="static")
 
 # Configurar CORS para todas las aplicaciones
 CORS(app, resources={
+    r"/": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
-    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]}
+    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]}
 })
 
 # Configuración de carpetas por empresa
@@ -25,11 +26,13 @@ EMPRESA_FOLDERS = {
 EMPRESA_CONFIG = {
     "BSL": {
         "domain": "https://www.bsl.com.co",
-        "path": "/descarga-whp/"
+        "path": "/descarga-whp/",
+        "query_params": ""
     },
     "LGS": {
         "domain": "https://www.lgsplataforma.com", 
-        "path": "/contrato/"
+        "path": "/contrato/",
+        "query_params": "?forReview="
     }
 }
 
@@ -100,6 +103,19 @@ def determinar_empresa(request):
     print(f"🏢 Empresa por defecto: BSL")
     return 'BSL'
 
+def construir_url_documento(empresa, documento):
+    """Construye la URL completa del documento para convertir a PDF"""
+    empresa_config = EMPRESA_CONFIG.get(empresa)
+    if not empresa_config:
+        raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        
+    domain = empresa_config["domain"]
+    path = empresa_config["path"]
+    query_params = empresa_config.get("query_params", "")
+    
+    url_obj = f"{domain}{path}{documento}{query_params}"
+    return url_obj
+
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
     origins = list(EMPRESA_DOMAINS.values())
@@ -137,16 +153,11 @@ def generar_pdf():
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # Construir URL basándose en la empresa y su configuración específica
-        empresa_config = EMPRESA_CONFIG.get(empresa)
-        if not empresa_config:
-            raise Exception(f"No se encontró configuración para la empresa {empresa}")
-            
-        domain = empresa_config["domain"]
-        path = empresa_config["path"]
-        api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"{domain}{path}{documento}"
+        # Construir URL usando la nueva función
+        url_obj = construir_url_documento(empresa, documento)
+        print(f"🔗 Generando PDF para URL: {url_obj}")
         
+        api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
@@ -199,7 +210,7 @@ def options_descargar_pdf_empresas():
     origin = request.headers.get('Origin')
     
     response_headers = {
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type"
     }
     
@@ -208,26 +219,29 @@ def options_descargar_pdf_empresas():
     
     return ("", 204, response_headers)
 
-@app.route("/descargar-pdf-empresas", methods=["POST"])
+@app.route("/descargar-pdf-empresas", methods=["GET", "POST"])
 def descargar_pdf_empresas():
     try:
-        # Determinar empresa
-        empresa = determinar_empresa(request)
+        # Manejar tanto GET como POST
+        if request.method == "GET":
+            documento = request.args.get("documento")
+            empresa = request.args.get("empresa", "BSL").upper()
+        else:  # POST
+            documento = request.json.get("documento")
+            empresa = determinar_empresa(request)
         
-        documento = request.json.get("documento")
         if not documento:
-            raise Exception("No se recibió el nombre del documento.")
+            error_msg = "No se recibió el nombre del documento."
+            if request.method == "GET":
+                return jsonify({"error": error_msg}), 400
+            else:
+                raise Exception(error_msg)
 
-        # Construir URL basándose en la empresa y su configuración específica
-        empresa_config = EMPRESA_CONFIG.get(empresa)
-        if not empresa_config:
-            raise Exception(f"No se encontró configuración para la empresa {empresa}")
-            
-        domain = empresa_config["domain"]
-        path = empresa_config["path"]
-        api2 = "https://v2018.api2pdf.com/chrome/url"
-        url_obj = f"{domain}{path}{documento}"
+        # Construir URL usando la nueva función
+        url_obj = construir_url_documento(empresa, documento)
+        print(f"🔗 Generando PDF para URL: {url_obj}")
         
+        api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
@@ -235,7 +249,12 @@ def descargar_pdf_empresas():
         
         data = res.json()
         if not data.get("success"):
-            raise Exception(data.get("error", "Error API2PDF"))
+            error_msg = data.get("error", "Error API2PDF")
+            if request.method == "GET":
+                return jsonify({"error": error_msg}), 500
+            else:
+                raise Exception(error_msg)
+        
         pdf_url = data["pdf"]
 
         # Descargar PDF localmente
@@ -274,6 +293,21 @@ def descargar_pdf_empresas():
         return resp, 500
 
 # --- Servir el FRONTEND estático ---
+@app.route("/", methods=["OPTIONS"])
+def options_root():
+    allowed_origins = get_allowed_origins()
+    origin = request.headers.get('Origin')
+    
+    response_headers = {
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+    }
+    
+    if origin in allowed_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin
+    
+    return ("", 204, response_headers)
+
 @app.route("/")
 def serve_frontend():
     return send_from_directory(app.static_folder, "index.html")

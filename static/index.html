@@ -35,6 +35,8 @@
         return;
       }
 
+      console.log(`📄 Generando PDF para documento: ${documento}, empresa: ${empresa}`);
+
       // ✅ ENVIAR EL PARÁMETRO EMPRESA EN EL BODY DEL FETCH
       fetch("/descargar-pdf-empresas", {
         method: "POST",
