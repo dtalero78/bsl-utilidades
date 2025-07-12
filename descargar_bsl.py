@@ -66,27 +66,38 @@ else:
 
 def determinar_empresa(request):
     """Determina la empresa basándose en el origen de la solicitud o parámetro"""
-    # Verificar el header Origin
+    
+    # ✅ PRIORIDAD 1: Verificar si viene como parámetro en el JSON
+    if request.content_type == 'application/json':
+        try:
+            data = request.get_json() or {}
+            empresa = data.get('empresa', '').upper()
+            if empresa in EMPRESA_FOLDERS:
+                print(f"🏢 Empresa detectada del JSON: {empresa}")
+                return empresa
+        except:
+            pass
+    
+    # ✅ PRIORIDAD 2: Verificar el header Origin
     origin = request.headers.get('Origin', '')
     if 'bsl.com.co' in origin:
+        print(f"🏢 Empresa detectada del Origin: BSL")
         return 'BSL'
     elif 'lgs.com.co' in origin or 'lgsplataforma.com' in origin:
+        print(f"🏢 Empresa detectada del Origin: LGS")
         return 'LGS'
     
-    # Verificar el header Referer como fallback
+    # ✅ PRIORIDAD 3: Verificar el header Referer como fallback
     referer = request.headers.get('Referer', '')
     if 'bsl.com.co' in referer:
+        print(f"🏢 Empresa detectada del Referer: BSL")
         return 'BSL'
     elif 'lgs.com.co' in referer or 'lgsplataforma.com' in referer:
+        print(f"🏢 Empresa detectada del Referer: LGS")
         return 'LGS'
     
-    # Verificar si viene como parámetro en el JSON
-    data = request.get_json() or {}
-    empresa = data.get('empresa', '').upper()
-    if empresa in EMPRESA_FOLDERS:
-        return empresa
-    
-    # Default a BSL para backward compatibility
+    # ✅ DEFAULT: BSL para backward compatibility
+    print(f"🏢 Empresa por defecto: BSL")
     return 'BSL'
 
 def get_allowed_origins():

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Descarga de Certificado BSL</title>
+  <title>Descarga de Certificado</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; margin: 60px; }
     #msg { font-size: 1.1em; margin-top: 30px; }
@@ -27,6 +27,7 @@
     window.onload = function() {
       const params = new URLSearchParams(window.location.search);
       const documento = params.get("documento");
+      const empresa = params.get("empresa") || "BSL"; // ✅ LEER EL PARÁMETRO EMPRESA
       const msg = document.getElementById("msg");
 
       if (!documento) {
@@ -34,10 +35,14 @@
         return;
       }
 
+      // ✅ ENVIAR EL PARÁMETRO EMPRESA EN EL BODY DEL FETCH
       fetch("/descargar-pdf-empresas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documento })
+        body: JSON.stringify({ 
+          documento: documento,
+          empresa: empresa  // ✅ INCLUIR LA EMPRESA
+        })
       })
       .then(res => {
         if (!res.ok) throw new Error("No se pudo generar el certificado.");
@@ -53,7 +58,7 @@
         a.remove();
         window.URL.revokeObjectURL(url);
         msg.textContent = "✅ Descarga completada. Puedes cerrar esta ventana.";
-        setTimeout(() => window.close(), 3500); // opcional: cerrar ventana luego de 3.5 segundos
+        setTimeout(() => window.close(), 3500);
       })
       .catch(err => {
         msg.textContent = "❌ Error: No se pudo descargar el certificado. Intenta nuevamente.";
