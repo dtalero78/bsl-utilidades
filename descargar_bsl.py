@@ -154,7 +154,7 @@ def generar_pdf():
             raise Exception("No se recibió el nombre del documento.")
 
         # Construir URL usando la nueva función
-        url_obj = construir_url_documento(empresa, documento)
+        url_obj = construir_url_documento_estatico(empresa, documento)
         print(f"🔗 Generando PDF para URL: {url_obj}")
         
         api2 = "https://v2018.api2pdf.com/chrome/url"
