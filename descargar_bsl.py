@@ -32,7 +32,7 @@ EMPRESA_CONFIG = {
     "LGS": {
         "domain": "https://www.lgsplataforma.com", 
         "path": "/contrato/",
-        "query_params": "?forReview="
+        "query_params": ""  # ← CAMBIAR A STRING VACÍO
     }
 }
 
