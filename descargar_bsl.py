@@ -258,7 +258,7 @@ def descargar_pdf_empresas():
             "fileName": f"{documento}.pdf",
             "options": {
                 "printBackground": True,
-                "delay": 7000,  # Aumentado para permitir carga completa
+                "delay": 15000,  # Aumentado para permitir carga completa
                 "scale": 0.75,
                 "format": "A4",
                 "margin": {
