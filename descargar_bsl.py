@@ -31,8 +31,8 @@ EMPRESA_CONFIG = {
     },
     "LGS": {
         "domain": "https://www.lgsplataforma.com", 
-        "path": "/contrato-imprimir/",
-        "query_params": ""  # ← CAMBIAR A STRING VACÍO
+        "path": "/contrato/",
+        "query_params": "?forReview="
     }
 }
 
@@ -103,18 +103,18 @@ def determinar_empresa(request):
     print(f"🏢 Empresa por defecto: BSL")
     return 'BSL'
 
-def construir_url_documento_estatico(empresa, documento):
-    """Construye URL para página estática del contrato"""
-    if empresa == "LGS":
-        # Primero generar la URL estática completa usando el backend de Wix
-        # Esto requiere hacer una llamada al backend de Wix para obtener la URL completa
-        return f"https://www.lgsplataforma.com/contrato-estatico?itemId={documento}"
-    else:
-        # Para otras empresas, usar la lógica original
-        empresa_config = EMPRESA_CONFIG.get(empresa)
-        if not empresa_config:
-            raise Exception(f"No se encontró configuración para la empresa {empresa}")
-        return f"{empresa_config['domain']}{empresa_config['path']}{documento}{empresa_config.get('query_params', '')}"
+def construir_url_documento(empresa, documento):
+    """Construye la URL completa del documento para convertir a PDF"""
+    empresa_config = EMPRESA_CONFIG.get(empresa)
+    if not empresa_config:
+        raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        
+    domain = empresa_config["domain"]
+    path = empresa_config["path"]
+    query_params = empresa_config.get("query_params", "")
+    
+    url_obj = f"{domain}{path}{documento}{query_params}"
+    return url_obj
 
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
@@ -154,7 +154,7 @@ def generar_pdf():
             raise Exception("No se recibió el nombre del documento.")
 
         # Construir URL usando la nueva función
-        url_obj = construir_url_documento_estatico(empresa, documento)
+        url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 Generando PDF para URL: {url_obj}")
         
         api2 = "https://v2018.api2pdf.com/chrome/url"
@@ -221,18 +221,15 @@ def options_descargar_pdf_empresas():
 
 @app.route("/descargar-pdf-empresas", methods=["GET", "POST"])
 def descargar_pdf_empresas():
-    local_file = None
     try:
         # Manejar tanto GET como POST
         if request.method == "GET":
             documento = request.args.get("documento")
             empresa = request.args.get("empresa", "BSL").upper()
         else:  # POST
-            data = request.get_json() or {}
-            documento = data.get("documento")
+            documento = request.json.get("documento")
             empresa = determinar_empresa(request)
         
-        # Validar parámetros requeridos
         if not documento:
             error_msg = "No se recibió el nombre del documento."
             if request.method == "GET":
@@ -240,186 +237,60 @@ def descargar_pdf_empresas():
             else:
                 raise Exception(error_msg)
 
-        if empresa not in EMPRESA_CONFIG:
-            error_msg = f"Empresa '{empresa}' no válida. Empresas disponibles: {list(EMPRESA_CONFIG.keys())}"
-            if request.method == "GET":
-                return jsonify({"error": error_msg}), 400
-            else:
-                raise Exception(error_msg)
-
-        # Construir URL usando la función existente
+        # Construir URL usando la nueva función
         url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 Generando PDF para URL: {url_obj}")
         
-        # Configurar opciones de API2PDF optimizadas
-        api2_options = {
-            "url": url_obj,
-            "inlinePdf": False,
-            "fileName": f"{documento}.pdf",
-            "options": {
-                "printBackground": True,
-                "delay": 15000,  # Aumentado para permitir carga completa
-                "scale": 0.75,
-                "format": "A4",
-                "margin": {
-                    "top": "0.5in",
-                    "bottom": "0.5in",
-                    "left": "0.5in",
-                    "right": "0.5in"
-                },
-                "waitUntil": "networkidle0"  # Esperar hasta que no haya peticiones de red
-            }
-        }
+        api2 = "https://v2018.api2pdf.com/chrome/url"
+        res = requests.post(api2, headers={
+            "Authorization": API2PDF_KEY,
+            "Content-Type": "application/json"
+        }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
         
-        # Llamada a API2PDF
-        api2_endpoint = "https://v2018.api2pdf.com/chrome/url"
-        api2_response = requests.post(
-            api2_endpoint, 
-            headers={
-                "Authorization": API2PDF_KEY,
-                "Content-Type": "application/json"
-            }, 
-            json=api2_options,
-            timeout=120  # Timeout de 2 minutos
-        )
-        
-        # Validar respuesta de API2PDF
-        if not api2_response.ok:
-            error_msg = f"Error HTTP {api2_response.status_code} de API2PDF: {api2_response.text}"
-            print(f"❌ {error_msg}")
+        data = res.json()
+        if not data.get("success"):
+            error_msg = data.get("error", "Error API2PDF")
             if request.method == "GET":
                 return jsonify({"error": error_msg}), 500
             else:
                 raise Exception(error_msg)
         
-        api2_data = api2_response.json()
-        if not api2_data.get("success"):
-            error_msg = api2_data.get("error", "Error desconocido de API2PDF")
-            print(f"❌ API2PDF falló: {error_msg}")
-            if request.method == "GET":
-                return jsonify({"error": error_msg}), 500
-            else:
-                raise Exception(error_msg)
-        
-        pdf_url = api2_data.get("pdf")
-        if not pdf_url:
-            error_msg = "API2PDF no devolvió URL del PDF"
-            print(f"❌ {error_msg}")
-            if request.method == "GET":
-                return jsonify({"error": error_msg}), 500
-            else:
-                raise Exception(error_msg)
+        pdf_url = data["pdf"]
 
-        print(f"✅ PDF generado exitosamente: {pdf_url}")
+        # Descargar PDF localmente
+        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
+        r2 = requests.get(pdf_url)
+        with open(local, "wb") as f:
+            f.write(r2.content)
 
-        # Descargar PDF localmente con nombre único
-        import uuid
-        unique_id = str(uuid.uuid4())[:8]
-        local_file = f"{empresa}_{documento}_{unique_id}.pdf"
-        
-        print(f"📥 Descargando PDF a archivo local: {local_file}")
-        pdf_download_response = requests.get(pdf_url, timeout=60)
-        
-        if not pdf_download_response.ok:
-            error_msg = f"Error al descargar PDF generado: HTTP {pdf_download_response.status_code}"
-            print(f"❌ {error_msg}")
-            if request.method == "GET":
-                return jsonify({"error": error_msg}), 500
-            else:
-                raise Exception(error_msg)
-        
-        # Guardar archivo localmente
-        with open(local_file, "wb") as f:
-            f.write(pdf_download_response.content)
-        
-        print(f"✅ PDF descargado exitosamente: {len(pdf_download_response.content)} bytes")
-
-        # Preparar respuesta de descarga
         response = send_file(
-            local_file,
+            local,
             mimetype='application/pdf',
             as_attachment=True,
             download_name=f"{documento}.pdf"
         )
         
-        # Configurar headers CORS
+        # Configurar CORS
         origin = request.headers.get('Origin')
         if origin in get_allowed_origins():
             response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
 
-        # Función de limpieza que se ejecuta después de enviar el archivo
         @response.call_on_close
-        def cleanup_file():
+        def cleanup():
             try:
-                if local_file and os.path.exists(local_file):
-                    os.remove(local_file)
-                    print(f"🗑️ Archivo temporal eliminado: {local_file}")
-            except Exception as cleanup_error:
-                print(f"⚠️ Error al eliminar archivo temporal: {cleanup_error}")
+                os.remove(local)
+            except Exception:
+                pass
 
-        print(f"📤 Enviando PDF al cliente: {documento}.pdf")
         return response
 
-    except requests.exceptions.Timeout as e:
-        error_msg = f"Timeout al generar PDF: {str(e)}"
-        print(f"⏰ {error_msg}")
-        
-        # Limpiar archivo si existe
-        if local_file and os.path.exists(local_file):
-            try:
-                os.remove(local_file)
-            except:
-                pass
-        
-        if request.method == "GET":
-            return jsonify({"error": error_msg}), 408
-        else:
-            resp = jsonify({"error": error_msg})
-            origin = request.headers.get('Origin')
-            if origin in get_allowed_origins():
-                resp.headers["Access-Control-Allow-Origin"] = origin
-            return resp, 408
-            
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Error de conexión: {str(e)}"
-        print(f"🌐 {error_msg}")
-        
-        # Limpiar archivo si existe
-        if local_file and os.path.exists(local_file):
-            try:
-                os.remove(local_file)
-            except:
-                pass
-        
-        if request.method == "GET":
-            return jsonify({"error": error_msg}), 503
-        else:
-            resp = jsonify({"error": error_msg})
-            origin = request.headers.get('Origin')
-            if origin in get_allowed_origins():
-                resp.headers["Access-Control-Allow-Origin"] = origin
-            return resp, 503
-            
     except Exception as e:
-        error_msg = f"Error interno: {str(e)}"
-        print(f"❌ {error_msg}")
-        
-        # Limpiar archivo si existe
-        if local_file and os.path.exists(local_file):
-            try:
-                os.remove(local_file)
-            except:
-                pass
-        
-        if request.method == "GET":
-            return jsonify({"error": error_msg}), 500
-        else:
-            resp = jsonify({"error": error_msg})
-            origin = request.headers.get('Origin')
-            if origin in get_allowed_origins():
-                resp.headers["Access-Control-Allow-Origin"] = origin
-            return resp, 500
+        print("❌", e)
+        resp = jsonify({"error": str(e)})
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            resp.headers["Access-Control-Allow-Origin"] = origin
+        return resp, 500
 
 # --- Servir el FRONTEND estático ---
 @app.route("/", methods=["OPTIONS"])
