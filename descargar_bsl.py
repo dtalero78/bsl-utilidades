@@ -103,18 +103,18 @@ def determinar_empresa(request):
     print(f"🏢 Empresa por defecto: BSL")
     return 'BSL'
 
-def construir_url_documento(empresa, documento):
-    """Construye la URL completa del documento para convertir a PDF"""
-    empresa_config = EMPRESA_CONFIG.get(empresa)
-    if not empresa_config:
-        raise Exception(f"No se encontró configuración para la empresa {empresa}")
-        
-    domain = empresa_config["domain"]
-    path = empresa_config["path"]
-    query_params = empresa_config.get("query_params", "")
-    
-    url_obj = f"{domain}{path}{documento}{query_params}"
-    return url_obj
+def construir_url_documento_estatico(empresa, documento):
+    """Construye URL para página estática del contrato"""
+    if empresa == "LGS":
+        # Primero generar la URL estática completa usando el backend de Wix
+        # Esto requiere hacer una llamada al backend de Wix para obtener la URL completa
+        return f"https://www.lgsplataforma.com/contrato-estatico?itemId={documento}"
+    else:
+        # Para otras empresas, usar la lógica original
+        empresa_config = EMPRESA_CONFIG.get(empresa)
+        if not empresa_config:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        return f"{empresa_config['domain']}{empresa_config['path']}{documento}{empresa_config.get('query_params', '')}"
 
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
