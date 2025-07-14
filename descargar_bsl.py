@@ -31,7 +31,7 @@ EMPRESA_CONFIG = {
     },
     "LGS": {
         "domain": "https://www.lgsplataforma.com", 
-        "path": "/contrato/",
+        "path": "/contrato-imprimir/",
         "query_params": "?forReview="
     }
 }
