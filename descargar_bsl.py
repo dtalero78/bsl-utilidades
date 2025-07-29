@@ -145,18 +145,26 @@ def generar_pdf():
         # Determinar empresa
         empresa = determinar_empresa(request)
         folder_id = EMPRESA_FOLDERS.get(empresa)
-        
+
         if not folder_id:
             raise Exception(f"No se encontró configuración para la empresa {empresa}")
         
-        documento = request.json.get("documento")
+        data = request.get_json()
+        documento = data.get("documento")
+        cod_empresa = data.get("codEmpresa", "").upper()
+        tipo_examen = data.get("tipoExamen", "")
+        
+        # 👇 Esta es la línea que te faltaba (sobrescribe folder_id si viene desde Wix)
+        folder_id = data.get("folderId", folder_id)
+
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
-        # Construir URL usando la nueva función
+        # Construir URL
         url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 Generando PDF para URL: {url_obj}")
         
+        # Llamada a API2PDF
         api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
@@ -169,30 +177,29 @@ def generar_pdf():
         pdf_url = data["pdf"]
 
         # Descargar PDF localmente
-        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
+        local = f"{empresa}_{documento}.pdf"
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
 
-        # Subir a almacenamiento según el destino configurado
+        # Subir al almacenamiento configurado
         if DEST == "drive":
             enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
         elif DEST == "drive-oauth":
             enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
         elif DEST == "gcs":
-            # Para GCS, podrías usar un prefijo en el nombre del archivo
             enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
         else:
             raise Exception(f"Destino {DEST} no soportado")
 
         os.remove(local)
-        
-        # Preparar respuesta con CORS
+
+        # Respuesta con CORS
         response = jsonify({"message": "✅ OK", "url": enlace, "empresa": empresa})
         origin = request.headers.get('Origin')
         if origin in get_allowed_origins():
             response.headers["Access-Control-Allow-Origin"] = origin
-        
+
         return response
 
     except Exception as e:
