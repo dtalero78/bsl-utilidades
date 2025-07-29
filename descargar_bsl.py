@@ -155,7 +155,14 @@ def generar_pdf():
         tipo_examen = data.get("tipoExamen", "")
         
         # 👇 Esta es la línea que te faltaba (sobrescribe folder_id si viene desde Wix)
-        folder_id = data.get("folderId", folder_id)
+        if cod_empresa == "RIPPLING":
+            tipo = tipo_examen.strip().lower()
+        if tipo == "ingreso":
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID_RIPPLING_INGRESO")
+        elif tipo == "periódico" or tipo == "periodico":
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID_RIPPLING_PERIODICO")
+        else:
+            print(f"⚠️ tipoExamen no reconocido para RIPPLING: {tipo_examen}, usando default")
 
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
