@@ -35,7 +35,7 @@ EMPRESA_CONFIG = {
         "domain": "https://www.lgsplataforma.com", 
         "path": "/contrato-imprimir/",
         "query_params": "?forReview=",
-        "pdf_selector": "#text1"  # Solo para LGS usar selector específico del contrato
+        "pdf_selector": "#text1"  # Selector del elemento HTML embed que contiene el contrato
     }
 }
 
