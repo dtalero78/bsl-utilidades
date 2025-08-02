@@ -14,6 +14,7 @@ app = Flask(__name__, static_folder="static")
 CORS(app, resources={
     r"/": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
+    r"/subir-pdf-directo": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
     r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]}
 })
 
@@ -137,8 +138,8 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
         api_payload["options"] = {
             "selector": pdf_selector,
             "printBackground": True,
-            "delay": 10000,  # Tiempo para que cargue completamente
-            "scale": 0.75,
+            "delay": 10000,  # Mismo delay que usa Wix
+            "scale": 0.75,   # Misma escala que usa Wix
             "format": "A4",
             "margin": {
                 "top": "1cm",
@@ -284,6 +285,100 @@ def generar_pdf():
     except Exception as e:
         print(f"❌ Error en generar_pdf: {e}")
         print(f"❌ Tipo de error: {type(e).__name__}")
+        print(f"❌ Stack trace completo:")
+        traceback.print_exc()
+        
+        response = jsonify({"error": str(e)})
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
+        return response, 500
+
+# --- Endpoint: SUBIR PDF DESDE URL DIRECTO A DRIVE ---
+@app.route("/subir-pdf-directo", methods=["OPTIONS"])
+def options_subir_pdf_directo():
+    allowed_origins = get_allowed_origins()
+    origin = request.headers.get('Origin')
+    
+    response_headers = {
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+    }
+    
+    if origin in allowed_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin
+    
+    return ("", 204, response_headers)
+
+@app.route("/subir-pdf-directo", methods=["POST"])
+def subir_pdf_directo():
+    try:
+        print("🔄 Iniciando subida de PDF desde URL...")
+        
+        # Obtener datos del request
+        data = request.get_json()
+        pdf_url = data.get("pdfUrl")
+        documento = data.get("documento")
+        empresa = data.get("empresa", "LGS").upper()
+        
+        print(f"📄 PDF URL recibida: {pdf_url}")
+        print(f"📋 Documento: {documento}")
+        print(f"🏢 Empresa: {empresa}")
+        
+        if not pdf_url or not documento:
+            raise Exception("Faltan parámetros: pdfUrl y documento son requeridos")
+        
+        # Obtener folder_id para la empresa
+        folder_id = EMPRESA_FOLDERS.get(empresa)
+        if not folder_id:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        
+        print(f"📁 Folder ID: {folder_id}")
+        
+        # Descargar PDF desde la URL
+        print("💾 Descargando PDF desde URL...")
+        local = f"{empresa}_{documento}_directo.pdf"
+        
+        pdf_response = requests.get(pdf_url)
+        if pdf_response.status_code != 200:
+            raise Exception(f"Error descargando PDF: {pdf_response.status_code}")
+        
+        with open(local, "wb") as f:
+            f.write(pdf_response.content)
+        print(f"💾 PDF descargado como: {local}")
+
+        # Subir a almacenamiento según el destino configurado
+        print(f"☁️ Subiendo a almacenamiento: {DEST}")
+        
+        if DEST == "drive":
+            print("☁️ Usando drive_uploader...")
+            enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
+        elif DEST == "drive-oauth":
+            print("☁️ Usando drive_uploader OAuth...")
+            enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
+        elif DEST == "gcs":
+            print("☁️ Usando GCS...")
+            enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
+        else:
+            raise Exception(f"Destino {DEST} no soportado")
+
+        print(f"☁️ Archivo subido correctamente: {enlace}")
+        
+        # Limpiar archivo local
+        print("🧹 Limpiando archivo local...")
+        os.remove(local)
+
+        # Respuesta con CORS
+        response = jsonify({"message": "✅ PDF subido exitosamente", "url": enlace, "empresa": empresa})
+        origin = request.headers.get('Origin')
+        if origin in get_allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
+        
+        print("✅ Proceso de subida directa completado exitosamente")
+        return response
+
+    except Exception as e:
+        print(f"❌ Error en subir_pdf_directo: {e}")
         print(f"❌ Stack trace completo:")
         traceback.print_exc()
         
