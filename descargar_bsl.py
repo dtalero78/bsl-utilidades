@@ -4,6 +4,8 @@ import base64
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
+import traceback  # arriba en el archivo
+
 
 load_dotenv()
 
@@ -139,52 +141,76 @@ def options_pdf():
     
     return ("", 204, response_headers)
 
+
 @app.route("/generar-pdf", methods=["POST"])
 def generar_pdf():
     try:
+        print("🔍 Iniciando generar_pdf...")
+        
         # Determinar empresa
         empresa = determinar_empresa(request)
+        print(f"🏢 Empresa determinada: {empresa}")
+        
         folder_id = EMPRESA_FOLDERS.get(empresa)
+        print(f"📁 Folder ID: {folder_id}")
         
         if not folder_id:
             raise Exception(f"No se encontró configuración para la empresa {empresa}")
         
         documento = request.json.get("documento")
+        print(f"📄 Documento solicitado: {documento}")
+        
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
 
         # Construir URL usando la nueva función
+        print("🔗 Construyendo URL...")
         url_obj = construir_url_documento(empresa, documento)
-        print(f"🔗 Generando PDF para URL: {url_obj}")
+        print(f"🔗 URL construida: {url_obj}")
         
+        print("📡 Llamando a API2PDF...")
         api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
         }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
         
+        print(f"📡 Respuesta API2PDF status: {res.status_code}")
         data = res.json()
+        print(f"📡 Respuesta API2PDF data: {data}")
+        
         if not data.get("success"):
             raise Exception(data.get("error", "Error API2PDF"))
         pdf_url = data["pdf"]
 
         # Descargar PDF localmente
-        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
+        print("💾 Descargando PDF localmente...")
+        local = f"{empresa}_{documento}.pdf"
+        print(f"💾 Archivo local: {local}")
+        
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
+        print("💾 PDF descargado correctamente")
 
         # Subir a almacenamiento según el destino configurado
+        print(f"☁️ Subiendo a almacenamiento: {DEST}")
+        
         if DEST == "drive":
+            print("☁️ Usando drive_uploader...")
             enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
         elif DEST == "drive-oauth":
+            print("☁️ Usando drive_uploader OAuth...")
             enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
         elif DEST == "gcs":
-            # Para GCS, podrías usar un prefijo en el nombre del archivo
+            print("☁️ Usando GCS...")
             enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
         else:
             raise Exception(f"Destino {DEST} no soportado")
 
+        print(f"☁️ Archivo subido correctamente: {enlace}")
+        
+        print("🧹 Limpiando archivo local...")
         os.remove(local)
         
         # Preparar respuesta con CORS
@@ -193,10 +219,16 @@ def generar_pdf():
         if origin in get_allowed_origins():
             response.headers["Access-Control-Allow-Origin"] = origin
         
+        print("✅ Proceso completado exitosamente")
         return response
 
     except Exception as e:
-        print("❌", e)
+        print(f"❌ Error en generar_pdf: {e}")
+        print(f"❌ Tipo de error: {type(e).__name__}")
+        import traceback
+        print(f"❌ Stack trace completo:")
+        traceback.print_exc()
+        
         response = jsonify({"error": str(e)})
         origin = request.headers.get('Origin')
         if origin in get_allowed_origins():
