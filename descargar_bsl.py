@@ -23,17 +23,19 @@ EMPRESA_FOLDERS = {
     "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf")
 }
 
-# Configuración de dominios y rutas por empresa
+# Configuración de dominios, rutas y selectores PDF por empresa
 EMPRESA_CONFIG = {
     "BSL": {
         "domain": "https://www.bsl.com.co",
         "path": "/descarga-whp/",
-        "query_params": ""
+        "query_params": "",
+        "pdf_selector": None  # Sin selector, captura toda la página
     },
     "LGS": {
         "domain": "https://www.lgsplataforma.com", 
         "path": "/contrato-imprimir/",
-        "query_params": "?forReview="
+        "query_params": "?forReview=",
+        "pdf_selector": "#text1"  # Solo para LGS usar selector específico del contrato
     }
 }
 
@@ -117,6 +119,39 @@ def construir_url_documento(empresa, documento):
     url_obj = f"{domain}{path}{documento}{query_params}"
     return url_obj
 
+def construir_payload_api2pdf(empresa, url_obj, documento):
+    """Construye el payload para API2PDF según la configuración de la empresa"""
+    empresa_config = EMPRESA_CONFIG.get(empresa)
+    pdf_selector = empresa_config.get("pdf_selector")
+    
+    # Payload base
+    api_payload = {
+        "url": url_obj, 
+        "inlinePdf": False, 
+        "fileName": f"{documento}.pdf"
+    }
+    
+    # Solo agregar opciones de selector si la empresa lo requiere
+    if pdf_selector:
+        print(f"📄 Usando selector específico para {empresa}: {pdf_selector}")
+        api_payload["options"] = {
+            "selector": pdf_selector,
+            "printBackground": True,
+            "delay": 10000,  # Tiempo para que cargue completamente
+            "scale": 0.75,
+            "format": "A4",
+            "margin": {
+                "top": "1cm",
+                "bottom": "1cm", 
+                "left": "1cm",
+                "right": "1cm"
+            }
+        }
+    else:
+        print(f"📄 Capturando página completa para {empresa}")
+    
+    return api_payload
+
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
     origins = list(EMPRESA_DOMAINS.values())
@@ -186,13 +221,18 @@ def generar_pdf():
         url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 URL construida: {url_obj}")
         
+        # Construir payload específico para la empresa
+        print("📋 Construyendo payload para API2PDF...")
+        api_payload = construir_payload_api2pdf(empresa, url_obj, documento)
+        print(f"📋 Payload construido: {api_payload}")
+        
         # Llamada a API2PDF
         print("📡 Llamando a API2PDF...")
         api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
-        }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
+        }, json=api_payload)
         
         print(f"📡 Respuesta API2PDF status: {res.status_code}")
         data = res.json()
@@ -288,16 +328,26 @@ def descargar_pdf_empresas():
                 raise Exception(error_msg)
 
         # Construir URL usando la nueva función
+        print("🔗 Construyendo URL para descarga...")
         url_obj = construir_url_documento(empresa, documento)
-        print(f"🔗 Generando PDF para URL: {url_obj}")
+        print(f"🔗 URL construida para descarga: {url_obj}")
         
+        # Construir payload específico para la empresa
+        print("📋 Construyendo payload para descarga...")
+        api_payload = construir_payload_api2pdf(empresa, url_obj, documento)
+        print(f"📋 Payload para descarga: {api_payload}")
+        
+        # Llamada a API2PDF
+        print("📡 Llamando a API2PDF para descarga...")
         api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
             "Content-Type": "application/json"
-        }, json={"url": url_obj, "inlinePdf": False, "fileName": f"{documento}.pdf"})
+        }, json=api_payload)
         
+        print(f"📡 Respuesta API2PDF para descarga - status: {res.status_code}")
         data = res.json()
+        
         if not data.get("success"):
             error_msg = data.get("error", "Error API2PDF")
             if request.method == "GET":
@@ -308,7 +358,8 @@ def descargar_pdf_empresas():
         pdf_url = data["pdf"]
 
         # Descargar PDF localmente
-        local = f"{empresa}_{documento}.pdf"  # Agregar prefijo de empresa
+        print("💾 Descargando PDF para envío directo...")
+        local = f"{empresa}_{documento}.pdf"
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
