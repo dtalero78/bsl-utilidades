@@ -152,6 +152,7 @@ def generar_pdf():
         print(f"🏢 Empresa determinada: {empresa}")
         
         folder_id = EMPRESA_FOLDERS.get(empresa)
+<<<<<<< HEAD
         print(f"📁 Folder ID: {folder_id}")
         
         if not folder_id:
@@ -165,10 +166,39 @@ def generar_pdf():
 
         # Construir URL usando la nueva función
         print("🔗 Construyendo URL...")
+=======
+
+        if not folder_id:
+            raise Exception(f"No se encontró configuración para la empresa {empresa}")
+        
+        data = request.get_json()
+        documento = data.get("documento")
+        cod_empresa = data.get("codEmpresa", "").upper()
+        tipo_examen = data.get("tipoExamen", "")
+        
+        # 👇 Esta es la línea que te faltaba (sobrescribe folder_id si viene desde Wix)
+        if cod_empresa == "RIPPLING":
+            tipo = tipo_examen.strip().lower()
+        if tipo == "ingreso":
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID_RIPPLING_INGRESO")
+        elif tipo == "periódico" or tipo == "periodico":
+            folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID_RIPPLING_PERIODICO")
+        else:
+            print(f"⚠️ tipoExamen no reconocido para RIPPLING: {tipo_examen}, usando default")
+
+        if not documento:
+            raise Exception("No se recibió el nombre del documento.")
+
+        # Construir URL
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
         url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 URL construida: {url_obj}")
         
+<<<<<<< HEAD
         print("📡 Llamando a API2PDF...")
+=======
+        # Llamada a API2PDF
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
         api2 = "https://v2018.api2pdf.com/chrome/url"
         res = requests.post(api2, headers={
             "Authorization": API2PDF_KEY,
@@ -184,18 +214,26 @@ def generar_pdf():
         pdf_url = data["pdf"]
 
         # Descargar PDF localmente
+<<<<<<< HEAD
         print("💾 Descargando PDF localmente...")
         local = f"{empresa}_{documento}.pdf"
         print(f"💾 Archivo local: {local}")
         
+=======
+        local = f"{empresa}_{documento}.pdf"
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
         print("💾 PDF descargado correctamente")
 
+<<<<<<< HEAD
         # Subir a almacenamiento según el destino configurado
         print(f"☁️ Subiendo a almacenamiento: {DEST}")
         
+=======
+        # Subir al almacenamiento configurado
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
         if DEST == "drive":
             print("☁️ Usando drive_uploader...")
             enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
@@ -203,7 +241,10 @@ def generar_pdf():
             print("☁️ Usando drive_uploader OAuth...")
             enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
         elif DEST == "gcs":
+<<<<<<< HEAD
             print("☁️ Usando GCS...")
+=======
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
             enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
         else:
             raise Exception(f"Destino {DEST} no soportado")
@@ -212,14 +253,18 @@ def generar_pdf():
         
         print("🧹 Limpiando archivo local...")
         os.remove(local)
-        
-        # Preparar respuesta con CORS
+
+        # Respuesta con CORS
         response = jsonify({"message": "✅ OK", "url": enlace, "empresa": empresa})
         origin = request.headers.get('Origin')
         if origin in get_allowed_origins():
             response.headers["Access-Control-Allow-Origin"] = origin
+<<<<<<< HEAD
         
         print("✅ Proceso completado exitosamente")
+=======
+
+>>>>>>> 78cfb4ba1f28b0726c79fcbafe18f676d3152c2f
         return response
 
     except Exception as e:
