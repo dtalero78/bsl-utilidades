@@ -1,7 +1,7 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect
 from flask_cors import CORS
 from dotenv import load_dotenv
 import traceback
@@ -15,6 +15,7 @@ CORS(app, resources={
     r"/": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
     r"/subir-pdf-directo": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
+    r"/descargar-pdf-drive/*": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]}
 })
 
@@ -152,6 +153,69 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
         print(f"📄 Capturando página completa para {empresa}")
     
     return api_payload
+
+def buscar_pdf_en_drive(documento, folder_id):
+    """Busca un PDF en Google Drive por nombre de documento"""
+    try:
+        print(f"🔍 Buscando archivo: {documento}.pdf en folder: {folder_id}")
+        
+        # Usar las mismas credenciales que para subir
+        if DEST == "drive":
+            from drive_uploader import service_account, build
+            import tempfile
+            import base64
+            
+            # Recrear el servicio usando las mismas credenciales
+            base64_str = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+            if not base64_str:
+                raise Exception("❌ Falta GOOGLE_CREDENTIALS_BASE64 en .env")
+
+            decoded_bytes = base64.b64decode(base64_str)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+            temp_file.write(decoded_bytes)
+            temp_file.close()
+            
+            creds = service_account.Credentials.from_service_account_file(
+                temp_file.name,
+                scopes=['https://www.googleapis.com/auth/drive.file']
+            )
+            service = build('drive', 'v3', credentials=creds)
+            
+        elif DEST == "drive-oauth":
+            from upload_to_drive_oauth import get_authenticated_service
+            service = get_authenticated_service()
+        else:
+            raise Exception("Búsqueda en Drive solo soportada para DEST=drive o drive-oauth")
+        
+        # Buscar archivos en la carpeta específica
+        query = f"parents in '{folder_id}' and name = '{documento}.pdf' and trashed = false"
+        
+        results = service.files().list(
+            q=query,
+            fields="files(id, name, webViewLink, webContentLink)"
+        ).execute()
+        
+        files = results.get('files', [])
+        
+        if files:
+            file = files[0]  # Tomar el primer resultado
+            print(f"✅ Archivo encontrado: {file['name']}")
+            print(f"📎 WebViewLink: {file.get('webViewLink')}")
+            print(f"📎 WebContentLink: {file.get('webContentLink')}")
+            
+            # Retornar el link de descarga directa
+            return file.get('webContentLink') or file.get('webViewLink')
+        else:
+            print(f"❌ No se encontró el archivo {documento}.pdf en el folder {folder_id}")
+            return None
+            
+        # Limpiar archivo temporal si se creó
+        if DEST == "drive":
+            os.unlink(temp_file.name)
+            
+    except Exception as e:
+        print(f"❌ Error buscando en Drive: {e}")
+        return None
 
 def get_allowed_origins():
     """Retorna la lista de orígenes permitidos para CORS"""
@@ -487,6 +551,57 @@ def descargar_pdf_empresas():
         if origin in get_allowed_origins():
             resp.headers["Access-Control-Allow-Origin"] = origin
         return resp, 500
+
+# --- Endpoint: DESCARGAR PDF DESDE GOOGLE DRIVE ---
+@app.route("/descargar-pdf-drive/<documento>", methods=["GET", "OPTIONS"])
+def descargar_pdf_drive(documento):
+    if request.method == "OPTIONS":
+        allowed_origins = get_allowed_origins()
+        origin = request.headers.get('Origin')
+        
+        response_headers = {
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        
+        if origin in allowed_origins:
+            response_headers["Access-Control-Allow-Origin"] = origin
+        
+        return ("", 204, response_headers)
+    
+    try:
+        # Determinar empresa desde parámetros o headers
+        empresa = request.args.get("empresa", "LGS").upper()
+        print(f"🔍 Buscando PDF para documento: {documento}, empresa: {empresa}")
+        
+        # Obtener folder_id para la empresa
+        folder_id = EMPRESA_FOLDERS.get(empresa)
+        if not folder_id:
+            return jsonify({"error": f"No se encontró configuración para la empresa {empresa}"}), 400
+        
+        print(f"📁 Buscando en folder: {folder_id}")
+        
+        # Buscar el archivo en Google Drive
+        pdf_url = buscar_pdf_en_drive(documento, folder_id)
+        
+        if pdf_url:
+            print(f"✅ PDF encontrado, redirigiendo a: {pdf_url}")
+            # Redirigir directamente al PDF en Google Drive
+            response = redirect(pdf_url)
+            
+            # Configurar CORS si es necesario
+            origin = request.headers.get('Origin')
+            if origin in get_allowed_origins():
+                response.headers["Access-Control-Allow-Origin"] = origin
+            
+            return response
+        else:
+            print(f"❌ PDF no encontrado para documento: {documento}")
+            return jsonify({"error": f"PDF no encontrado para el documento {documento}"}), 404
+            
+    except Exception as e:
+        print(f"❌ Error buscando PDF: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # --- Servir el FRONTEND estático ---
 @app.route("/", methods=["OPTIONS"])
