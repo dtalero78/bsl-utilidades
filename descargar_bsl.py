@@ -257,10 +257,12 @@ def generar_pdf():
         
         data = request.get_json()
         documento = data.get("documento")
+        nombre_archivo = data.get("nombreArchivo")  # Nuevo parámetro para el nombre del archivo
         cod_empresa = data.get("codEmpresa", "").upper()
         tipo_examen = data.get("tipoExamen", "")
         
         print(f"📄 Documento solicitado: {documento}")
+        print(f"📝 Nombre archivo: {nombre_archivo}")
         print(f"🏢 Código empresa: {cod_empresa}")
         print(f"🔬 Tipo examen: {tipo_examen}")
         
@@ -286,6 +288,10 @@ def generar_pdf():
         url_obj = construir_url_documento(empresa, documento)
         print(f"🔗 URL construida: {url_obj}")
         
+        # Determinar el nombre final del archivo (usar nombreArchivo si está disponible, sino documento)
+        nombre_final = nombre_archivo if nombre_archivo else documento
+        print(f"📋 Nombre final del archivo: {nombre_final}")
+        
         # Construir payload específico para la empresa
         print("📋 Construyendo payload para API2PDF...")
         api_payload = construir_payload_api2pdf(empresa, url_obj, documento)
@@ -310,10 +316,10 @@ def generar_pdf():
         # Descargar PDF localmente
         print("💾 Descargando PDF localmente...")
         # Sanitizar el nombre del archivo local para evitar problemas con espacios y caracteres especiales
-        documento_sanitized = documento.replace(" ", "_").replace("/", "_").replace("\\", "_")
-        local = f"{empresa}_{documento_sanitized}.pdf"
+        nombre_sanitized = nombre_final.replace(" ", "_").replace("/", "_").replace("\\", "_")
+        local = f"{empresa}_{nombre_sanitized}.pdf"
         print(f"💾 Archivo local: {local}")
-        print(f"💾 Nombre en Drive: {documento}.pdf")
+        print(f"💾 Nombre en Drive: {nombre_final}.pdf")
         
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
@@ -325,13 +331,13 @@ def generar_pdf():
         
         if DEST == "drive":
             print("☁️ Usando drive_uploader...")
-            enlace = subir_pdf_a_drive(local, f"{documento}.pdf", folder_id)
+            enlace = subir_pdf_a_drive(local, f"{nombre_final}.pdf", folder_id)
         elif DEST == "drive-oauth":
             print("☁️ Usando drive_uploader OAuth...")
-            enlace = subir_pdf_a_drive_oauth(local, f"{documento}.pdf", folder_id)
+            enlace = subir_pdf_a_drive_oauth(local, f"{nombre_final}.pdf", folder_id)
         elif DEST == "gcs":
             print("☁️ Usando GCS...")
-            enlace = subir_pdf_a_gcs(local, f"{empresa}/{documento}.pdf")
+            enlace = subir_pdf_a_gcs(local, f"{empresa}/{nombre_final}.pdf")
         else:
             raise Exception(f"Destino {DEST} no soportado")
 
