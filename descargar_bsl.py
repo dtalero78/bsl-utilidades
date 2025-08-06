@@ -309,8 +309,11 @@ def generar_pdf():
 
         # Descargar PDF localmente
         print("💾 Descargando PDF localmente...")
-        local = f"{empresa}_{documento}.pdf"
+        # Sanitizar el nombre del archivo local para evitar problemas con espacios y caracteres especiales
+        documento_sanitized = documento.replace(" ", "_").replace("/", "_").replace("\\", "_")
+        local = f"{empresa}_{documento_sanitized}.pdf"
         print(f"💾 Archivo local: {local}")
+        print(f"💾 Nombre en Drive: {documento}.pdf")
         
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
@@ -401,7 +404,9 @@ def subir_pdf_directo():
         
         # Descargar PDF desde la URL
         print("💾 Descargando PDF desde URL...")
-        local = f"{empresa}_{documento}_directo.pdf"
+        # Sanitizar el nombre del archivo local para evitar problemas con espacios y caracteres especiales
+        documento_sanitized = documento.replace(" ", "_").replace("/", "_").replace("\\", "_")
+        local = f"{empresa}_{documento_sanitized}_directo.pdf"
         
         pdf_response = requests.get(pdf_url)
         if pdf_response.status_code != 200:
@@ -518,7 +523,9 @@ def descargar_pdf_empresas():
 
         # Descargar PDF localmente
         print("💾 Descargando PDF para envío directo...")
-        local = f"{empresa}_{documento}.pdf"
+        # Sanitizar el nombre del archivo local para evitar problemas con espacios y caracteres especiales
+        documento_sanitized = documento.replace(" ", "_").replace("/", "_").replace("\\", "_")
+        local = f"{empresa}_{documento_sanitized}.pdf"
         r2 = requests.get(pdf_url)
         with open(local, "wb") as f:
             f.write(r2.content)
