@@ -22,7 +22,8 @@ CORS(app, resources={
 # Configuración de carpetas por empresa
 EMPRESA_FOLDERS = {
     "BSL": os.getenv("GOOGLE_DRIVE_FOLDER_ID_BSL", os.getenv("GOOGLE_DRIVE_FOLDER_ID")),  # Backward compatibility
-    "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf")
+    "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf"),
+    "TTEC": "1PIlvAmv3EUQFy9F3V_YK_QxSJ1-omEDw"
 }
 
 # Configuración de dominios, rutas y selectores PDF por empresa
