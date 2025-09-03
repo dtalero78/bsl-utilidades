@@ -23,7 +23,7 @@ CORS(app, resources={
 EMPRESA_FOLDERS = {
     "BSL": os.getenv("GOOGLE_DRIVE_FOLDER_ID_BSL", os.getenv("GOOGLE_DRIVE_FOLDER_ID")),  # Backward compatibility
     "LGS": os.getenv("GOOGLE_DRIVE_FOLDER_ID_LGS", "1lP8EMIgqZHEVs0JRE6cgXWihx6M7Jxjf"),
-    "TTEC": "1PIlvAmv3EUQFy9F3V_YK_QxSJ1-omEDw"
+    "TTEC": os.getenv("GOOGLE_DRIVE_FOLDER_ID_TTEC", "1PIlvAmv3EUQFy9F3V_YK_QxSJ1-omEDw")
 }
 
 # Configuración de dominios, rutas y selectores PDF por empresa
@@ -280,6 +280,16 @@ def generar_pdf():
                 print(f"📁 Usando folder RIPPLING PERIODICO: {folder_id}")
             else:
                 print(f"⚠️ tipoExamen no reconocido para RIPPLING: {tipo_examen}, usando default")
+                
+        # Manejo especial para TTEC 
+        elif cod_empresa == "TTEC":
+            print(f"🔍 Procesando TTEC, usando folder específico")
+            # Usar el folder específico de TTEC configurado en EMPRESA_FOLDERS
+            folder_id = EMPRESA_FOLDERS.get("TTEC")
+            if folder_id:
+                print(f"📁 Usando folder TTEC: {folder_id}")
+            else:
+                print(f"⚠️ No se encontró folder para TTEC, usando default de empresa: {empresa}")
 
         if not documento:
             raise Exception("No se recibió el nombre del documento.")
