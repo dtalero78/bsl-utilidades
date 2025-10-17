@@ -964,7 +964,7 @@ def procesar_csv():
     Separa el nombre completo y extrae campos específicos.
 
     Campos esperados en el CSV:
-    - NOMBRES COMPLETOS
+    - NOMBRES APELLIDOS Y (o NOMBRES COMPLETOS, o NOMBRES Y APELLIDOS)
     - No IDENTIFICACION
     - CARGO
     - TELEFONOS
@@ -999,8 +999,16 @@ def procesar_csv():
 
         for idx, row in enumerate(csv_reader, start=1):
             try:
-                # Obtener el nombre completo y separarlo
-                nombre_completo = row.get('NOMBRES COMPLETOS', '').strip()
+                # Obtener el nombre completo y separarlo (soportar múltiples nombres de columna)
+                nombre_completo = (
+                    row.get('NOMBRES APELLIDOS Y', '') or
+                    row.get('NOMBRES COMPLETOS', '') or
+                    row.get('NOMBRES Y APELLIDOS', '')
+                ).strip()
+
+                print(f"🔍 Fila {idx} - Nombre encontrado: '{nombre_completo}'")
+                print(f"🔍 Columnas disponibles: {list(row.keys())}")
+
                 nombres_separados = separar_nombre_completo(nombre_completo)
 
                 # Extraer otros campos del CSV
