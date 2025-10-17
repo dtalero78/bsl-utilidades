@@ -999,15 +999,18 @@ def procesar_csv():
 
         for idx, row in enumerate(csv_reader, start=1):
             try:
+                # Normalizar los nombres de las columnas (eliminar espacios al inicio/final)
+                row_normalized = {key.strip(): value for key, value in row.items()}
+
                 # Obtener el nombre completo y separarlo (soportar múltiples nombres de columna)
                 nombre_completo = (
-                    row.get('NOMBRES APELLIDOS Y', '') or
-                    row.get('NOMBRES COMPLETOS', '') or
-                    row.get('NOMBRES Y APELLIDOS', '')
+                    row_normalized.get('NOMBRES APELLIDOS Y', '') or
+                    row_normalized.get('NOMBRES COMPLETOS', '') or
+                    row_normalized.get('NOMBRES Y APELLIDOS', '')
                 ).strip()
 
                 print(f"🔍 Fila {idx} - Nombre encontrado: '{nombre_completo}'")
-                print(f"🔍 Columnas disponibles: {list(row.keys())}")
+                print(f"🔍 Columnas disponibles: {list(row_normalized.keys())}")
 
                 nombres_separados = separar_nombre_completo(nombre_completo)
 
@@ -1019,10 +1022,10 @@ def procesar_csv():
                     "segundoNombre": nombres_separados["segundoNombre"],
                     "primerApellido": nombres_separados["primerApellido"],
                     "segundoApellido": nombres_separados["segundoApellido"],
-                    "numeroId": row.get('No IDENTIFICACION', '').strip(),
-                    "cargo": row.get('CARGO', '').strip(),
-                    "celular": row.get('TELEFONOS', '').strip(),
-                    "ciudad": row.get('CIUDAD', '').strip()
+                    "numeroId": row_normalized.get('No IDENTIFICACION', '').strip(),
+                    "cargo": row_normalized.get('CARGO', '').strip(),
+                    "celular": row_normalized.get('TELEFONOS', '').strip(),
+                    "ciudad": row_normalized.get('CIUDAD', '').strip()
                 }
 
                 personas_procesadas.append(persona)
