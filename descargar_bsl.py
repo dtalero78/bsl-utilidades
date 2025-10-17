@@ -1,14 +1,20 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify, send_file, send_from_directory, redirect
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 import traceback
+from jinja2 import Template
+import uuid
+from datetime import datetime, timedelta
+import tempfile
+import csv
+import io
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # Configurar CORS para todas las aplicaciones
 CORS(app, resources={
@@ -16,7 +22,9 @@ CORS(app, resources={
     r"/generar-pdf": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
     r"/subir-pdf-directo": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"]},
     r"/descargar-pdf-drive/*": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
-    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]}
+    r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]},
+    r"/generar-certificado-medico": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Permitir cualquier origen para Wix
+    r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir imágenes públicamente
 })
 
 # Configuración de carpetas por empresa
@@ -650,6 +658,397 @@ def serve_frontend():
 @app.route("/static/<path:filename>")
 def static_files(filename):
     return send_from_directory(app.static_folder, filename)
+
+# --- Endpoint: GENERAR CERTIFICADO MÉDICO DESDE WIX ---
+@app.route("/generar-certificado-medico", methods=["OPTIONS"])
+def options_certificado():
+    response_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    }
+    return ("", 204, response_headers)
+
+@app.route("/generar-certificado-medico", methods=["POST"])
+def generar_certificado_medico():
+    try:
+        print("📋 Iniciando generación de certificado médico...")
+
+        # Obtener datos del request
+        data = request.get_json()
+        print(f"📝 Datos recibidos: {data}")
+
+        # Generar código de seguridad único
+        codigo_seguridad = str(uuid.uuid4())
+
+        # Preparar datos con valores por defecto
+        fecha_actual = datetime.now()
+
+        # Logo BSL embebido como base64 (recreado basado en el logo real)
+        logo_bsl_base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABkCAYAAAA8AQ3AAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAKKUlEQVR4nO2dW6hdRRiAf21ttbW2trZaW1tb29ra2tra2traaq2trdbaWluttba2ttbWWmtrrbW1tdbW2lqttbXW1lpra62ttbXWWmtrrbVaX2f/M2tmzzl7n5kzc2bWzNrfB4czOXuvNbP+b2b+mfnPrFkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwDDYXFJXSf1a0vWS7pT0qqT3JX0l6TtJP0r6VdKfkv6W9I+kfyX9J+k/Sf9L+k/Sf5L+l/SfpP8k/Sfpf0n/SfpX0r+S/pH0t6S/JP0p6Q9Jv0v6TdKvkn6R9LOknyR9L+k7Sd9K+kbS15K+kvSlpC8kfS7pM0mfSvpE0seSPpL0oaQPJL0v6T1J70p6R9Lbkt6S9KakNyS9Luk1Sa9KekXSy5JekvSipBckPS/pOUnPSnpG0tOSnpL0pKQnJD0u6TFJj0p6RNJDCF3mQkmXSFoh6UpJV0u6TtINkm6UdJOkmy0ctLkq2f8ISbdZODjbwsGJkm6UdKOkayVdIWmFpCZcJOmirDfP7GaSrpW0UtI1kq6XdIOkGyXdJOlmSbdIulXSbZJul3SHpDsl3SXp7qB6+iOoj1xEDRXfTtJOknaWtIukXSXtJmk3STW8H3Ofuus+7+D58Kh89vfrvXse4nV9fOI6hxN5W1xLt5L0PEk/STpb0l6S7pN0p6Rn0+uH7SWdIekHSa9L2jHrTRsC60k6TdJvkj6XdGDWm2c8I+lhSe+l12YfSXtIOknSMZKOlnSUpCMlHS7pMEmHSjpE0sGSDrLw7u8gW1U4wML7RwdZOHh4WFnZOCpxP/w+73hAWXBdkj7rW0mXStqOPlJrW0naWdJekvaVdICkgyQdbOHd+UMsHKwjLbz7Y4dPlHSCpOMlHSvpGElHS7oq6zdbA7tIOl3SHyTDatDHkq6RdLikmyV9J+l5SVtmvYFmgHda7ZX1PbwJW7YtJZ0s6SczKLtJulfSi5LelbSCAmMcI+lJM9C/kvSKpHslfZO+vtZzJF0o6XZJ76cH5z1J90m6RNLN6ftrTnr9sJOkUxn6aM6Fkj6U9Jqk7bPetJGwlYUpoXSSZH2k13aWdI6k9y0c7L+YnpakLz35Hx1vXvKsma6VdKSku8w8vZqeEz1RP5rB/YiAuZukkyW9LeluSedKOi6dnzVE+/w9SRdJ+iCdU3aVhSNwPT14/5rp+9PySZz/+8nC0YzXz3ruZH2uqPzJNf9fY3+dKOl7M+E3Stwo6TZJd1k4WN+1cGDfJumPgPdIONgkbWfhoJHXLh8b24OZM+9YF1JJn7V/JV0l6WpJ11o4yNdZONDXWzhIrps4n/0sqJ/6tC6uI18zJT7l/ydJR0q6WdIzkl6x8HzZO3a+5Jy4WNKD6bXBW5JOknRoer7sOJy8fti+fKTpBwtHnDaS9Lykv8xt0m8t7PdyUelrh4V1s1Z8kfOFrUEaKu9LukLSLhQgyzaRtIOk0yX9buHI0CsWvt/XJoW0sMryZTtnfr3u9XAfWtgn3rNwTL1m4aB+bfoOcBulzy85nyd9N3lNUHo+5x2hfW/vt3Dgl/dT0y3cV78tvWAyj1ctvJNdn56fNyZ+1pUd3HnfC3zfwndq/7Z/RlJJ+bRX+ixy29z3PgrdA08s+e59wfmjr/wy7pzWJE6ksNWsj8wsFTNF8mdJz5n5+j19vfADC98vfNvCwf2OhXfH37L/P8v8xsI3k79L+2x6bdD3+vJ3KdNrmrc9PBdovoWDH+kl6Xk1v1Nbn3ktNb8Vvmvh2P2HPXz9YKakH9Nfw+9YOIY+Sn+evSa9Pjh/4nu4P6THrJ8tHIN+snDM/srCMf2L9FjxS3rs+dXCsepX8/tv02Pdb9Zj2+8WjnW/W49df6Tnt3PwD+sxNaS/rMfaP7PHi79a3y+jZ5h5K9dJOl3SHhQm63aRdKqkn82MvGbhx/CydGPh77aF92v/tHBELzyn5xeb7y8cs7+ZJXnfBHfOPm8Wru72OLR9kO5P03l/7VDfBx8F+P0k7/9Z+l7uR+kx6xsLx8jv7HgP/h5JN1GcbNtR0iWS/rJwPLxt4X7/yMJx9Qe7l8n2s/XYl/a79fiX9riX9niY9hiZ9niZ9riZ9viZFvnalvZ4m/Z4nPZ4nfZ4nvZ4n/Z4oLayx3/nLX3cdLONIz8Bby9J95sB+Ts9QO63cPD/0sKR/W0LB/F3LBzY/5l8J/ejhYP5Xem3ND6wcFD/ysKR/R8LB/0/7XmT93TftHBEf8fCUf5dU/cHO2/+tHDQ/8XCwf+vhXtB3Nf31p95jHznMLX39cLCwf+/hYN/OuN5+p7+eJ8v/xF/14gHcgOaJmkzSVeaEdqXgqzKppKOlnSftY8OPmHh3e/v0yGu762HCjGww0P2hfSFv/y8fOdNLz5zzA87aJMZ5A9t3uIQScea6XrT/r4jfJd9b/PdJwXaX9Illr+D/YGFd6c/sr5fb79zC2dY+I7OQ+k1wpFmyt7x9Pq1Xek75q+YGXvZwqmXfWzep9w9XTH7Pbq8fqfRd9LtfC6fIUnfN+5t97Zyr3O/Iz7J5n2m+1jyd8p9w8L3fj1n9AcL9zH/buGuAb8a+9f6bdN9vOyn6Xvyf03+P+y/hYV/9dqsfd9v5XM3Hj2r9a7YAEinPrz3xUch35r8gJJ9cF76Xvlj8+3dI7I+uyb4OLJz9kfzjhavXrxbeY+t4gvZJkm60MLFEf+0h3U8Zb+j9BdJ35qZ+tIMxsf2M/DfzBD8biblH/vdY/j17ff0vQe2vvDf9vv7E3/XdP+O7z2iP3u/2K9e/bqyfMC/+P57+7v5ddJz9vdMO1/+/c6kHbxT6zGRkxaVLDxP8ooGN0uWrU2Xm3nxHyFfNdNyfPrC4Yb0tYJvC+wg6aqsNwvAhttO0vGSPlX9j5H6J5u3zNg8YmZkq6w3C8CG2w7pTUmTRsZPkD9v4S6pky0cvN+xh5jWYRdJ51j4YcA67JWxHy0cN3/M+1v7Vb75h1vktzfmF39v9rO8v2WlhfM2k9+L2knSORauO6rDnhb+HmT9tJ/13XTff6d9P+OOlrxfxpeV1R8fzP5bvQP7vuUOCz+I8OMNOWGRtV0lnSrpc6v/zqF/UvCHtcdY+KM1+8WCr/M8XL7GwjUH9fnRwon1YRfWD1tYvg7vbQt/VHi+d+5N05/L2U7Sadm5Cc+a6M6z+u/g+RJe3wPojzqwPu6wQNOv3xfT//rKfvfqfwZ9CXDfrS1zLtMLOjPaflKWZT6zdaOF+9JutvCn2b5Tir7Tqg4bSjpS0r2WU4Kh7e6S7rLwe15+LstbZa8XfBvMryPwP5z1H8TuYuHEss8jfWjhFJ4v6vGn5Xz7C1+hZhJCvX8j29w62q4avZnA++zLtTfJeuNA8w2xJpz8fEO6N7iPCX5r/t1uEvpIFvP9n9a0/zHdjxa+Y2gHvkc5JfVRANPz8Tb9LKGPaGLJ46wNS4H5pxnKtPl/c8u9Bha+qqoNfwfnf5OL6w0AcNR7/wOi4MUFHQL9GgAAAABJRU5ErkJggg=="
+
+        # Datos básicos del certificado
+        datos_certificado = {
+            "codigo_seguridad": codigo_seguridad,
+            "logo_bsl_url": logo_bsl_base64,
+            "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
+            "ciudad": data.get("ciudad", "Bogotá"),
+            "vigencia": data.get("vigencia", "Tres años"),
+            "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
+
+            # Datos personales
+            "nombres_apellidos": data.get("nombres_apellidos", ""),
+            "documento_identidad": data.get("documento_identidad", ""),
+            "empresa": data.get("empresa", "PARTICULAR"),
+            "cargo": data.get("cargo", ""),
+            "genero": data.get("genero", ""),
+            "edad": data.get("edad", ""),
+            "fecha_nacimiento": data.get("fecha_nacimiento", ""),
+            "estado_civil": data.get("estado_civil", ""),
+            "hijos": data.get("hijos", "0"),
+            "profesion": data.get("profesion", ""),
+            "email": data.get("email", ""),
+            "tipo_examen": data.get("tipo_examen", "Ingreso"),
+            "foto_paciente": data.get("foto_paciente", None),
+
+            # Exámenes realizados
+            "examenes_realizados": data.get("examenes_realizados", [
+                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")},
+                {"nombre": "Audiometría", "fecha": fecha_actual.strftime("%d de %B de %Y")},
+                {"nombre": "Optometría", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+            ]),
+
+            # Concepto médico
+            "concepto_medico": data.get("concepto_medico", "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES"),
+
+            # Resultados generales
+            "resultados_generales": data.get("resultados_generales", [
+                {
+                    "examen": "Examen Médico Osteomuscular",
+                    "descripcion": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares."
+                },
+                {
+                    "examen": "Audiometría",
+                    "descripcion": "No presenta signos de pérdida auditiva o alteraciones en la audición. Los resultados se encuentran dentro de los rangos normales establecidos para la población general y no se observan indicios de daño auditivo relacionado con la exposición laboral a ruido u otros factores."
+                },
+                {
+                    "examen": "Optometría",
+                    "descripcion": "Presión intraocular (PIO): 15 mmHg en ambos ojos. Reflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos. Campo visual: Normal en ambos ojos. Visión de colores: Normal. Fondo de ojo: Normal."
+                }
+            ]),
+
+            # Firmas
+            "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
+            "medico_registro": data.get("medico_registro", "REGISTRO MEDICO NO 14791"),
+            "medico_licencia": data.get("medico_licencia", "LICENCIA SALUD OCUPACIONAL 460"),
+
+            "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
+            "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
+
+            # Exámenes detallados (página 2, opcional)
+            "examenes_detallados": data.get("examenes_detallados", [])
+        }
+
+        # Renderizar template HTML
+        print("🎨 Renderizando plantilla HTML...")
+        html_content = render_template("certificado_medico.html", **datos_certificado)
+
+        # Configurar API2PDF
+        api2pdf_key = API2PDF_KEY
+
+        # Modo desarrollo: si la API key es dummy, devolver HTML en lugar de PDF
+        if api2pdf_key == "dummy-api-key-for-dev":
+            print("🔧 Modo desarrollo: devolviendo HTML en lugar de PDF")
+            # Guardar HTML temporalmente para descarga
+            temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w')
+            temp_html.write(html_content)
+            temp_html.close()
+            pdf_url = f"file://{temp_html.name}"
+            print(f"📄 HTML de prueba guardado en: {temp_html.name}")
+        else:
+            if not api2pdf_key:
+                raise Exception("API2PDF_KEY no configurada en variables de entorno")
+
+            # Generar PDF con API2PDF
+            print("📄 Generando PDF con API2PDF...")
+            api2pdf_url = "https://v2.api2pdf.com/chrome/html"
+
+            payload = {
+                "html": html_content,
+                "options": {
+                    "delay": 3000,
+                    "displayHeaderFooter": False,
+                    "printBackground": True,
+                    "format": "Letter",
+                    "scale": 1,
+                    "margin": {
+                        "top": "0",
+                        "bottom": "0",
+                        "left": "0",
+                        "right": "0"
+                    }
+                },
+                "inlineHtml": True
+            }
+
+            headers = {
+                "Authorization": api2pdf_key,
+                "Content-Type": "application/json"
+            }
+
+            response = requests.post(api2pdf_url, json=payload, headers=headers)
+
+            if response.status_code != 200:
+                raise Exception(f"Error generando PDF: {response.text}")
+
+            result = response.json()
+            pdf_url = result.get("FileUrl") or result.get("pdf")
+
+            if not pdf_url:
+                raise Exception("No se pudo obtener la URL del PDF generado")
+
+        print(f"✅ PDF generado exitosamente: {pdf_url}")
+
+        # Si se especifica guardar en Drive
+        if data.get("guardar_drive", False):
+            print("💾 Guardando en Google Drive...")
+
+            # Determinar carpeta de destino
+            folder_id = data.get("folder_id") or EMPRESA_FOLDERS.get("BSL")
+
+            # Descargar el PDF temporalmente
+            pdf_response = requests.get(pdf_url)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+            temp_file.write(pdf_response.content)
+            temp_file.close()
+
+            # Nombre del archivo
+            documento_identidad = datos_certificado.get("documento_identidad", "sin_doc")
+            nombre_archivo = data.get("nombre_archivo") or f"certificado_{documento_identidad}_{fecha_actual.strftime('%Y%m%d')}.pdf"
+
+            # Subir a Google Drive según el destino configurado
+            if DEST == "drive":
+                resultado = subir_pdf_a_drive(temp_file.name, nombre_archivo, folder_id)
+            elif DEST == "drive-oauth":
+                resultado = subir_pdf_a_drive_oauth(temp_file.name, nombre_archivo, folder_id)
+            elif DEST == "gcs":
+                resultado = subir_pdf_a_gcs(temp_file.name, nombre_archivo, folder_id)
+            else:
+                resultado = {"success": False, "error": f"Destino {DEST} no soportado"}
+
+            # Limpiar archivo temporal
+            os.unlink(temp_file.name)
+
+            if not resultado.get("success"):
+                print(f"⚠️ Error subiendo a Drive: {resultado.get('error')}")
+
+        # Preparar respuesta
+        respuesta = {
+            "success": True,
+            "pdf_url": pdf_url,
+            "codigo_seguridad": codigo_seguridad,
+            "message": "Certificado médico generado exitosamente"
+        }
+
+        # Si se guardó en Drive, agregar información
+        if data.get("guardar_drive", False) and resultado.get("success"):
+            respuesta["drive_file_id"] = resultado.get("fileId")
+            respuesta["drive_web_link"] = resultado.get("webViewLink")
+
+        # Configurar headers CORS
+        response = jsonify(respuesta)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+
+    except Exception as e:
+        print(f"❌ Error generando certificado: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e)
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
+@app.route("/images/<filename>")
+def serve_image(filename):
+    """Servir imágenes públicamente para API2PDF"""
+    try:
+        return send_from_directory("static", filename)
+    except FileNotFoundError:
+        return "Image not found", 404
+
+# --- Función auxiliar para separar nombres completos ---
+def separar_nombre_completo(nombre_completo):
+    """
+    Separa un nombre completo en sus componentes:
+    primerNombre, segundoNombre, primerApellido, segundoApellido
+
+    Args:
+        nombre_completo (str): Nombre completo a separar
+
+    Returns:
+        dict: Diccionario con los componentes del nombre
+    """
+    if not nombre_completo or not isinstance(nombre_completo, str):
+        return {
+            "primerNombre": "",
+            "segundoNombre": "",
+            "primerApellido": "",
+            "segundoApellido": ""
+        }
+
+    # Limpiar y dividir el nombre
+    partes = nombre_completo.strip().split()
+
+    # Inicializar valores por defecto
+    primer_nombre = ""
+    segundo_nombre = ""
+    primer_apellido = ""
+    segundo_apellido = ""
+
+    # Lógica de separación basada en la cantidad de palabras
+    num_partes = len(partes)
+
+    if num_partes == 1:
+        # Solo un nombre
+        primer_nombre = partes[0]
+    elif num_partes == 2:
+        # Nombre y apellido
+        primer_nombre = partes[0]
+        primer_apellido = partes[1]
+    elif num_partes == 3:
+        # Dos nombres y un apellido, o un nombre y dos apellidos
+        # Asumimos: primer nombre, segundo nombre, primer apellido
+        primer_nombre = partes[0]
+        segundo_nombre = partes[1]
+        primer_apellido = partes[2]
+    elif num_partes >= 4:
+        # Nombre completo: primer nombre, segundo nombre, primer apellido, segundo apellido
+        primer_nombre = partes[0]
+        segundo_nombre = partes[1]
+        primer_apellido = partes[2]
+        segundo_apellido = " ".join(partes[3:])  # En caso de apellidos compuestos
+
+    return {
+        "primerNombre": primer_nombre,
+        "segundoNombre": segundo_nombre,
+        "primerApellido": primer_apellido,
+        "segundoApellido": segundo_apellido
+    }
+
+# --- Endpoint: PROCESAR CSV ---
+@app.route("/procesar-csv", methods=["OPTIONS"])
+def options_procesar_csv():
+    response_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+    }
+    return ("", 204, response_headers)
+
+@app.route("/procesar-csv", methods=["POST"])
+def procesar_csv():
+    """
+    Endpoint para procesar archivos CSV con información de personas.
+    Separa el nombre completo y extrae campos específicos.
+
+    Campos esperados en el CSV:
+    - NOMBRES COMPLETOS
+    - No IDENTIFICACION
+    - CARGO
+    - TELEFONOS
+    - CIUDAD
+
+    Returns:
+        JSON con los datos procesados
+    """
+    try:
+        print("📋 Iniciando procesamiento de CSV...")
+
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            raise Exception("No se envió ningún archivo CSV")
+
+        file = request.files['file']
+
+        if file.filename == '':
+            raise Exception("El archivo está vacío")
+
+        if not file.filename.endswith('.csv'):
+            raise Exception("El archivo debe ser un CSV")
+
+        print(f"📄 Archivo recibido: {file.filename}")
+
+        # Leer el contenido del archivo
+        stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+
+        # Procesar cada fila del CSV
+        personas_procesadas = []
+
+        for idx, row in enumerate(csv_reader, start=1):
+            try:
+                # Obtener el nombre completo y separarlo
+                nombre_completo = row.get('NOMBRES COMPLETOS', '').strip()
+                nombres_separados = separar_nombre_completo(nombre_completo)
+
+                # Extraer otros campos del CSV
+                persona = {
+                    "fila": idx,
+                    "nombreCompleto": nombre_completo,
+                    "primerNombre": nombres_separados["primerNombre"],
+                    "segundoNombre": nombres_separados["segundoNombre"],
+                    "primerApellido": nombres_separados["primerApellido"],
+                    "segundoApellido": nombres_separados["segundoApellido"],
+                    "numeroId": row.get('No IDENTIFICACION', '').strip(),
+                    "cargo": row.get('CARGO', '').strip(),
+                    "celular": row.get('TELEFONOS', '').strip(),
+                    "ciudad": row.get('CIUDAD', '').strip()
+                }
+
+                personas_procesadas.append(persona)
+                print(f"✅ Fila {idx} procesada: {nombre_completo}")
+
+            except Exception as e:
+                print(f"⚠️ Error procesando fila {idx}: {str(e)}")
+                # Continuar con la siguiente fila
+                personas_procesadas.append({
+                    "fila": idx,
+                    "error": str(e),
+                    "datos_originales": dict(row)
+                })
+
+        print(f"✅ CSV procesado exitosamente. Total de registros: {len(personas_procesadas)}")
+
+        # Preparar respuesta
+        respuesta = {
+            "success": True,
+            "total_registros": len(personas_procesadas),
+            "datos": personas_procesadas,
+            "message": f"CSV procesado exitosamente. {len(personas_procesadas)} registros encontrados."
+        }
+
+        # Configurar headers CORS
+        response = jsonify(respuesta)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+
+    except Exception as e:
+        print(f"❌ Error procesando CSV: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e)
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
