@@ -20,13 +20,18 @@ El endpoint acepta un archivo CSV mediante `multipart/form-data`:
 
 El archivo CSV debe contener las siguientes columnas:
 
-| Columna              | Descripción                           | Campo de salida |
-|---------------------|---------------------------------------|-----------------|
-| NOMBRES COMPLETOS   | Nombre completo de la persona        | Se separa en 4 campos |
-| No IDENTIFICACION   | Número de identificación             | numeroId        |
-| CARGO               | Cargo o posición                     | cargo           |
-| TELEFONOS           | Número de teléfono/celular          | celular         |
-| CIUDAD              | Ciudad                               | ciudad          |
+| Columna              | Descripción                           | Campo de salida | Alternativas aceptadas |
+|---------------------|---------------------------------------|-----------------|------------------------|
+| NOMBRES APELLIDOS Y | Nombre completo de la persona        | Se separa en 4 campos | NOMBRES COMPLETOS, NOMBRES Y APELLIDOS |
+| No IDENTIFICACION   | Número de identificación             | numeroId        | - |
+| CARGO               | Cargo o posición                     | cargo           | - |
+| TELEFONOS           | Número de teléfono/celular          | celular         | - |
+| CIUDAD              | Ciudad                               | ciudad          | - |
+
+**Nota:** El endpoint acepta cualquiera de estos nombres para la columna de nombres completos:
+- `NOMBRES APELLIDOS Y` ✅
+- `NOMBRES COMPLETOS` ✅
+- `NOMBRES Y APELLIDOS` ✅
 
 ## Lógica de Separación de Nombres
 
