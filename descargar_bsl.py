@@ -893,7 +893,10 @@ def separar_nombre_completo(nombre_completo):
     Returns:
         dict: Diccionario con los componentes del nombre
     """
+    print(f"🔍 Separando nombre: '{nombre_completo}' (tipo: {type(nombre_completo)})")
+
     if not nombre_completo or not isinstance(nombre_completo, str):
+        print(f"⚠️ Nombre vacío o no es string")
         return {
             "primerNombre": "",
             "segundoNombre": "",
@@ -903,6 +906,7 @@ def separar_nombre_completo(nombre_completo):
 
     # Limpiar y dividir el nombre
     partes = nombre_completo.strip().split()
+    print(f"📋 Partes del nombre: {partes} (total: {len(partes)})")
 
     # Inicializar valores por defecto
     primer_nombre = ""
@@ -933,12 +937,15 @@ def separar_nombre_completo(nombre_completo):
         primer_apellido = partes[2]
         segundo_apellido = " ".join(partes[3:])  # En caso de apellidos compuestos
 
-    return {
+    resultado = {
         "primerNombre": primer_nombre,
         "segundoNombre": segundo_nombre,
         "primerApellido": primer_apellido,
         "segundoApellido": segundo_apellido
     }
+
+    print(f"✅ Resultado: {resultado}")
+    return resultado
 
 # --- Endpoint: PROCESAR CSV ---
 @app.route("/procesar-csv", methods=["OPTIONS"])
