@@ -424,6 +424,7 @@
                                 <th>Tipo Examen</th>
                                 <th>Fecha Atención</th>
                                 <th>Hora Atención</th>
+                                <th>Fecha/Hora</th>
                                 <th>Médico</th>
                             </tr>
                         </thead>
@@ -431,6 +432,11 @@
             `;
 
             data.datos.forEach((persona, index) => {
+                // Formatear fecha a MM/DD/YYYY
+                const [year, month, day] = persona.fechaAtencion.split('-');
+                const fechaFormateada = `${month}/${day}/${year}`;
+                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
+
                 html += `
                     <tr>
                         <td>${persona.primerNombre}</td>
@@ -445,15 +451,18 @@
                         <td class="fecha-atencion">
                             <input type="date" value="${persona.fechaAtencion}"
                                    data-index="${index}"
-                                   onchange="actualizarCampo(${index}, 'fechaAtencion', this.value)"
+                                   onchange="actualizarCampoYFechaHora(${index}, 'fechaAtencion', this.value)"
                                    style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 130px;">
+                            <span style="display:none;">${persona.fechaAtencion}</span>
                         </td>
                         <td class="hora-atencion">
                             <input type="time" value="${persona.horaAtencion}"
                                    data-index="${index}"
-                                   onchange="actualizarCampo(${index}, 'horaAtencion', this.value)"
+                                   onchange="actualizarCampoYFechaHora(${index}, 'horaAtencion', this.value)"
                                    style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 90px;">
+                            <span style="display:none;">${persona.horaAtencion}</span>
                         </td>
+                        <td class="fecha-hora-concatenada" data-index="${index}">${fechaHoraConcatenada}</td>
                         <td class="medico-asignado" data-index="${index}" onclick="mostrarSelectorMedico(${index})" style="cursor: pointer; background: #f9fafb;">
                             <span class="medico-display">${persona.medico}</span>
                             <select class="medico-select" data-index="${index}"
@@ -519,6 +528,19 @@
             const inputsFecha = document.querySelectorAll('.fecha-atencion input[type="date"]');
             inputsFecha.forEach(input => {
                 input.value = nuevaFecha;
+                // Actualizar span oculto
+                const span = input.nextElementSibling;
+                if (span) span.textContent = nuevaFecha;
+            });
+
+            // Actualizar todas las celdas de fecha/hora concatenada
+            const celdasFechaHora = document.querySelectorAll('.fecha-hora-concatenada');
+            celdasFechaHora.forEach((celda, index) => {
+                const persona = window.lastProcessedData.datos[index];
+                const [year, month, day] = persona.fechaAtencion.split('-');
+                const fechaFormateada = `${month}/${day}/${year}`;
+                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
+                celda.textContent = fechaHoraConcatenada;
             });
 
             // Actualizar el texto informativo
@@ -554,6 +576,19 @@
                 const minutosRestantes = minutosNuevos % 60;
                 const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
                 input.value = horaFormateada;
+                // Actualizar span oculto
+                const span = input.nextElementSibling;
+                if (span) span.textContent = horaFormateada;
+            });
+
+            // Actualizar todas las celdas de fecha/hora concatenada
+            const celdasFechaHora = document.querySelectorAll('.fecha-hora-concatenada');
+            celdasFechaHora.forEach((celda, index) => {
+                const persona = window.lastProcessedData.datos[index];
+                const [year, month, day] = persona.fechaAtencion.split('-');
+                const fechaFormateada = `${month}/${day}/${year}`;
+                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
+                celda.textContent = fechaHoraConcatenada;
             });
 
             // Actualizar el texto informativo
@@ -615,8 +650,20 @@
                     const inputHora = document.querySelector(`.hora-atencion input[data-index="${index}"]`);
                     if (inputHora) {
                         inputHora.value = '07:00';
+                        const spanHora = inputHora.nextElementSibling;
+                        if (spanHora) spanHora.textContent = '07:00';
                     }
                 }
+            });
+
+            // Actualizar todas las celdas de fecha/hora concatenada
+            const celdasFechaHora = document.querySelectorAll('.fecha-hora-concatenada');
+            celdasFechaHora.forEach((celda, index) => {
+                const persona = window.lastProcessedData.datos[index];
+                const [year, month, day] = persona.fechaAtencion.split('-');
+                const fechaFormateada = `${month}/${day}/${year}`;
+                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
+                celda.textContent = fechaHoraConcatenada;
             });
 
             // Actualizar el texto informativo
@@ -674,6 +721,35 @@
                 if (display) {
                     display.textContent = valor;
                 }
+            }
+
+            console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
+        }
+
+        function actualizarCampoYFechaHora(index, campo, valor) {
+            if (!window.lastProcessedData || !window.lastProcessedData.datos[index]) return;
+
+            // Actualizar el valor en los datos
+            window.lastProcessedData.datos[index][campo] = valor;
+
+            // Actualizar el span oculto correspondiente
+            if (campo === 'fechaAtencion') {
+                const spanFecha = document.querySelector(`.fecha-atencion input[data-index="${index}"]`).nextElementSibling;
+                if (spanFecha) spanFecha.textContent = valor;
+            } else if (campo === 'horaAtencion') {
+                const spanHora = document.querySelector(`.hora-atencion input[data-index="${index}"]`).nextElementSibling;
+                if (spanHora) spanHora.textContent = valor;
+            }
+
+            // Actualizar la celda de fecha/hora concatenada
+            const persona = window.lastProcessedData.datos[index];
+            const [year, month, day] = persona.fechaAtencion.split('-');
+            const fechaFormateada = `${month}/${day}/${year}`;
+            const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
+
+            const celdaFechaHora = document.querySelector(`.fecha-hora-concatenada[data-index="${index}"]`);
+            if (celdaFechaHora) {
+                celdaFechaHora.textContent = fechaHoraConcatenada;
             }
 
             console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
