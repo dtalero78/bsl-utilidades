@@ -15,39 +15,39 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 10px;
+            margin: 0;
         }
 
         .container {
             background: white;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 40px;
-            max-width: 900px;
+            padding: 20px;
+            max-width: 100%;
             width: 100%;
+            height: calc(100vh - 20px);
+            overflow-y: auto;
         }
 
         h1 {
             color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            margin-bottom: 5px;
+            font-size: 24px;
         }
 
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+            margin-bottom: 15px;
+            font-size: 13px;
         }
 
         .upload-section {
             border: 2px dashed #667eea;
             border-radius: 8px;
-            padding: 30px;
+            padding: 15px;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             background: #f8f9ff;
             transition: all 0.3s ease;
         }
@@ -93,14 +93,14 @@
             background: #10b981;
             color: white;
             border: none;
-            padding: 14px 40px;
+            padding: 10px 30px;
             border-radius: 6px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         button:hover {
@@ -167,21 +167,22 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         th {
             background: #667eea;
             color: white;
-            padding: 12px 8px;
+            padding: 8px 6px;
             text-align: left;
             font-weight: 600;
             position: sticky;
             top: 0;
+            font-size: 12px;
         }
 
         td {
-            padding: 10px 8px;
+            padding: 6px 4px;
             border-bottom: 1px solid #e5e7eb;
         }
 
@@ -233,10 +234,10 @@
         .info-box {
             background: #eff6ff;
             border-left: 4px solid #3b82f6;
-            padding: 15px;
+            padding: 10px;
             border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 14px;
+            margin-bottom: 10px;
+            font-size: 12px;
             color: #1e40af;
         }
 
@@ -265,6 +266,7 @@
                 <li><strong>CARGO</strong> - Cargo de la persona</li>
                 <li><strong>TELEFONOS</strong> - Número de teléfono/celular</li>
                 <li><strong>CIUDAD</strong> - Ciudad</li>
+                <li><strong>TIPO DE EXAMEN OCUPACIONAL</strong> - Tipo de examen (opcional)</li>
             </ul>
         </div>
 
@@ -358,6 +360,51 @@
 
                 <a href="#" class="download-json" onclick="downloadJSON(event)">⬇️ Descargar JSON</a>
 
+                <div style="margin: 20px 0; padding: 15px; background: #f8f9ff; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div style="margin-bottom: 15px;">
+                        <label for="fechaAtencionSelector" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                            📅 Cambiar fecha de atención para todos los registros:
+                        </label>
+                        <input type="date" id="fechaAtencionSelector" style="padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px; cursor: pointer;" onchange="actualizarFechasTodas(this.value)">
+                        <span id="fechaActual" style="margin-left: 10px; color: #666; font-size: 14px;"></span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="horaAtencionSelector" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                            🕐 Hora inicial (incrementos de 10 min por registro):
+                        </label>
+                        <input type="time" id="horaAtencionSelector" style="padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px; cursor: pointer;" onchange="actualizarHorasTodas(this.value)">
+                        <span id="horaActual" style="margin-left: 10px; color: #666; font-size: 14px;"></span>
+                    </div>
+                    <div>
+                        <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                            👨‍⚕️ Seleccionar médicos (distribución equitativa):
+                        </label>
+                        <div id="medicosContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="SIXTA" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>SIXTA</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="JUAN 134" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>JUAN 134</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="CESAR" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>CESAR</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="MARY" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>MARY</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="NUBIA" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>NUBIA</span>
+                            </label>
+                        </div>
+                        <div id="medicosSeleccionadosInfo" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table>
                         <thead>
@@ -372,12 +419,16 @@
                                 <th>Cargo</th>
                                 <th>Celular</th>
                                 <th>Ciudad</th>
+                                <th>Tipo Examen</th>
+                                <th>Fecha Atención</th>
+                                <th>Hora Atención</th>
+                                <th>Médico</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            data.datos.forEach(persona => {
+            data.datos.forEach((persona, index) => {
                 html += `
                     <tr>
                         <td>${persona.fila}</td>
@@ -390,6 +441,30 @@
                         <td>${persona.cargo}</td>
                         <td>${persona.celular}</td>
                         <td>${persona.ciudad}</td>
+                        <td>${persona.tipoExamen}</td>
+                        <td class="fecha-atencion">
+                            <input type="date" value="${persona.fechaAtencion}"
+                                   data-index="${index}"
+                                   onchange="actualizarCampo(${index}, 'fechaAtencion', this.value)"
+                                   style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 130px;">
+                        </td>
+                        <td class="hora-atencion">
+                            <input type="time" value="${persona.horaAtencion}"
+                                   data-index="${index}"
+                                   onchange="actualizarCampo(${index}, 'horaAtencion', this.value)"
+                                   style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 90px;">
+                        </td>
+                        <td class="medico-asignado">
+                            <select data-index="${index}"
+                                    onchange="actualizarCampo(${index}, 'medico', this.value)"
+                                    style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 100%;">
+                                <option value="SIXTA" ${persona.medico === 'SIXTA' ? 'selected' : ''}>SIXTA</option>
+                                <option value="JUAN 134" ${persona.medico === 'JUAN 134' ? 'selected' : ''}>JUAN 134</option>
+                                <option value="CESAR" ${persona.medico === 'CESAR' ? 'selected' : ''}>CESAR</option>
+                                <option value="MARY" ${persona.medico === 'MARY' ? 'selected' : ''}>MARY</option>
+                                <option value="NUBIA" ${persona.medico === 'NUBIA' ? 'selected' : ''}>NUBIA</option>
+                            </select>
+                        </td>
                     </tr>
                 `;
             });
@@ -404,6 +479,20 @@
 
             // Guardar datos para descarga
             window.lastProcessedData = data;
+
+            // Configurar el selector de fecha con la fecha por defecto (mañana)
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            document.getElementById('fechaAtencionSelector').value = tomorrowStr;
+            document.getElementById('fechaActual').textContent = `(Actual: ${tomorrowStr})`;
+
+            // Configurar el selector de hora con la hora por defecto (08:00)
+            document.getElementById('horaAtencionSelector').value = '08:00';
+            document.getElementById('horaActual').textContent = '(Actual: 08:00)';
+
+            // Actualizar información de médicos seleccionados
+            actualizarMedicosSeleccionados();
         }
 
         function displayError(error) {
@@ -413,6 +502,114 @@
                     ❌ ${error}
                 </div>
             `;
+        }
+
+        function actualizarFechasTodas(nuevaFecha) {
+            if (!window.lastProcessedData || !nuevaFecha) return;
+
+            // Actualizar todas las fechas en los datos
+            window.lastProcessedData.datos.forEach(persona => {
+                persona.fechaAtencion = nuevaFecha;
+            });
+
+            // Actualizar todos los inputs de fecha en la tabla
+            const inputsFecha = document.querySelectorAll('.fecha-atencion input[type="date"]');
+            inputsFecha.forEach(input => {
+                input.value = nuevaFecha;
+            });
+
+            // Actualizar el texto informativo
+            document.getElementById('fechaActual').textContent = `(Actual: ${nuevaFecha})`;
+        }
+
+        function actualizarHorasTodas(horaInicial) {
+            if (!window.lastProcessedData || !horaInicial) return;
+
+            // Parsear la hora inicial
+            const [horas, minutos] = horaInicial.split(':').map(Number);
+
+            // Actualizar las horas con incrementos de 10 minutos
+            window.lastProcessedData.datos.forEach((persona, index) => {
+                // Calcular los minutos totales desde la hora base
+                const minutosBase = horas * 60 + minutos;
+                const minutosNuevos = minutosBase + (index * 10);
+
+                // Convertir de vuelta a formato HH:MM
+                const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
+                const minutosRestantes = minutosNuevos % 60;
+                const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
+
+                persona.horaAtencion = horaFormateada;
+            });
+
+            // Actualizar todos los inputs de hora en la tabla
+            const inputsHora = document.querySelectorAll('.hora-atencion input[type="time"]');
+            inputsHora.forEach((input, index) => {
+                const minutosBase = horas * 60 + minutos;
+                const minutosNuevos = minutosBase + (index * 10);
+                const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
+                const minutosRestantes = minutosNuevos % 60;
+                const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
+                input.value = horaFormateada;
+            });
+
+            // Actualizar el texto informativo
+            document.getElementById('horaActual').textContent = `(Actual: ${horaInicial})`;
+        }
+
+        function actualizarMedicosSeleccionados() {
+            if (!window.lastProcessedData) {
+                // Solo actualizar el contador si aún no hay datos
+                const checkboxes = document.querySelectorAll('#medicosContainer input[type="checkbox"]:checked');
+                const medicosSeleccionados = Array.from(checkboxes).map(cb => cb.value);
+                document.getElementById('medicosSeleccionadosInfo').textContent =
+                    `${medicosSeleccionados.length} médico(s) seleccionado(s): ${medicosSeleccionados.join(', ')}`;
+                return;
+            }
+
+            // Obtener médicos seleccionados
+            const checkboxes = document.querySelectorAll('#medicosContainer input[type="checkbox"]:checked');
+            const medicosSeleccionados = Array.from(checkboxes).map(cb => cb.value);
+
+            if (medicosSeleccionados.length === 0) {
+                alert('Debe seleccionar al menos un médico');
+                return;
+            }
+
+            // Redistribuir médicos equitativamente usando round-robin
+            window.lastProcessedData.datos.forEach((persona, index) => {
+                const medicoIndex = index % medicosSeleccionados.length;
+                persona.medico = medicosSeleccionados[medicoIndex];
+            });
+
+            // Actualizar los selects de médico en la tabla
+            const selectsMedico = document.querySelectorAll('.medico-asignado select');
+            selectsMedico.forEach((select, index) => {
+                const medicoIndex = index % medicosSeleccionados.length;
+                select.value = medicosSeleccionados[medicoIndex];
+            });
+
+            // Actualizar el texto informativo
+            const totalRegistros = window.lastProcessedData.datos.length;
+            const registrosPorMedico = Math.floor(totalRegistros / medicosSeleccionados.length);
+            const extra = totalRegistros % medicosSeleccionados.length;
+
+            let infoText = `${medicosSeleccionados.length} médico(s) seleccionado(s): ${medicosSeleccionados.join(', ')}. `;
+            infoText += `Distribución: ~${registrosPorMedico} registros por médico`;
+            if (extra > 0) {
+                infoText += ` (${extra} médico(s) tendrán 1 registro adicional)`;
+            }
+
+            document.getElementById('medicosSeleccionadosInfo').textContent = infoText;
+        }
+
+        function actualizarCampo(index, campo, valor) {
+            if (!window.lastProcessedData || !window.lastProcessedData.datos[index]) return;
+
+            // Actualizar el valor en los datos
+            window.lastProcessedData.datos[index][campo] = valor;
+
+            console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
         }
 
         function downloadJSON(event) {

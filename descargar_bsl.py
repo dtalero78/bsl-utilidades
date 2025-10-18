@@ -997,6 +997,12 @@ def procesar_csv():
         # Procesar cada fila del CSV
         personas_procesadas = []
 
+        # Hora inicial por defecto: 8:00 AM
+        hora_base = datetime.strptime("08:00", "%H:%M")
+
+        # Lista de médicos por defecto (se puede personalizar desde el frontend)
+        medicos_disponibles = ["SIXTA", "JUAN 134", "CESAR", "MARY", "NUBIA"]
+
         for idx, row in enumerate(csv_reader, start=1):
             try:
                 # Normalizar los nombres de las columnas (eliminar espacios al inicio/final)
@@ -1014,6 +1020,16 @@ def procesar_csv():
 
                 nombres_separados = separar_nombre_completo(nombre_completo)
 
+                # Calcular fecha de atención (un día después de hoy por defecto)
+                fecha_atencion = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+                # Calcular hora de atención con incrementos de 10 minutos por registro
+                # idx - 1 porque idx empieza en 1
+                hora_atencion = (hora_base + timedelta(minutes=(idx - 1) * 10)).strftime('%H:%M')
+
+                # Asignar médico de forma equitativa (round-robin)
+                medico_asignado = medicos_disponibles[(idx - 1) % len(medicos_disponibles)]
+
                 # Extraer otros campos del CSV
                 persona = {
                     "fila": idx,
@@ -1025,7 +1041,11 @@ def procesar_csv():
                     "numeroId": row_normalized.get('No IDENTIFICACION', '').strip(),
                     "cargo": row_normalized.get('CARGO', '').strip(),
                     "celular": row_normalized.get('TELEFONOS', '').strip(),
-                    "ciudad": row_normalized.get('CIUDAD', '').strip()
+                    "ciudad": row_normalized.get('CIUDAD', '').strip(),
+                    "tipoExamen": row_normalized.get('TIPO DE EXAMEN OCUPACIONAL', '').strip(),
+                    "fechaAtencion": fecha_atencion,
+                    "horaAtencion": hora_atencion,
+                    "medico": medico_asignado
                 }
 
                 personas_procesadas.append(persona)
