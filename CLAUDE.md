@@ -217,9 +217,23 @@ The web interface (`/static/procesar-csv.html`) provides:
   - Always use 07:00 as horaAtencion
   - These rules apply both on initial load and when redistributing via doctor tags
 
-**Display:**
+**Table Display:**
 - Full-screen responsive layout
-- Editable table with all fields
+- Visible columns (hidden: # and Nombre Completo):
+  - Primer Nombre, Segundo Nombre, Primer Apellido, Segundo Apellido
+  - Número ID, Cargo, Celular, Ciudad, Tipo Examen
+  - Fecha Atención (editable input)
+  - Hora Atención (editable input)
+  - **Fecha/Hora concatenada** (MM/DD/YYYY HH:MM format) - auto-updates when fecha or hora changes
+  - Médico (click-to-edit dropdown, displays as text for Excel copy compatibility)
+
+**Excel Copy-Paste Compatibility:**
+- Médico field displays as plain text (copies correctly to Excel)
+- Fecha/Hora concatenada field is plain text (copies correctly to Excel)
+- Click on médico to show dropdown for editing
+- Date and time inputs include hidden spans for proper copying
+
+**Display:**
 - JSON download functionality
 - Real-time updates when using global controls
 
