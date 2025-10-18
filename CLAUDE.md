@@ -85,11 +85,20 @@ zip -r bot_bsl.zip . -x "node_modules/*" "__pycache__/*" ".git/*" "*.pyc" "*.log
 
 ## API Endpoints
 
+### PDF Generation Endpoints
 - `POST /generar-pdf` - Generate PDF and upload to storage
-- `POST /subir-pdf-directo` - Upload existing PDF URL to storage  
+- `POST /subir-pdf-directo` - Upload existing PDF URL to storage
 - `GET|POST /descargar-pdf-empresas` - Generate and directly download PDF
 - `GET /descargar-pdf-drive/<documento>` - Download PDF from Google Drive
 - `GET /` - Serve frontend interface
+
+### CSV Processing Endpoint
+- `POST /procesar-csv` - Process CSV files with person data
+  - Separates full names into components (first name, second name, first surname, second surname)
+  - Extracts fields: numeroId, cargo, celular, ciudad, tipoExamen
+  - Assigns scheduling data: fechaAtencion (date), horaAtencion (time), medico (doctor)
+  - Returns JSON with processed data
+  - Web interface available at `/static/procesar-csv.html`
 
 All endpoints support CORS for company-specific domains and include proper error handling with detailed logging.
 
@@ -109,3 +118,102 @@ All endpoints support CORS for company-specific domains and include proper error
 ### RIPPLING Company (Special Case)
 - Dynamically routes to different folders based on `tipoExamen` parameter
 - Supports "ingreso" and "periódico" exam types
+
+## CSV Processing Feature
+
+### Overview
+The CSV processing endpoint (`/procesar-csv`) provides intelligent parsing and enrichment of person data from CSV files, primarily used for medical examination scheduling.
+
+### Input CSV Format
+
+**Required Columns:**
+- `NOMBRES APELLIDOS Y` (or `NOMBRES COMPLETOS` or `NOMBRES Y APELLIDOS`) - Full name to be separated
+- `No IDENTIFICACION` - ID number
+- `CARGO` - Position/job title
+- `TELEFONOS` - Phone number
+- `CIUDAD` - City
+- `TIPO DE EXAMEN OCUPACIONAL` - Type of occupational exam (optional)
+
+**Note:** Column names are normalized (trimmed of leading/trailing spaces) for flexibility.
+
+### Name Separation Logic
+
+Full names are automatically split into components using the `separar_nombre_completo()` function:
+
+- **1 word**: Treated as first name only
+- **2 words**: First name + First surname
+- **3 words**: First name + Second name + First surname
+- **4+ words**: First name + Second name + First surname + Second surname
+
+Examples:
+- `JUAN PEREZ` → primerNombre: "JUAN", primerApellido: "PEREZ"
+- `MARIA FERNANDA RODRIGUEZ` → primerNombre: "MARIA", segundoNombre: "FERNANDA", primerApellido: "RODRIGUEZ"
+- `JUAN CARLOS PEREZ GOMEZ` → All four fields populated
+
+### Automatic Field Assignment
+
+The endpoint automatically assigns:
+
+1. **fechaAtencion**: Default is tomorrow (current date + 1 day), format: YYYY-MM-DD
+2. **horaAtencion**: Starts at 08:00, increments by 10 minutes per record (08:00, 08:10, 08:20, etc.)
+3. **medico**: Round-robin distribution among available doctors:
+   - SIXTA
+   - JUAN 134
+   - CESAR
+   - MARY
+   - NUBIA
+
+### Output Format
+
+Returns JSON with:
+```json
+{
+  "success": true,
+  "total_registros": 5,
+  "message": "CSV procesado exitosamente. 5 registros encontrados.",
+  "datos": [
+    {
+      "fila": 1,
+      "nombreCompleto": "JUAN CARLOS PEREZ GOMEZ",
+      "primerNombre": "JUAN",
+      "segundoNombre": "CARLOS",
+      "primerApellido": "PEREZ",
+      "segundoApellido": "GOMEZ",
+      "numeroId": "1234567890",
+      "cargo": "Ingeniero de Sistemas",
+      "celular": "3001234567",
+      "ciudad": "Bogotá",
+      "tipoExamen": "PRE INGRESO",
+      "fechaAtencion": "2025-10-19",
+      "horaAtencion": "08:00",
+      "medico": "SIXTA"
+    }
+  ]
+}
+```
+
+### Web Interface Features
+
+The web interface (`/static/procesar-csv.html`) provides:
+
+**Global Controls:**
+- Date selector: Change all appointment dates at once
+- Time selector: Set initial time (auto-increments 10 min per record)
+- Doctor tags: Select which doctors to include in distribution
+
+**Individual Editing:**
+- Each record's date, time, and assigned doctor can be edited directly in the table
+- Changes are reflected in the downloadable JSON
+
+**Display:**
+- Full-screen responsive layout
+- Editable table with all fields
+- JSON download functionality
+- Real-time updates when using global controls
+
+### Use Cases
+
+1. **Medical Examination Scheduling**: Automatically distribute patients among available doctors
+2. **Appointment Management**: Batch schedule appointments with automatic time slots
+3. **Data Enrichment**: Take basic person data and add scheduling information
+4. **Name Normalization**: Standardize full names into separate fields for database storage
