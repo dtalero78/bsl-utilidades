@@ -400,6 +400,10 @@
                                 <input type="checkbox" value="NUBIA" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
                                 <span>NUBIA</span>
                             </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="PRESENCIAL" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>PRESENCIAL</span>
+                            </label>
                         </div>
                         <div id="medicosSeleccionadosInfo" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
                     </div>
@@ -409,8 +413,6 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Nombre Completo</th>
                                 <th>Primer Nombre</th>
                                 <th>Segundo Nombre</th>
                                 <th>Primer Apellido</th>
@@ -431,8 +433,6 @@
             data.datos.forEach((persona, index) => {
                 html += `
                     <tr>
-                        <td>${persona.fila}</td>
-                        <td><strong>${persona.nombreCompleto}</strong></td>
                         <td>${persona.primerNombre}</td>
                         <td>${persona.segundoNombre}</td>
                         <td>${persona.primerApellido}</td>
@@ -454,15 +454,18 @@
                                    onchange="actualizarCampo(${index}, 'horaAtencion', this.value)"
                                    style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 90px;">
                         </td>
-                        <td class="medico-asignado">
-                            <select data-index="${index}"
-                                    onchange="actualizarCampo(${index}, 'medico', this.value)"
-                                    style="padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 100%;">
+                        <td class="medico-asignado" data-index="${index}" onclick="mostrarSelectorMedico(${index})" style="cursor: pointer; background: #f9fafb;">
+                            <span class="medico-display">${persona.medico}</span>
+                            <select class="medico-select" data-index="${index}"
+                                    onchange="actualizarCampo(${index}, 'medico', this.value); ocultarSelectorMedico(${index})"
+                                    onblur="ocultarSelectorMedico(${index})"
+                                    style="display: none; padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 100%;">
                                 <option value="SIXTA" ${persona.medico === 'SIXTA' ? 'selected' : ''}>SIXTA</option>
                                 <option value="JUAN 134" ${persona.medico === 'JUAN 134' ? 'selected' : ''}>JUAN 134</option>
                                 <option value="CESAR" ${persona.medico === 'CESAR' ? 'selected' : ''}>CESAR</option>
                                 <option value="MARY" ${persona.medico === 'MARY' ? 'selected' : ''}>MARY</option>
                                 <option value="NUBIA" ${persona.medico === 'NUBIA' ? 'selected' : ''}>NUBIA</option>
+                                <option value="PRESENCIAL" ${persona.medico === 'PRESENCIAL' ? 'selected' : ''}>PRESENCIAL</option>
                             </select>
                         </td>
                     </tr>
@@ -577,16 +580,43 @@
             }
 
             // Redistribuir médicos equitativamente usando round-robin
+            // SOLO para registros que NO son de Bogotá (que deben mantener PRESENCIAL y 07:00)
+            let contadorRoundRobin = 0;
             window.lastProcessedData.datos.forEach((persona, index) => {
-                const medicoIndex = index % medicosSeleccionados.length;
-                persona.medico = medicosSeleccionados[medicoIndex];
+                const ciudad = persona.ciudad || '';
+                const esBogota = ciudad.toUpperCase().includes('BOGOT');
+
+                if (esBogota) {
+                    // Mantener PRESENCIAL y hora fija 07:00 para Bogotá
+                    persona.medico = 'PRESENCIAL';
+                    persona.horaAtencion = '07:00';
+                } else {
+                    // Round-robin para otras ciudades
+                    const medicoIndex = contadorRoundRobin % medicosSeleccionados.length;
+                    persona.medico = medicosSeleccionados[medicoIndex];
+                    contadorRoundRobin++;
+                }
             });
 
-            // Actualizar los selects de médico en la tabla
-            const selectsMedico = document.querySelectorAll('.medico-asignado select');
-            selectsMedico.forEach((select, index) => {
-                const medicoIndex = index % medicosSeleccionados.length;
-                select.value = medicosSeleccionados[medicoIndex];
+            // Actualizar los selects de médico, displays y horas en la tabla
+            const celdasMedico = document.querySelectorAll('.medico-asignado');
+            celdasMedico.forEach((celda, index) => {
+                const persona = window.lastProcessedData.datos[index];
+                const select = celda.querySelector('.medico-select');
+                const display = celda.querySelector('.medico-display');
+
+                if (select) select.value = persona.medico;
+                if (display) display.textContent = persona.medico;
+
+                // Actualizar la hora si es Bogotá (07:00)
+                const ciudad = persona.ciudad || '';
+                const esBogota = ciudad.toUpperCase().includes('BOGOT');
+                if (esBogota) {
+                    const inputHora = document.querySelector(`.hora-atencion input[data-index="${index}"]`);
+                    if (inputHora) {
+                        inputHora.value = '07:00';
+                    }
+                }
             });
 
             // Actualizar el texto informativo
@@ -603,11 +633,48 @@
             document.getElementById('medicosSeleccionadosInfo').textContent = infoText;
         }
 
+        function mostrarSelectorMedico(index) {
+            const celda = document.querySelector(`.medico-asignado[data-index="${index}"]`);
+            if (!celda) return;
+
+            const display = celda.querySelector('.medico-display');
+            const select = celda.querySelector('.medico-select');
+
+            if (display && select) {
+                display.style.display = 'none';
+                select.style.display = 'block';
+                select.focus();
+            }
+        }
+
+        function ocultarSelectorMedico(index) {
+            setTimeout(() => {
+                const celda = document.querySelector(`.medico-asignado[data-index="${index}"]`);
+                if (!celda) return;
+
+                const display = celda.querySelector('.medico-display');
+                const select = celda.querySelector('.medico-select');
+
+                if (display && select) {
+                    display.style.display = 'inline';
+                    select.style.display = 'none';
+                }
+            }, 200);
+        }
+
         function actualizarCampo(index, campo, valor) {
             if (!window.lastProcessedData || !window.lastProcessedData.datos[index]) return;
 
             // Actualizar el valor en los datos
             window.lastProcessedData.datos[index][campo] = valor;
+
+            // Actualizar el texto visible para médico
+            if (campo === 'medico') {
+                const display = document.querySelector(`.medico-asignado[data-index="${index}"] .medico-display`);
+                if (display) {
+                    display.textContent = valor;
+                }
+            }
 
             console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
         }

@@ -155,13 +155,18 @@ Examples:
 The endpoint automatically assigns:
 
 1. **fechaAtencion**: Default is tomorrow (current date + 1 day), format: YYYY-MM-DD
-2. **horaAtencion**: Starts at 08:00, increments by 10 minutes per record (08:00, 08:10, 08:20, etc.)
-3. **medico**: Round-robin distribution among available doctors:
-   - SIXTA
-   - JUAN 134
-   - CESAR
-   - MARY
-   - NUBIA
+2. **horaAtencion**:
+   - For Bogotá (any case variation): Fixed at 07:00
+   - For other cities: Starts at 08:00, increments by 10 minutes per record (08:00, 08:10, 08:20, etc.)
+3. **medico**:
+   - For Bogotá (any case variation): Always assigned to PRESENCIAL
+   - For other cities: Round-robin distribution among available doctors:
+     - SIXTA
+     - JUAN 134
+     - CESAR
+     - MARY
+     - NUBIA
+     - PRESENCIAL
 
 ### Output Format
 
@@ -198,12 +203,19 @@ The web interface (`/static/procesar-csv.html`) provides:
 
 **Global Controls:**
 - Date selector: Change all appointment dates at once
-- Time selector: Set initial time (auto-increments 10 min per record)
-- Doctor tags: Select which doctors to include in distribution
+- Time selector: Set initial time (auto-increments 10 min per record for non-Bogotá cities)
+- Doctor tags: Select which doctors to include in distribution (respects Bogotá = PRESENCIAL rule)
 
 **Individual Editing:**
 - Each record's date, time, and assigned doctor can be edited directly in the table
 - Changes are reflected in the downloadable JSON
+- Manual edits are preserved when changing doctor tags
+
+**Special Rules:**
+- Bogotá records (any case: Bogotá, BOGOTÁ, Bogota, BOGOTA, etc.):
+  - Always assigned to PRESENCIAL médico
+  - Always use 07:00 as horaAtencion
+  - These rules apply both on initial load and when redistributing via doctor tags
 
 **Display:**
 - Full-screen responsive layout
