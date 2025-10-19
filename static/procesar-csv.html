@@ -361,6 +361,20 @@
                 <a href="#" class="download-json" onclick="downloadJSON(event)">⬇️ Descargar JSON</a>
 
                 <div style="margin: 20px 0; padding: 15px; background: #f8f9ff; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label for="codEmpresaInput" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                                🏢 Código Empresa (aplica a todos):
+                            </label>
+                            <input type="text" id="codEmpresaInput" placeholder="Ej: EMP001" style="width: 100%; padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px;" onchange="actualizarCodEmpresaTodos(this.value)">
+                        </div>
+                        <div>
+                            <label for="empresaInput" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                                🏢 Nombre Empresa (aplica a todos):
+                            </label>
+                            <input type="text" id="empresaInput" placeholder="Ej: Acme Corporation" style="width: 100%; padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px;" onchange="actualizarEmpresaTodos(this.value)">
+                        </div>
+                    </div>
                     <div style="margin-bottom: 15px;">
                         <label for="fechaAtencionSelector" style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
                             📅 Cambiar fecha de atención para todos los registros:
@@ -375,7 +389,7 @@
                         <input type="time" id="horaAtencionSelector" style="padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px; cursor: pointer;" onchange="actualizarHorasTodas(this.value)">
                         <span id="horaActual" style="margin-left: 10px; color: #666; font-size: 14px;"></span>
                     </div>
-                    <div>
+                    <div style="margin-bottom: 15px;">
                         <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
                             👨‍⚕️ Seleccionar médicos (distribución equitativa):
                         </label>
@@ -407,31 +421,65 @@
                         </div>
                         <div id="medicosSeleccionadosInfo" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
                     </div>
+                    <div>
+                        <label style="font-weight: 600; color: #333; display: block; margin-bottom: 8px;">
+                            🔬 Seleccionar exámenes (aplica a todos):
+                        </label>
+                        <div id="examenesContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="Examen Médico Osteomuscular" onchange="actualizarExamenesTodos()" style="margin-right: 6px;">
+                                <span>Examen Médico Osteomuscular</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="Audiometría" onchange="actualizarExamenesTodos()" style="margin-right: 6px;">
+                                <span>Audiometría</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="Optometría" onchange="actualizarExamenesTodos()" style="margin-right: 6px;">
+                                <span>Optometría</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="SCL-90" onchange="actualizarExamenesTodos()" style="margin-right: 6px;">
+                                <span>SCL-90</span>
+                            </label>
+                        </div>
+                        <div id="examenesSeleccionadosInfo" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
+                    </div>
                 </div>
 
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Primer Nombre</th>
-                                <th>Segundo Nombre</th>
-                                <th>Primer Apellido</th>
-                                <th>Segundo Apellido</th>
-                                <th>Número ID</th>
-                                <th>Cargo</th>
-                                <th>Celular</th>
-                                <th>Ciudad</th>
-                                <th>Tipo Examen</th>
+                                <th>primerNombre</th>
+                                <th>segundoNombre</th>
+                                <th>primerApellido</th>
+                                <th>segundoApellido</th>
+                                <th>numeroId</th>
+                                <th>cargo</th>
+                                <th>celular</th>
+                                <th>ciudad</th>
+                                <th>tipoExamen</th>
                                 <th>Fecha Atención</th>
                                 <th>Hora Atención</th>
-                                <th>Fecha/Hora</th>
-                                <th>Médico</th>
+                                <th>fechaAtencion</th>
+                                <th>medico</th>
+                                <th>atendido</th>
+                                <th>codEmpresa</th>
+                                <th>empresa</th>
+                                <th>examenes</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
             data.datos.forEach((persona, index) => {
+                // Inicializar nuevos campos
+                persona.atendido = 'PENDIENTE';
+                persona.codEmpresa = '';
+                persona.empresa = '';
+                persona.examen = [];
+
                 // Formatear fecha a MM/DD/YYYY
                 const [year, month, day] = persona.fechaAtencion.split('-');
                 const fechaFormateada = `${month}/${day}/${year}`;
@@ -464,19 +512,12 @@
                         </td>
                         <td class="fecha-hora-concatenada" data-index="${index}">${fechaHoraConcatenada}</td>
                         <td class="medico-asignado" data-index="${index}" onclick="mostrarSelectorMedico(${index})" style="cursor: pointer; background: #f9fafb;">
-                            <span class="medico-display">${persona.medico}</span>
-                            <select class="medico-select" data-index="${index}"
-                                    onchange="actualizarCampo(${index}, 'medico', this.value); ocultarSelectorMedico(${index})"
-                                    onblur="ocultarSelectorMedico(${index})"
-                                    style="display: none; padding: 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 100%;">
-                                <option value="SIXTA" ${persona.medico === 'SIXTA' ? 'selected' : ''}>SIXTA</option>
-                                <option value="JUAN 134" ${persona.medico === 'JUAN 134' ? 'selected' : ''}>JUAN 134</option>
-                                <option value="CESAR" ${persona.medico === 'CESAR' ? 'selected' : ''}>CESAR</option>
-                                <option value="MARY" ${persona.medico === 'MARY' ? 'selected' : ''}>MARY</option>
-                                <option value="NUBIA" ${persona.medico === 'NUBIA' ? 'selected' : ''}>NUBIA</option>
-                                <option value="PRESENCIAL" ${persona.medico === 'PRESENCIAL' ? 'selected' : ''}>PRESENCIAL</option>
-                            </select>
+                            ${persona.medico}
                         </td>
+                        <td class="atendido" data-index="${index}">PENDIENTE</td>
+                        <td class="codEmpresa" data-index="${index}"></td>
+                        <td class="empresa" data-index="${index}"></td>
+                        <td class="examen" data-index="${index}">[]</td>
                     </tr>
                 `;
             });
@@ -484,6 +525,24 @@
             html += `
                         </tbody>
                     </table>
+                </div>
+
+                <div id="medicoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;" onclick="cerrarModalMedico(event)">
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); min-width: 250px;" onclick="event.stopPropagation()">
+                        <h3 style="margin: 0 0 15px 0; color: #333;">Seleccionar Médico</h3>
+                        <select id="medicoSelector" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px; margin-bottom: 15px;">
+                            <option value="SIXTA">SIXTA</option>
+                            <option value="JUAN 134">JUAN 134</option>
+                            <option value="CESAR">CESAR</option>
+                            <option value="MARY">MARY</option>
+                            <option value="NUBIA">NUBIA</option>
+                            <option value="PRESENCIAL">PRESENCIAL</option>
+                        </select>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="guardarMedico()" style="flex: 1; background: #10b981; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar</button>
+                            <button onclick="cerrarModalMedico()" style="flex: 1; background: #6b7280; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancelar</button>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -633,15 +692,11 @@
                 }
             });
 
-            // Actualizar los selects de médico, displays y horas en la tabla
+            // Actualizar las celdas de médico y horas en la tabla
             const celdasMedico = document.querySelectorAll('.medico-asignado');
             celdasMedico.forEach((celda, index) => {
                 const persona = window.lastProcessedData.datos[index];
-                const select = celda.querySelector('.medico-select');
-                const display = celda.querySelector('.medico-display');
-
-                if (select) select.value = persona.medico;
-                if (display) display.textContent = persona.medico;
+                celda.textContent = persona.medico;
 
                 // Actualizar la hora si es Bogotá (07:00)
                 const ciudad = persona.ciudad || '';
@@ -680,33 +735,50 @@
             document.getElementById('medicosSeleccionadosInfo').textContent = infoText;
         }
 
+        let currentEditingIndex = null;
+
         function mostrarSelectorMedico(index) {
-            const celda = document.querySelector(`.medico-asignado[data-index="${index}"]`);
-            if (!celda) return;
+            if (!window.lastProcessedData || !window.lastProcessedData.datos[index]) return;
 
-            const display = celda.querySelector('.medico-display');
-            const select = celda.querySelector('.medico-select');
+            currentEditingIndex = index;
+            const medicoActual = window.lastProcessedData.datos[index].medico;
 
-            if (display && select) {
-                display.style.display = 'none';
-                select.style.display = 'block';
-                select.focus();
+            const modal = document.getElementById('medicoModal');
+            const selector = document.getElementById('medicoSelector');
+
+            if (modal && selector) {
+                selector.value = medicoActual;
+                modal.style.display = 'flex';
+                selector.focus();
             }
         }
 
-        function ocultarSelectorMedico(index) {
-            setTimeout(() => {
-                const celda = document.querySelector(`.medico-asignado[data-index="${index}"]`);
-                if (!celda) return;
+        function cerrarModalMedico(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('medicoModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            currentEditingIndex = null;
+        }
 
-                const display = celda.querySelector('.medico-display');
-                const select = celda.querySelector('.medico-select');
+        function guardarMedico() {
+            if (currentEditingIndex === null) return;
 
-                if (display && select) {
-                    display.style.display = 'inline';
-                    select.style.display = 'none';
-                }
-            }, 200);
+            const selector = document.getElementById('medicoSelector');
+            const nuevoMedico = selector.value;
+
+            // Actualizar el valor en los datos
+            actualizarCampo(currentEditingIndex, 'medico', nuevoMedico);
+
+            // Actualizar la celda en la tabla
+            const celda = document.querySelector(`.medico-asignado[data-index="${currentEditingIndex}"]`);
+            if (celda) {
+                celda.textContent = nuevoMedico;
+            }
+
+            // Cerrar el modal
+            cerrarModalMedico();
         }
 
         function actualizarCampo(index, campo, valor) {
@@ -714,14 +786,6 @@
 
             // Actualizar el valor en los datos
             window.lastProcessedData.datos[index][campo] = valor;
-
-            // Actualizar el texto visible para médico
-            if (campo === 'medico') {
-                const display = document.querySelector(`.medico-asignado[data-index="${index}"] .medico-display`);
-                if (display) {
-                    display.textContent = valor;
-                }
-            }
 
             console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
         }
@@ -753,6 +817,69 @@
             }
 
             console.log(`✅ Actualizado registro ${index + 1}: ${campo} = ${valor}`);
+        }
+
+        function actualizarCodEmpresaTodos(codEmpresa) {
+            if (!window.lastProcessedData) return;
+
+            // Actualizar todos los registros
+            window.lastProcessedData.datos.forEach((persona, index) => {
+                persona.codEmpresa = codEmpresa;
+
+                // Actualizar la celda en la tabla
+                const celda = document.querySelector(`.codEmpresa[data-index="${index}"]`);
+                if (celda) {
+                    celda.textContent = codEmpresa;
+                }
+            });
+
+            console.log(`✅ Código de empresa actualizado para todos: ${codEmpresa}`);
+        }
+
+        function actualizarEmpresaTodos(empresa) {
+            if (!window.lastProcessedData) return;
+
+            // Actualizar todos los registros
+            window.lastProcessedData.datos.forEach((persona, index) => {
+                persona.empresa = empresa;
+
+                // Actualizar la celda en la tabla
+                const celda = document.querySelector(`.empresa[data-index="${index}"]`);
+                if (celda) {
+                    celda.textContent = empresa;
+                }
+            });
+
+            console.log(`✅ Empresa actualizada para todos: ${empresa}`);
+        }
+
+        function actualizarExamenesTodos() {
+            if (!window.lastProcessedData) return;
+
+            // Obtener exámenes seleccionados
+            const checkboxes = document.querySelectorAll('#examenesContainer input[type="checkbox"]:checked');
+            const examenesSeleccionados = Array.from(checkboxes).map(cb => cb.value);
+
+            // Actualizar todos los registros
+            window.lastProcessedData.datos.forEach((persona, index) => {
+                persona.examen = [...examenesSeleccionados];
+
+                // Actualizar la celda en la tabla
+                const celda = document.querySelector(`.examen[data-index="${index}"]`);
+                if (celda) {
+                    celda.textContent = JSON.stringify(examenesSeleccionados);
+                }
+            });
+
+            // Actualizar el texto informativo
+            const infoElement = document.getElementById('examenesSeleccionadosInfo');
+            if (infoElement) {
+                infoElement.textContent = examenesSeleccionados.length > 0
+                    ? `${examenesSeleccionados.length} examen(es) seleccionado(s): ${examenesSeleccionados.join(', ')}`
+                    : 'Ningún examen seleccionado';
+            }
+
+            console.log(`✅ Exámenes actualizados para todos: ${JSON.stringify(examenesSeleccionados)}`);
         }
 
         function downloadJSON(event) {

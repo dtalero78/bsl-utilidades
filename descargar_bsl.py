@@ -1003,6 +1003,9 @@ def procesar_csv():
         # Lista de médicos por defecto (se puede personalizar desde el frontend)
         medicos_disponibles = ["SIXTA", "JUAN 134", "CESAR", "MARY", "NUBIA", "PRESENCIAL"]
 
+        # Contador para registros que NO son BOGOTA (para distribución equitativa)
+        contador_no_bogota = 0
+
         for idx, row in enumerate(csv_reader, start=1):
             try:
                 # Normalizar los nombres de las columnas (eliminar espacios al inicio/final)
@@ -1026,15 +1029,21 @@ def procesar_csv():
                 # Extraer ciudad
                 ciudad = row_normalized.get('CIUDAD', '').strip()
 
+                # Normalizar Bogotá a BOGOTA (cualquier variación)
+                es_bogota = 'BOGOT' in ciudad.upper()
+                if es_bogota:
+                    ciudad = 'BOGOTA'
+
                 # Asignar médico y hora: PRESENCIAL y 07:00 si ciudad es Bogotá, sino round-robin
-                es_bogota = ciudad.upper() in ['BOGOTA', 'BOGOTÁ']
                 if es_bogota:
                     medico_asignado = "PRESENCIAL"
                     hora_atencion = "07:00"
                 else:
-                    medico_asignado = medicos_disponibles[(idx - 1) % len(medicos_disponibles)]
-                    # Calcular hora de atención con incrementos de 10 minutos por registro
-                    hora_atencion = (hora_base + timedelta(minutes=(idx - 1) * 10)).strftime('%H:%M')
+                    # Usar contador solo para registros que NO son BOGOTA
+                    medico_asignado = medicos_disponibles[contador_no_bogota % len(medicos_disponibles)]
+                    # Calcular hora de atención con incrementos de 10 minutos por registro no-BOGOTA
+                    hora_atencion = (hora_base + timedelta(minutes=contador_no_bogota * 10)).strftime('%H:%M')
+                    contador_no_bogota += 1
 
                 # Extraer otros campos del CSV
                 persona = {
@@ -1067,6 +1076,11 @@ def procesar_csv():
                 })
 
         print(f"✅ CSV procesado exitosamente. Total de registros: {len(personas_procesadas)}")
+
+        # Ordenar registros: primero BOGOTA, luego por hora (de más temprano a más tarde)
+        personas_procesadas.sort(key=lambda x: (x.get('ciudad', '') != 'BOGOTA', x.get('horaAtencion', '00:00')))
+
+        print(f"✅ Registros ordenados: BOGOTA primero, luego por hora")
 
         # Preparar respuesta
         respuesta = {
