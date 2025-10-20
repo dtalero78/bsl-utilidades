@@ -612,11 +612,19 @@
             // Parsear la hora inicial
             const [horas, minutos] = horaInicial.split(':').map(Number);
 
+            // Contador solo para registros no-PRESENCIAL
+            let contadorNoPresencial = 0;
+
             // Actualizar las horas con incrementos de 10 minutos
             window.lastProcessedData.datos.forEach((persona, index) => {
+                // NO afectar registros PRESENCIAL
+                if (persona.medico === 'PRESENCIAL') {
+                    return; // Mantener su hora original (07:00 para Bogotá)
+                }
+
                 // Calcular los minutos totales desde la hora base
                 const minutosBase = horas * 60 + minutos;
-                const minutosNuevos = minutosBase + (index * 10);
+                const minutosNuevos = minutosBase + (contadorNoPresencial * 10);
 
                 // Convertir de vuelta a formato HH:MM
                 const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
@@ -624,13 +632,25 @@
                 const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
 
                 persona.horaAtencion = horaFormateada;
+                contadorNoPresencial++;
             });
 
             // Actualizar todos los inputs de hora en la tabla
             const inputsHora = document.querySelectorAll('.hora-atencion input[type="time"]');
+            contadorNoPresencial = 0;
             inputsHora.forEach((input, index) => {
+                const persona = window.lastProcessedData.datos[index];
+
+                // NO afectar registros PRESENCIAL
+                if (persona.medico === 'PRESENCIAL') {
+                    input.value = persona.horaAtencion; // Mantener hora original
+                    const span = input.nextElementSibling;
+                    if (span) span.textContent = persona.horaAtencion;
+                    return;
+                }
+
                 const minutosBase = horas * 60 + minutos;
-                const minutosNuevos = minutosBase + (index * 10);
+                const minutosNuevos = minutosBase + (contadorNoPresencial * 10);
                 const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
                 const minutosRestantes = minutosNuevos % 60;
                 const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
@@ -638,6 +658,7 @@
                 // Actualizar span oculto
                 const span = input.nextElementSibling;
                 if (span) span.textContent = horaFormateada;
+                contadorNoPresencial++;
             });
 
             // Actualizar todas las celdas de fecha/hora concatenada
