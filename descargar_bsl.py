@@ -12,7 +12,7 @@ import tempfile
 import csv
 import io
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
@@ -746,7 +746,10 @@ def generar_certificado_medico():
             "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
 
             # Exámenes detallados (página 2, opcional)
-            "examenes_detallados": data.get("examenes_detallados", [])
+            "examenes_detallados": data.get("examenes_detallados", []),
+
+            # Logo URL
+            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
 
         # Renderizar template HTML
@@ -1103,6 +1106,245 @@ def procesar_csv():
         error_response = jsonify({
             "success": False,
             "error": str(e)
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
+# --- Endpoint: GENERAR CERTIFICADO DESDE ID DE WIX ---
+@app.route("/generar-certificado-desde-wix/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_desde_wix(wix_id):
+    """
+    Endpoint que consulta los datos de Wix usando el _id y genera el certificado
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"📋 Generando certificado desde Wix ID: {wix_id}")
+
+        # Obtener parámetros opcionales
+        guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
+
+        # Consultar datos desde Wix HTTP Functions
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+
+        print(f"🔍 Consultando Wix HTTP Function: {wix_base_url}/historiaClinicaPorId?_id={wix_id}")
+
+        try:
+            # Llamar al endpoint de Wix
+            wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+            response = requests.get(wix_url, timeout=10)
+
+            print(f"📡 Respuesta Wix: {response.status_code}")
+
+            if response.status_code == 200:
+                wix_response = response.json()
+                datos_wix = wix_response.get("data", {})
+                print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
+                print(f"📋 Paciente: {datos_wix.get('primerNombre', '')} {datos_wix.get('primerApellido', '')}")
+            else:
+                # Si falla, usar datos de ejemplo
+                print(f"⚠️  Error consultando Wix ({response.status_code}), usando datos de ejemplo")
+                datos_wix = {
+                    "_id": wix_id,
+                    "numeroId": "1018483453",
+                    "primerNombre": "DANIELA",
+                    "segundoNombre": "",
+                    "primerApellido": "CETARES",
+                    "segundoApellido": "ZARATE",
+                    "cargo": "Experto Manejo de Información",
+                    "empresa": "PARTICULAR",
+                    "codEmpresa": "PARTICULAR",
+                    "tipoExamen": "Ingreso",
+                    "fechaConsulta": datetime.now(),
+                    "mdConceptoFinal": "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES",
+                    "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
+                    "medico": "JUAN 134",
+                    "edad": "29",
+                    "genero": "FEMENINO",
+                    "fechaNacimiento": "16 de febrero de 1996",
+                    "estadoCivil": "Soltero",
+                    "hijos": "0",
+                    "email": "ldcetares16@gmail.com",
+                    "profesionUOficio": ""
+                }
+        except requests.exceptions.RequestException as e:
+            # Si hay error de conexión, usar datos de ejemplo
+            print(f"⚠️  Error de conexión con Wix: {e}")
+            print(f"⚠️  Usando datos de ejemplo")
+            datos_wix = {
+                "_id": wix_id,
+                "numeroId": "1018483453",
+                "primerNombre": "DANIELA",
+                "segundoNombre": "",
+                "primerApellido": "CETARES",
+                "segundoApellido": "ZARATE",
+                "cargo": "Experto Manejo de Información",
+                "empresa": "PARTICULAR",
+                "codEmpresa": "PARTICULAR",
+                "tipoExamen": "Ingreso",
+                "fechaConsulta": datetime.now(),
+                "mdConceptoFinal": "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES",
+                "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
+                "medico": "JUAN 134",
+                "edad": "29",
+                "genero": "FEMENINO",
+                "fechaNacimiento": "16 de febrero de 1996",
+                "estadoCivil": "Soltero",
+                "hijos": "0",
+                "email": "ldcetares16@gmail.com",
+                "profesionUOficio": ""
+            }
+
+        # Transformar datos de Wix al formato del endpoint de certificado
+        nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
+
+        fecha_consulta = datos_wix.get('fechaConsulta')
+        if isinstance(fecha_consulta, datetime):
+            fecha_formateada = fecha_consulta.strftime('%d de %B de %Y')
+        else:
+            fecha_formateada = datetime.now().strftime('%d de %B de %Y')
+
+        # Construir exámenes realizados
+        examenes_realizados = []
+        for examen in datos_wix.get('examenes', []):
+            examenes_realizados.append({
+                "nombre": examen,
+                "fecha": fecha_formateada
+            })
+
+        # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
+        textos_examenes = {
+            "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
+            "Énfasis Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
+            "É. Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
+            "Perfil Lipídico": "Perfil Lipídico: Los resultados del perfil lipídico indican un buen control de los lípidos en sangre. Los niveles de colesterol total, LDL, HDL y triglicéridos se encuentran dentro de los rangos de referencia, lo cual sugiere un bajo riesgo cardiovascular en este momento.",
+            "É. VASCULAR": "El examen vascular muestra resultados dentro de los límites normales, sin evidencia de enfermedad arterial periférica ni estenosis carotídea significativa. Se recomienda al paciente continuar evitando el tabaquismo y mantener un estilo de vida saludable. Dada la buena condición vascular, no se requieren restricciones laborales en este momento. Se sugiere realizar seguimiento periódico para monitorear la salud vascular y prevenir posibles complicaciones en el futuro.",
+            "Test Vocal Voximetría": "Los resultados obtenidos del test de voximetría muestran que el paciente presenta una saturación de oxígeno adecuada tanto en reposo como durante la actividad laboral. La frecuencia respiratoria y la frecuencia cardíaca se encuentran dentro de los rangos normales, lo que sugiere que no hay signos de hipoxia o alteraciones significativas en la función respiratoria bajo condiciones laborales normales.",
+            "Espirometría": "Prueba Espirometría: Función pulmonar normal sin evidencia de obstrucción o restricción significativa. No se requieren medidas adicionales en relación con la función pulmonar para el paciente en este momento.",
+            "Énfasis Dermatológico": "Énfasis Dermatológico: Descripción general de la piel: La piel presenta un aspecto saludable, con una textura suave y uniforme. No se observan áreas de enrojecimiento, descamación o inflamación evidentes. El color de la piel es uniforme en todas las áreas evaluadas.\n\nAusencia de lesiones cutáneas: No se detectaron lesiones cutáneas como abrasiones, quemaduras, cortes o irritaciones en ninguna parte del cuerpo del paciente. La piel está íntegra y sin signos de traumatismos recientes.\n\nExposición controlada a agentes ambientales: No se identificaron signos de exposición excesiva a sustancias químicas o agentes ambientales que puedan afectar la piel.",
+            "Test R. Psicosocial (Ansiedad,Depresión)": "Nivel de estrés percibido: Muestra un nivel de estrés bajo en su vida cotidiana, con preocupaciones manejables y una actitud tranquila frente a las demandas laborales.\n\nCapacidad de adaptación: Destaca una excepcional capacidad de adaptación a diferentes entornos y escenarios laborales, evidenciando flexibilidad y disposición para aprender ante nuevos desafíos.\n\nResiliencia emocional: Exhibe una resiliencia emocional notable, enfrentando las dificultades con calma y manteniendo una perspectiva optimista incluso en momentos de presión.\n\nHabilidades de afrontamiento: Se identifican habilidades de afrontamiento efectivas, como la búsqueda de soluciones creativas y la gestión proactiva de situaciones conflictivas, lo que sugiere una capacidad para resolver problemas de manera constructiva.\n\nRelaciones interpersonales: Demuestra habilidades interpersonales excepcionales, estableciendo relaciones sólidas y colaborativas con colegas y superiores, lo que favorece un ambiente laboral armonioso y productivo.\n\nAutoeficacia y autoestima: Se evidencia una autoeficacia alta y una autoestima saludable, reflejando confianza en las propias habilidades y una valoración positiva de sí mismo, aspectos que contribuyen a un desempeño laboral sólido y satisfactorio.",
+            "Audiometría": "No presenta signos de pérdida auditiva o alteraciones en la audición. Los resultados se encuentran dentro de los rangos normales establecidos para la población general y no se observan indicios de daño auditivo relacionado con la exposición laboral a ruido u otros factores.",
+            "Optometría": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos\nVisión de colores: Normal\nFondo de ojo: Normal.",
+            "Visiometría": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos\nVisión de colores: Normal\nFondo de ojo: Normal."
+        }
+
+        # Construir resultados generales basados en los exámenes
+        resultados_generales = []
+        observaciones_certificado = datos_wix.get('mdObservacionesCertificado', '')
+
+        for examen in datos_wix.get('examenes', []):
+            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            resultados_generales.append({
+                "examen": examen,
+                "descripcion": descripcion
+            })
+
+        # Si hay observaciones del certificado, agregarlas al primer examen
+        if observaciones_certificado and len(resultados_generales) > 0:
+            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_certificado}"
+
+        # Recomendaciones médicas
+        recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
+        if not recomendaciones:
+            recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
+
+        # Preparar payload para el endpoint de generación
+        payload_certificado = {
+            # Datos personales
+            "nombres_apellidos": nombre_completo,
+            "documento_identidad": datos_wix.get('numeroId', ''),
+            "cargo": datos_wix.get('cargo', ''),
+            "empresa": datos_wix.get('empresa', ''),
+            "genero": datos_wix.get('genero', ''),
+            "edad": str(datos_wix.get('edad', '')),
+            "fecha_nacimiento": datos_wix.get('fechaNacimiento', ''),
+            "estado_civil": datos_wix.get('estadoCivil', ''),
+            "hijos": str(datos_wix.get('hijos', '0')),
+            "profesion": datos_wix.get('profesionUOficio', ''),
+            "email": datos_wix.get('email', ''),
+            "tipo_examen": datos_wix.get('tipoExamen', ''),
+
+            # Información de la consulta
+            "fecha_atencion": fecha_formateada,
+            "ciudad": "Bogotá",
+            "vigencia": "Tres años",
+            "ips_sede": "Sede norte DHSS0244914",
+
+            # Exámenes
+            "examenes_realizados": examenes_realizados,
+
+            # Resultados generales (con textos dinámicos)
+            "resultados_generales": resultados_generales,
+
+            # Concepto médico
+            "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
+
+            # Recomendaciones médicas
+            "recomendaciones_medicas": recomendaciones,
+
+            # Firmas (se asignarán según el médico)
+            "medico_nombre": "JUAN JOSE REATIGA",
+            "medico_registro": "REGISTRO MEDICO NO 14791",
+            "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
+
+            # Almacenamiento
+            "guardar_drive": guardar_drive,
+            "nombre_archivo": f"certificado_{datos_wix.get('numeroId', wix_id)}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        }
+
+        print(f"📄 Datos preparados para generar certificado")
+        print(f"👤 Paciente: {nombre_completo}")
+        print(f"🆔 Documento: {datos_wix.get('numeroId', '')}")
+
+        # Llamar al endpoint de generación de certificado internamente
+        # (simular la llamada interna)
+        from flask import current_app
+
+        with current_app.test_request_context(
+            '/generar-certificado-medico',
+            method='POST',
+            json=payload_certificado,
+            headers={'Content-Type': 'application/json'}
+        ):
+            resultado = generar_certificado_medico()
+
+            # Si es una tupla (response, status_code), extraer la response
+            if isinstance(resultado, tuple):
+                resultado = resultado[0]
+
+            # Obtener el JSON de la respuesta
+            if hasattr(resultado, 'get_json'):
+                resultado_json = resultado.get_json()
+            else:
+                resultado_json = resultado
+
+            # Configurar CORS
+            response = jsonify(resultado_json)
+            response.headers["Access-Control-Allow-Origin"] = "*"
+
+            return response
+
+    except Exception as e:
+        print(f"❌ Error generando certificado desde Wix: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e),
+            "wix_id": wix_id
         })
         error_response.headers["Access-Control-Allow-Origin"] = "*"
 

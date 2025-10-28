@@ -1,0 +1,233 @@
+import wixData from 'wix-data';
+import wixLocation from 'wix-location';
+
+    const datos = $w('#hc').getCurrentItem()._id;
+
+
+
+const EMPRESAS_ESPECIALES = ["SIERGROUP","BERCONT", "CAYENA", "SITEL", "KM2", "TTEC", "CP360", "SALVATECH", "PARTICULAR", "STORI", "OMEGA", "EVERTEC", "ZIMMER", "TRANSRUBIO", "HUNTY", "FDN", "SIIGO", "RIPPLING", "RESSOLVE", "CENTRAL", "EVERTECBOGOTA", "ATR", "AVANTO", "RICOH"];
+const MEDICOS_FIRMANTES = {
+    "SIXTA": '#sixta',
+    "JUAN 134": '#reatiga',
+    "CESAR": '#cesar',
+    "RESERVA": '#reatiga',
+    "STEYLER": '#steyler',
+    "MARY": '#reatiga',
+    "EMI": '#emi',
+    "PRESENCIAL": '#meneses',
+    "CAROLINA": '#cesar',
+    "NUBIA": '#reatiga'
+};
+
+function esEmpresaEspecial(codEmpresa) {
+    return EMPRESAS_ESPECIALES.includes(codEmpresa) || /^\d{6,}$/.test(codEmpresa);
+}
+
+$w.onReady(async () => {
+    const datos = $w('#hc').getCurrentItem();
+    console.log("ID GENERAL", datos._id);
+    const resultadosCargados = await cargarImagenes(datos.numeroId);
+    actualizarElementosTextuales(datos);
+    await manejarVisibilidadElementos(datos, resultadosCargados);
+    mostrarFirmaMedico(datos.medico);
+    await actualizarHistoriaClinica(datos.numeroId);
+});
+
+
+
+
+async function cargarImagenes(numeroId) {
+    // Primero busca por documentoIdentidad
+    let results = await wixData.query("FORMULARIO")
+        .eq("documentoIdentidad", numeroId)
+        .find();
+
+    // Si no encuentra resultados, busca por idGeneral
+    if (results.items.length === 0) {
+        results = await wixData.query("FORMULARIO")
+            .eq("idGeneral", datos)
+            .find();
+    }
+
+    const resultados = results.items.length > 0 ? results.items[0] : null;
+
+    if (resultados) {
+        console.log(resultados._idGeneral);
+        $w('#edad').text = resultados.edad;
+        $w('#ciudadResidencia').text = resultados.ciudadDeResidencia;
+        $w('#genero').text = resultados.genero;
+        $w('#firmaTrabajador').src = resultados.firma || "";
+        $w('#foto').src = resultados.foto || "";
+    }
+
+    return resultados;
+}
+
+function actualizarElementosTextuales(datos) {
+    $w('#documentoIdentidad').text = datos.numeroId;
+    $w('#tipoExamen').text = "Examen Médico Ocupacional de " + datos.tipoExamen;
+    $w('#cargo').text = datos.cargo;
+    $w('#primerNombre').text = `${datos.primerNombre} ${datos.segundoNombre} ${datos.primerApellido} ${datos.segundoApellido}`.toUpperCase();
+    $w('#fechaConsulta').text = datos.fechaConsulta.toLocaleString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+
+    }).replace(/\./g, '');
+
+    $w('#empresa').text = datos.empresa;
+    $w('#concepto').text = datos.mdConceptoFinal;
+    $w('#conclusiones').text = datos.mdObservacionesCertificado;
+    $w('#nombre').text = `${datos.primerNombre} ${datos.segundoNombre} ${datos.primerApellido} ${datos.segundoApellido}`;
+    $w('#ccFirma').text = datos.numeroId;
+    $w('#recomendaciones').text = datos.mdRecomendacionesMedicasAdicionales;
+    $w('#textoConclusiones').text = `De acuerdo al examen ocupacional realizado a ${$w('#nombre').text} con documento de identificación No ${datos.numeroId} se considera que es ${$w('#concepto').text} para desempeñar la ocupación del cargo descrito`;
+}
+
+async function manejarVisibilidadElementos(datos, resultadosCargados) {
+    const fechaLimite = new Date('2024-06-28');
+    const fechaConsulta = new Date(datos.fechaConsulta);
+
+console.log(datos.tipoExamen)
+    // Si el tipo de examen es "PostIncapacidad", oculta el elemento #sinSoporte
+    if (datos.tipoExamen === "PostIncapacidad" || datos.tipoExamen === "Periódico" || datos.tipoExamen === "Post Incapacidad") {
+        $w('#sinSoporte').hide();
+        return; // Termina la función aquí para evitar que se ejecute el resto del código
+    }
+
+    if (esEmpresaEspecial(datos.codEmpresa)) {
+        console.log("Especial", datos.codEmpresa)
+
+        $w('#sinSoporte').collapse();
+
+    } else if (datos.pvEstado !== "Pagado") {
+        $w('#sinSoporte').expand();
+        $w('#textoConclusiones').hide();
+        $w('#concepto').hide();
+                $w('#sinSoporte2').expand();
+
+    } else {
+        $w('#sinSoporte').collapse();
+    }
+
+    if (!datos.mdObservacionesCertificado) {
+        $w('#conclusiones').text = "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.";
+    }
+
+    if (datos.codEmpresa === "CP360") {
+        $w('#examenes').text = "Examen médico osteomuscular, audiometría, optometría";
+    }
+
+    if (!datos.mdRecomendacionesMedicasAdicionales) {
+        $w('#recomendaciones').text = `RECOMENDACIONES GENERALES: \n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS \n5. ALIMENTACIÓN BALANCEADA`;
+    }
+
+    if (datos.codEmpresa === "SITEL" && fechaConsulta > fechaLimite) {
+        console.log("fecha consulta", fechaConsulta, "fecha limite:", fechaLimite)
+        const acdResults = await wixData.query("ADCTEST")
+            .eq("idGeneral", datos._id)
+            .find();
+
+        if (acdResults.items.length === 0) {
+            $w('#sinSoporte').text = "PRUEBAS PENDIENTES";
+            console.log("PRUEBAS PENDIENTES ADC");
+            $w('#sinSoporte').expand();
+            $w('#concepto').hide();
+            $w('#textoConclusiones').hide();
+        }
+    }
+}
+
+function mostrarFirmaMedico(medico) {
+    const firmaSelector = MEDICOS_FIRMANTES[medico];
+    if (firmaSelector) {
+        $w(firmaSelector).show();
+    }
+}
+
+async function actualizarHistoriaClinica(numeroId) {
+    try {
+        const results = await wixData.query("HistoriaClinica")
+            .eq("numeroId", numeroId)
+            .find();
+
+        if (results.items.length > 0) {
+            const record = results.items[0];
+            record.descargaCertificado = "DESCARGADO";
+            console.log(record.examenes)
+
+ if (record.examenes && record.examenes.includes("Énfasis Cardiovascular")) {
+                const textoCardiovascular = "\n\nÉnfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.";
+                $w('#conclusiones').text += textoCardiovascular;
+            }
+
+            if (record.examenes && record.examenes.includes("É. Cardiovascular")) {
+                const textoCardiovascular = "\n\nÉnfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.";
+                $w('#conclusiones').text += textoCardiovascular;
+            }
+
+            if (record.examenes && record.examenes.includes("Perfil Lipídico")) {
+                const textoLipidico = "\n\nPerfil Lipídico: Los resultados del perfil lipídico indican un buen control de los lípidos en sangre. Los niveles de colesterol total, LDL, HDL y triglicéridos se encuentran dentro de los rangos de referencia, lo cual sugiere un bajo riesgo cardiovascular en este momento.";
+                $w('#conclusiones').text += textoLipidico;
+            }
+
+            if (record.examenes && record.examenes.includes("É. VASCULAR")) {
+                const textoVascular = "\n\n  El examen vascular muestra resultados dentro de los límites normales, sin evidencia de enfermedad arterial periférica ni estenosis carotídea significativa. Se recomienda al paciente continuar evitando el tabaquismo y mantener un estilo de vida saludable. Dada la buena condición vascular, no se requieren restricciones laborales en este momento. Se sugiere realizar seguimiento periódico para monitorear la salud vascular y prevenir posibles complicaciones en el futuro.";
+                $w('#conclusiones').text += textoVascular;
+            }
+
+            if (record.examenes && record.examenes.includes("Test Vocal Voximetría")) {
+                const textoVoximetria = `\n\n Los resultados obtenidos del test de voximetría muestran que el paciente presenta una saturación de oxígeno adecuada tanto en reposo como durante la actividad laboral. La frecuencia respiratoria y la frecuencia cardíaca se encuentran dentro de los rangos normales, lo que sugiere que no hay signos de hipoxia o alteraciones significativas en la función respiratoria bajo condiciones laborales normales.
+    \n\n`;
+                $w('#conclusiones').text += textoVoximetria;
+            }
+
+            if (record.examenes && record.examenes.includes("Espirometría")) {
+                const textoEspirometria = `\n\n Prueba Espirometría: Función pulmonar normal sin evidencia de obstrucción o restricción significativa.
+No se requieren medidas adicionales en relación con la función pulmonar para el paciente en este momento.
+    \n\n`;
+                $w('#conclusiones').text += textoEspirometria;
+            }
+
+            if (record.examenes && record.examenes.includes("Énfasis Dermatológico")) {
+                const textoDermatologico = `\n\n Énfasis Dermatológico: 
+    Descripción general de la piel: La piel presenta un aspecto saludable, con una textura suave y uniforme. No se observan áreas de enrojecimiento, descamación o inflamación evidentes. El color de la piel es uniforme en todas las áreas evaluadas.
+
+Ausencia de lesiones cutáneas: No se detectaron lesiones cutáneas como abrasiones, quemaduras, cortes o irritaciones en ninguna parte del cuerpo del paciente. La piel está íntegra y sin signos de traumatismos recientes.
+
+Exposición controlada a agentes ambientales: No se identificaron signos de exposición excesiva a sustancias químicas o agentes ambientales que puedan afectar la piel. 
+    `;
+                $w('#conclusiones').text += textoDermatologico;
+            }
+
+            if (record.examenes && record.examenes.includes("Test R. Psicosocial (Ansiedad,Depresión)")) {
+
+                const textoADC = `\n\n Nivel de estrés percibido: Muestra un nivel de estrés bajo en su vida cotidiana, con preocupaciones manejables y una actitud tranquila frente a las demandas laborales.
+
+Capacidad de adaptación: Destaca una excepcional capacidad de adaptación a diferentes entornos y escenarios laborales, evidenciando flexibilidad y disposición para aprender ante nuevos desafíos.
+
+Resiliencia emocional: Exhibe una resiliencia emocional notable, enfrentando las dificultades con calma y manteniendo una perspectiva optimista incluso en momentos de presión.
+
+Habilidades de afrontamiento: Se identifican habilidades de afrontamiento efectivas, como la búsqueda de soluciones creativas y la gestión proactiva de situaciones conflictivas, lo que sugiere una capacidad para resolver problemas de manera constructiva.
+
+Relaciones interpersonales: Demuestra habilidades interpersonales excepcionales, estableciendo relaciones sólidas y colaborativas con colegas y superiores, lo que favorece un ambiente laboral armonioso y productivo.
+
+Autoeficacia y autoestima: Se evidencia una autoeficacia alta y una autoestima saludable, reflejando confianza en las propias habilidades y una valoración positiva de sí mismo, aspectos que contribuyen a un desempeño laboral sólido y satisfactorio.
+    \n\n`;
+                $w('#conclusiones').text += textoADC;
+            }
+
+            await wixData.update("HistoriaClinica", record);
+            console.log("Registro actualizado con éxito");
+        } else {
+            console.warn("No se encontraron registros con el númeroId especificado");
+        }
+    } catch (err) {
+        console.error("Error al realizar la consulta:", err);
+    }
+}
+
+$w('#foto').onClick((event) => {
+        
+        wixLocation.to("https://www.bsl.com.co/certificado-completo/" + datos)
+})
