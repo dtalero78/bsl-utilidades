@@ -115,14 +115,12 @@
 
         /* Foto del paciente */
         .patient-photo {
-            float: left;
             width: 90px;
             height: 110px;
             object-fit: cover;
-            border: 2px solid #ddd;
+            border: 2px solid #0066cc;
             background: #f9f9f9;
-            margin-right: 15px;
-            margin-bottom: 10px;
+            border-radius: 5px;
         }
 
         /* Tabla de datos */
@@ -328,12 +326,16 @@
         <div class="section">
             <div class="section-title">Datos Personales</div>
 
-            <!-- Foto del paciente (si existe) -->
-            {% if foto_paciente %}
-            <img src="{{ foto_paciente }}" alt="Foto paciente" class="patient-photo">
-            {% endif %}
+            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                <!-- Foto del paciente (si existe) -->
+                {% if foto_paciente %}
+                <div style="flex-shrink: 0;">
+                    <img src="{{ foto_paciente }}" alt="Foto paciente" class="patient-photo">
+                </div>
+                {% endif %}
 
-            <table class="data-table">
+                <div style="flex: 1;">
+                    <table class="data-table">
                 <tr>
                     <td class="label">Fecha de Atención</td>
                     <td class="value">{{ fecha_atencion }}</td>
@@ -380,10 +382,9 @@
                     <td class="label">Tipo de examen</td>
                     <td class="value">{{ tipo_examen }}</td>
                 </tr>
-            </table>
-
-            <!-- Clear float para que el contenido siguiente no se superponga -->
-            <div style="clear: both;"></div>
+                    </table>
+                </div>
+            </div>
 
             <div class="legal-notice">
                 * De conformidad con la Ley de Protección de Datos Personales, informamos que la información contenida en este certificado médico es confidencial y será utilizada exclusivamente para los fines relacionados con la evaluación de la aptitud laboral del trabajador. El tratamiento de los datos personales se llevará a cabo conforme a la normativa vigente, garantizando su integridad, confidencialidad y seguridad, y no serán compartidos con terceros sin el consentimiento expreso del titular, salvo por mandato legal o judicial.
