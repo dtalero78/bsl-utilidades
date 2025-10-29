@@ -653,12 +653,12 @@ def options_root():
 
 @app.route("/")
 def serve_frontend():
-    return send_from_directory(app.static_folder, "menu.html")
-
-@app.route("/descarga")
-def serve_descarga():
-    """Ruta alternativa para la página de descarga original"""
     return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/menu")
+def serve_menu():
+    """Ruta para el menú principal de utilidades"""
+    return send_from_directory(app.static_folder, "menu.html")
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
