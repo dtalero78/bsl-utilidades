@@ -1566,7 +1566,27 @@ def generar_certificado_desde_wix(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
-        # Mapear médico a imagen de firma
+        # Función para convertir imagen a Base64
+        def imagen_a_base64(filepath):
+            """Convierte una imagen local a base64 para incrustarla en HTML"""
+            try:
+                with open(filepath, "rb") as image_file:
+                    encoded = base64.b64encode(image_file.read()).decode('utf-8')
+                    # Detectar tipo MIME por extensión
+                    ext = filepath.lower().split('.')[-1]
+                    mime_types = {
+                        'png': 'image/png',
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'webp': 'image/webp'
+                    }
+                    mime = mime_types.get(ext, 'image/png')
+                    return f"data:{mime};base64,{encoded}"
+            except Exception as e:
+                print(f"⚠️ Error convirtiendo imagen a base64: {e}")
+                return None
+
+        # Mapear médico a imagen de firma y convertir a Base64
         medico = datos_wix.get('medico', 'JUAN 134')
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
@@ -1576,14 +1596,15 @@ def generar_certificado_desde_wix(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        firma_medico_path = os.path.join("static", firma_medico_filename)
+        firma_medico_url = imagen_a_base64(firma_medico_path)
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
         firma_paciente_url = None
         if firma_paciente_wix:
             if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible
+                # Convertir URL de Wix a URL estática accesible (mantener como URL)
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
@@ -1591,8 +1612,9 @@ def generar_certificado_desde_wix(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma)
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma) - Convertir a Base64
+        firma_optometra_path = os.path.join("static", "FIRMA-OPTOMETRA.png")
+        firma_optometra_url = imagen_a_base64(firma_optometra_path)
 
         # Preparar payload para el endpoint de generación
         payload_certificado = {
@@ -2180,7 +2202,27 @@ def preview_certificado_html(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
-        # Mapear médico a imagen de firma
+        # Función para convertir imagen a Base64
+        def imagen_a_base64(filepath):
+            """Convierte una imagen local a base64 para incrustarla en HTML"""
+            try:
+                with open(filepath, "rb") as image_file:
+                    encoded = base64.b64encode(image_file.read()).decode('utf-8')
+                    # Detectar tipo MIME por extensión
+                    ext = filepath.lower().split('.')[-1]
+                    mime_types = {
+                        'png': 'image/png',
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'webp': 'image/webp'
+                    }
+                    mime = mime_types.get(ext, 'image/png')
+                    return f"data:{mime};base64,{encoded}"
+            except Exception as e:
+                print(f"⚠️ Error convirtiendo imagen a base64: {e}")
+                return None
+
+        # Mapear médico a imagen de firma y convertir a Base64
         medico = datos_wix.get('medico', 'JUAN 134')
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
@@ -2190,14 +2232,15 @@ def preview_certificado_html(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        firma_medico_path = os.path.join("static", firma_medico_filename)
+        firma_medico_url = imagen_a_base64(firma_medico_path)
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
         firma_paciente_url = None
         if firma_paciente_wix:
             if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible
+                # Convertir URL de Wix a URL estática accesible (mantener como URL)
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
@@ -2205,8 +2248,9 @@ def preview_certificado_html(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma)
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma) - Convertir a Base64
+        firma_optometra_path = os.path.join("static", "FIRMA-OPTOMETRA.png")
+        firma_optometra_url = imagen_a_base64(firma_optometra_path)
 
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
