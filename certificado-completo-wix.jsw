@@ -1,0 +1,412 @@
+import wixData from 'wix-data';
+import { procesarAudiometria } from 'backend/audiometria.jsw';
+import wixLocation from 'wix-location';
+
+// ==================== CONSTANTES ====================
+const EMPRESAS_SIN_SOPORTE = [
+    "CAYENA", "SITEL", "KM2", "TTEC", "CP360", "SALVATECH", "PARTICULAR", 
+    "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN", 
+    "SIIGO", "RIPPLING", "RESSOLVE", "CENTRAL", "EVERTECBOGOTA", "ATR", 
+    "AVANTO", "RICOH", "HEALTHATOM", "TAMESIS"
+];
+
+const MEDICO_MAP = {
+    "SIXTA": '#sixta',
+    "JUAN 134": '#reatiga',
+    "CESAR": '#cesar',
+    "RESERVA": '#reatiga',
+    "STEYLER": '#STEYLER',
+    "MARY": '#sixta',
+    "EMI": '#sixta',
+    "NUBIA": '#reatiga',
+    "PRESENCIAL": '#meneses'
+};
+
+const EXAMENES_TEXTOS = {
+    "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
+    
+    "Médico Ocupacional Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
+    
+    "É. Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
+
+
+    "Enfasis Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
+    
+    "Perfil Lipídico": "Perfil Lipídico: Los resultados del perfil lipídico indican un buen control de los lípidos en sangre. Los niveles de colesterol total, LDL, HDL y triglicéridos se encuentran dentro de los rangos de referencia, lo cual sugiere un bajo riesgo cardiovascular en este momento.",
+    
+    "Audiometría": "No presenta signos de pérdida auditiva o alteraciones en la audición. Los resultados se encuentran dentro de los rangos normales establecidos para la población general y no se observan indicios de daño auditivo relacionado con la exposición laboral a ruido u otros factores. Se considera apto desde el punto de vista auditivo para continuar desempeñando sus funciones laborales sin restricciones. Se recomienda realizar un control audiométrico anual para asegurar el monitoreo continuo de su salud auditiva.",
+    
+    "É. VASCULAR": "El examen vascular muestra resultados dentro de los límites normales, sin evidencia de enfermedad arterial periférica ni estenosis carotídea significativa. Se recomienda al paciente continuar evitando el tabaquismo y mantener un estilo de vida saludable. Dada la buena condición vascular, no se requieren restricciones laborales en este momento. Se sugiere realizar seguimiento periódico para monitorear la salud vascular y prevenir posibles complicaciones en el futuro.",
+    
+    "Test Vocal Voximetría": "Los resultados obtenidos del test de voximetría muestran que el paciente presenta una saturación de oxígeno adecuada tanto en reposo como durante la actividad laboral. La frecuencia respiratoria y la frecuencia cardíaca se encuentran dentro de los rangos normales, lo que sugiere que no hay signos de hipoxia o alteraciones significativas en la función respiratoria bajo condiciones laborales normales.",
+    
+    "Optometría": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos, sin defectos o áreas de pérdida\nVisión de colores: Normal, capacidad de distinguir entre diferentes colores sin dificultad\nFondo de ojo: Normal, con una retina, nervio óptico y vasos sanguíneos saludables en ambos ojos.",
+    
+    "Énfasis Dermatológico": "Énfasis Dermatológico: Descripción general de la piel: La piel presenta un aspecto saludable, con una textura suave y uniforme. No se observan áreas de enrojecimiento, descamación o inflamación evidentes. El color de la piel es uniforme en todas las áreas evaluadas.\n\nAusencia de lesiones cutáneas: No se detectaron lesiones cutáneas como abrasiones, quemaduras, cortes o irritaciones en ninguna parte del cuerpo del paciente. La piel está íntegra y sin signos de traumatismos recientes.\n\nExposición controlada a agentes ambientales: No se identificaron signos de exposición excesiva a sustancias químicas o agentes ambientales que puedan afectar la piel.",
+    
+    "Perfil Psicológico ADC": "Nivel de estrés percibido: Muestra un nivel de estrés bajo en su vida cotidiana, con preocupaciones manejables y una actitud tranquila frente a las demandas laborales.\n\nCapacidad de adaptación: Destaca una excepcional capacidad de adaptación a diferentes entornos y escenarios laborales, evidenciando flexibilidad y disposición para aprender ante nuevos desafíos.\n\nResiliencia emocional: Exhibe una resiliencia emocional notable, enfrentando las dificultades con calma y manteniendo una perspectiva optimista incluso en momentos de presión.\n\nHabilidades de afrontamiento: Se identifican habilidades de afrontamiento efectivas, como la búsqueda de soluciones creativas y la gestión proactiva de situaciones conflictivas, lo que sugiere una capacidad para resolver problemas de manera constructiva.\n\nRelaciones interpersonales: Demuestra habilidades interpersonales excepcionales, estableciendo relaciones sólidas y colaborativas con colegas y superiores, lo que favorece un ambiente laboral armonioso y productivo.\n\nAutoeficacia y autoestima: Se evidencia una autoeficacia alta y una autoestima saludable, reflejando confianza en las propias habilidades y una valoración positiva de sí mismo, aspectos que contribuyen a un desempeño laboral sólido y satisfactorio.",
+    
+        "Test ADC": "Nivel de estrés percibido: Muestra un nivel de estrés bajo en su vida cotidiana, con preocupaciones manejables y una actitud tranquila frente a las demandas laborales.\n\nCapacidad de adaptación: Destaca una excepcional capacidad de adaptación a diferentes entornos y escenarios laborales, evidenciando flexibilidad y disposición para aprender ante nuevos desafíos.\n\nResiliencia emocional: Exhibe una resiliencia emocional notable, enfrentando las dificultades con calma y manteniendo una perspectiva optimista incluso en momentos de presión.\n\nHabilidades de afrontamiento: Se identifican habilidades de afrontamiento efectivas, como la búsqueda de soluciones creativas y la gestión proactiva de situaciones conflictivas, lo que sugiere una capacidad para resolver problemas de manera constructiva.\n\nRelaciones interpersonales: Demuestra habilidades interpersonales excepcionales, estableciendo relaciones sólidas y colaborativas con colegas y superiores, lo que favorece un ambiente laboral armonioso y productivo.\n\nAutoeficacia y autoestima: Se evidencia una autoeficacia alta y una autoestima saludable, reflejando confianza en las propias habilidades y una valoración positiva de sí mismo, aspectos que contribuyen a un desempeño laboral sólido y satisfactorio.",
+
+
+    "Visiometría": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos, sin defectos o áreas de pérdida\nVisión de colores: Normal, capacidad de distinguir entre diferentes colores sin dificultad\nFondo de ojo: Normal, con una retina, nervio óptico y vasos sanguíneos saludables en ambos ojos.",
+    
+    "Espirometría": "Prueba Espirometría: La espirometría muestra una función pulmonar normal sin evidencia de obstrucción o restricción significativa. No se requieren medidas adicionales en relación con la función pulmonar para el paciente en este momento.",
+    
+    "Glicemia": "Valores en rangos normales",
+    "Énfasis en Alturas": "Alturas y Espacios Confinados: El paciente cumple con los requisitos médicos necesarios para realizar labores en alturas y en espacios confinados. No se identificaron condiciones que representen riesgos significativos para la realización segura de estas actividades en este momento.",
+    "Énfasis Vascular": "Evaluación Vascular: El examen vascular revela una circulación periférica adecuada, sin evidencia de insuficiencia venosa, arterial o alteraciones significativas. No se requieren intervenciones adicionales en relación con la salud vascular del paciente en este momento.",
+    "Panel de Drogas": "Panel de Drogas: Prueba negativa para opiaceos, metanfetamina",
+    "Psicosensométrico": "Parámetros normales",
+    "Glucosa Sangre": "Valores normales",
+    "Hemograma": "Valores normales"
+};
+
+// ==================== UTILIDADES ====================
+class DateHelper {
+    static formatToSpanish(date) {
+        return date ? date.toLocaleString('es-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }).replace(/\./g, '') : null;
+    }
+}
+
+class ElementHelper {
+    static setText(selector, value) {
+        if (value) $w(selector).text = value;
+    }
+
+    static setSrc(selector, value) {
+        if (value) $w(selector).src = value;
+    }
+
+    static showElements(selectors) {
+        selectors.forEach(selector => $w(selector).show());
+    }
+
+    static hideElements(selectors) {
+        selectors.forEach(selector => $w(selector).hide());
+    }
+
+    static expandElements(selectors) {
+        selectors.forEach(selector => $w(selector).expand());
+    }
+}
+
+// ==================== SERVICIOS DE DATOS ====================
+class DataService {
+    static async queryFirst(collection, field, value) {
+        try {
+            const results = await wixData.query(collection).eq(field, value).find();
+            return results.items.length > 0 ? results.items[0] : null;
+        } catch (error) {
+            console.error(`Error querying ${collection}:`, error);
+            return null;
+        }
+    }
+
+    static async updateRecord(collection, record) {
+        try {
+            await wixData.update(collection, record);
+            console.log(`${collection} actualizado con éxito`);
+        } catch (error) {
+            console.error(`Error actualizando ${collection}:`, error);
+        }
+    }
+}
+
+// ==================== GESTORES ESPECÍFICOS ====================
+class ImageManager {
+    static async cargarImagenes(documentoIdentidad) {
+        const resultados = await DataService.queryFirst("FORMULARIO", "documentoIdentidad", documentoIdentidad);
+
+        if (resultados) {
+            this.asignarDatosPersonales(resultados);
+        }
+
+        return resultados;
+    }
+
+    static asignarDatosPersonales(datos) {
+        ElementHelper.setText('#edad', datos.edad);
+        ElementHelper.setText('#ciudadResidencia', datos.ciudadDeResidencia);
+        ElementHelper.setText('#genero', datos.genero);
+        ElementHelper.setSrc('#firmaTrabajador', datos?.firma);
+        ElementHelper.setSrc('#foto', datos?.foto);
+        ElementHelper.setText('#estadoCivil', datos?.estadoCivil);
+        ElementHelper.setText('#hijos', datos?.hijos);
+        ElementHelper.setText('#email', datos?.email);
+        ElementHelper.setText('#profesionUOficio', datos?.profesionUOficio);
+
+        if (datos?.fechaNacimiento) {
+            $w('#fechaNacimiento').text = DateHelper.formatToSpanish(datos.fechaNacimiento);
+        }
+    }
+}
+
+class AudiometriaManager {
+    static async cargarAudiometria(numeroId) {
+        try {
+            const { datosParaTabla, diagnostic } = await procesarAudiometria(numeroId);
+
+            this.configurarTablaAudiometria();
+            this.asignarDatosAudiometria(datosParaTabla, diagnostic);
+
+        } catch (error) {
+            console.error("Error al procesar la audiometría:", error.message);
+        }
+    }
+
+    static configurarTablaAudiometria() {
+        $w("#TablaAudio").columns = [
+            { "id": "frecuencia", "dataPath": "frecuencia", "label": "Frecuencia", "width": 50, "visible": true, "type": "number" },
+            { "id": "oidoDerecho", "dataPath": "oidoDerecho", "label": "Oído Derecho", "width": 50, "visible": true, "type": "number" },
+            { "id": "oidoIzquierdo", "dataPath": "oidoIzquierdo", "label": "Oído Izquierdo", "width": 50, "visible": true, "type": "number" }
+        ];
+    }
+
+    static asignarDatosAudiometria(datosParaTabla, diagnostic) {
+        console.log("Datos recibidos para la tabla de audiometría:", datosParaTabla);
+        console.log("Diagnóstico recibido:", diagnostic);
+
+        $w("#TablaAudio").rows = datosParaTabla;
+        $w('#TablaAudio').expand();
+        $w('#conceptoAudio658').text = diagnostic.recommendations;
+    }
+}
+
+class VisualManager {
+    static async cargarDatosVisuales(numeroId) {
+        try {
+            const resultados = await DataService.queryFirst("VISUAL", "cedula", numeroId);
+            
+            if (resultados) {
+                ElementHelper.setText('#conceptoVisual', resultados.resultadoNumerico);
+                ElementHelper.setText('#miopia', resultados.miopia);
+                ElementHelper.setText('#astigmatismo', resultados.astigmatismo);
+            }
+        } catch (error) {
+            console.error("Error cargando datos visuales:", error);
+        }
+    }
+}
+
+class HistoriaClinicaManager {
+    static async actualizarDescargado(numeroId) {
+        const record = await DataService.queryFirst("HistoriaClinica", "numeroId", numeroId);
+        
+        if (record) {
+            record.descargaCertificado = "DESCARGADO";
+            await DataService.updateRecord("HistoriaClinica", record);
+        } else {
+            console.warn("No se encontraron registros con el númeroId especificado");
+        }
+    }
+
+    static async actualizarHistoriaClinica(numeroId) {
+        try {
+            const record = await DataService.queryFirst("HistoriaClinica", "numeroId", numeroId);
+            
+            if (!record) return;
+
+            const fechaConsulta = DateHelper.formatToSpanish(record.fechaConsulta);
+            if (!fechaConsulta) {
+                console.error("No se pudo determinar una fecha válida para la consulta.");
+                return;
+            }
+
+this.configurarExamenes(record.examenes || [], fechaConsulta, record.mdObservacionesCertificado);
+            
+        } catch (error) {
+            console.error("Error al actualizar historia clínica:", error);
+        }
+    }
+
+static configurarExamenes(examenesPresentes, fechaConsulta, observacionesCertificado) {
+    this.configurarTitulosExamenes(examenesPresentes);
+    this.configurarTablaExamenes(examenesPresentes, fechaConsulta);
+    this.configurarRepeaterExamenes(examenesPresentes, observacionesCertificado);
+}
+
+
+    static configurarTitulosExamenes(examenesPresentes) {
+        if (examenesPresentes.includes("Visiometría")) {
+            $w('#tituloVisioOpto').text = "VISIOMETRÍA";
+            ElementHelper.expandElements(['#grupoOptometria', '#firmaOpto']);
+        } else if (examenesPresentes.includes("Optometría")) {
+            $w('#tituloVisioOpto').text = "OPTOMETRÍA";
+            ElementHelper.expandElements(['#grupoOptometria', '#firmaOpto']);
+        } else {
+            $w('#tituloVisioOpto').text = "";
+        }
+
+        if (examenesPresentes.includes("Audiometría")) {
+            $w('#grupoAudiometria').expand();
+        }
+    }
+
+    static configurarTablaExamenes(examenesPresentes, fechaConsulta) {
+        const columns = examenesPresentes.map((examen, index) => ({
+            "id": examen,
+            "dataPath": examen,
+            "label": examen,
+            "type": "text",
+            "visible": true,
+            "width": index === 0 ? 280 : 150
+        }));
+
+        $w("#examenesRealizados").columns = columns;
+
+        const rowData = {};
+        examenesPresentes.forEach(examen => {
+            rowData[examen] = fechaConsulta;
+        });
+
+        $w("#examenesRealizados").rows = [rowData];
+    }
+
+    static configurarRepeaterExamenes(examenesPresentes, observacionesCertificado) {
+    const datosRepeater = examenesPresentes.map((examen, index) => {
+        let resultado = EXAMENES_TEXTOS[examen] || "Resultado no disponible.";
+
+        // Si es Examen Médico Osteomuscular, concatenar observaciones
+        if (examen === "Examen Médico Osteomuscular" && observacionesCertificado) {
+            resultado += ` ${observacionesCertificado}`;
+        }
+
+        return {
+            _id: `${examen.replace(/[^A-Za-z0-9]/g, '-')}-${index}`,
+            nombrePrueba: examen,
+            resultadoPrueba: resultado
+        };
+    });
+
+    console.log("Datos para el repeater:", datosRepeater);
+
+    $w("#pruebasComplementarias").data = datosRepeater;
+    $w("#pruebasComplementarias").onItemReady(($item, itemData) => {
+        $item("#nombrePrueba").text = itemData.nombrePrueba;
+        $item("#resultadoPrueba").text = itemData.resultadoPrueba;
+    });
+}
+
+}
+
+class UIManager {
+    static configurarInterfazInicial(datos, numeroId) {
+        // Información del paciente
+        ElementHelper.setText('#documentoIdentidad', numeroId);
+        ElementHelper.setText('#tipoExamen', `Tipo Examen: ${datos.tipoExamen}`);
+        ElementHelper.setText('#consecutivo', `Codigo de Seguridad: ${datos._id}`);
+        ElementHelper.setText('#consecutivoAudio', `Codigo de Seguridad: ${datos._id}`);
+        ElementHelper.setText('#consecutivoOpto', `Codigo de Seguridad: ${datos._id}`);
+        ElementHelper.setText('#cargo', datos.cargo);
+        
+        const nombreCompleto = `${datos.primerNombre} ${datos.segundoNombre} ${datos.primerApellido} ${datos.segundoApellido}`;
+        ElementHelper.setText('#primerNombre', nombreCompleto);
+        ElementHelper.setText('#nombre', nombreCompleto.toUpperCase());
+        ElementHelper.setText('#ccFirma', numeroId);
+        
+        if (datos.fechaConsulta) {
+            $w('#fechaConsulta').text = DateHelper.formatToSpanish(datos.fechaConsulta);
+        }
+
+        // Empresa
+        const empresaText = datos.codEmpresa === "GODRONE" ? "" : datos.empresa;
+        ElementHelper.setText('#empresa', empresaText);
+
+        // Concepto y conclusiones
+        ElementHelper.setText('#concepto', datos.mdConceptoFinal);
+        ElementHelper.setText('#tipoExamen2', datos.tipoExamen);
+        
+        const textoConclusiones = `De acuerdo al examen ocupacional realizado a ${nombreCompleto.toUpperCase()} con documento de identificación No ${numeroId} se considera que es ${datos.mdConceptoFinal} para desempeñar la ocupación del cargo descrito`;
+        ElementHelper.setText('#textoConclusiones', textoConclusiones);
+
+        // Mostrar médico correspondiente
+        this.mostrarMedico(datos.medico);
+    }
+
+    static mostrarMedico(medico) {
+        const medicoElement = MEDICO_MAP[medico];
+        if (medicoElement) {
+            $w(medicoElement).show();
+        }
+    }
+
+    static manejarSoporte(datos) {
+        const soporteElements = ['#sinSoporte', '#sinSoporte2', '#sinSoporte3'];
+        
+        // Casos donde siempre se colapsa el soporte
+        if (this.debeColapsarSoporte(datos)) {
+            ElementHelper.hideElements(soporteElements);
+            return;
+        }
+
+        // Casos donde se expande el soporte
+        if (this.debeExpandirSoporte(datos)) {
+            ElementHelper.showElements(soporteElements);
+            ElementHelper.hideElements(['#textoConclusiones', '#concepto']);
+        } else {
+            ElementHelper.hideElements(soporteElements);
+        }
+    }
+
+    static debeColapsarSoporte(datos) {
+        const tiposEspeciales = ["PostIncapacidad", "Post Incapacidad", "Periódico"];
+        return tiposEspeciales.includes(datos.tipoExamen) || 
+               this.esEmpresaEspecial(datos.codEmpresa);
+    }
+
+    static debeExpandirSoporte(datos) {
+        return datos.pvEstado !== "Pagado";
+    }
+
+    static esEmpresaEspecial(codEmpresa) {
+        return EMPRESAS_SIN_SOPORTE.includes(codEmpresa) || /^\d{6,}$/.test(codEmpresa);
+    }
+
+    static async manejarCasoEspecialSitel(datos) {
+        if (datos.codEmpresa === "SITEL" && new Date(datos.fechaConsulta) > new Date("2024-06-28")) {
+            const adcResults = await wixData.query("ADCTEST").eq("idGeneral", datos._id).find();
+            
+            if (adcResults.items.length === 0) {
+                ElementHelper.showElements(['#sinSoporte', '#sinSoporte2', '#sinSoporte3']);
+                ElementHelper.hideElements(['#textoConclusiones', '#concepto']);
+                $w('#sinSoporte').text = "PRUEBAS PENDIENTES";
+            }
+        }
+    }
+}
+
+// ==================== FUNCIÓN PRINCIPAL ====================
+$w.onReady(async () => {
+    try {
+        const datos = $w('#hc').getCurrentItem();
+        const numeroId = datos.numeroId;
+
+        // Configurar interfaz inicial
+        UIManager.configurarInterfazInicial(datos, numeroId);
+
+        // Cargar datos
+        await ImageManager.cargarImagenes(numeroId);
+        await AudiometriaManager.cargarAudiometria(numeroId);
+        await VisualManager.cargarDatosVisuales(numeroId);
+        await HistoriaClinicaManager.actualizarDescargado(numeroId);
+        await HistoriaClinicaManager.actualizarHistoriaClinica(numeroId);
+
+        // Manejar soporte
+        UIManager.manejarSoporte(datos);
+        await UIManager.manejarCasoEspecialSitel(datos);
+
+    } catch (error) {
+        console.error("Error en la inicialización:", error);
+    }
+});
+
+// ==================== EVENT HANDLERS ====================
+$w('#foto').onClick((event) => {
+    const datos = $w('#hc').getCurrentItem();
+    wixLocation.to(`https://www.bsl.com.co/adc-reporte-pdf/${datos._id}`);
+});

@@ -19,7 +19,18 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { actualizarHistoriaClinica } from 'backend/exposeDataBase';
+import {
+  obtenerEstadisticasMedico,
+  obtenerPacientesPendientes,
+  buscarPacientePorDocumento,
+  marcarPacienteNoContesta,
+  obtenerDetallesPaciente,
+  obtenerTodosProgramadosHoy,
+  actualizarHistoriaClinica,
+  obtenerDatosFormularioPorHistoriaId,
+  obtenerDatosCompletosParaFormulario,
+  obtenerHistoriaClinica
+} from 'backend/integracionPanelMedico';
 
 import { callOpenAI } from 'backend/open-ai';
 import { consultarCita } from 'backend/consultaHistoriaClinicaBot';
@@ -220,6 +231,42 @@ export async function use_voice(request) {
 
     // Instrucciones adicionales si no se recibe ninguna entrada
     twimlResponse.say("No se recibió ninguna entrada. Por favor, intente nuevamente.");
+
+    return ok({
+        headers: {
+            "Content-Type": "text/xml"
+        },
+        body: twimlResponse.toString()
+    });
+}
+
+// TWILIO - ENDPOINT PARA LLAMADAS DE VOZ AUTOMÁTICAS (VIDEOLLAMADAS)
+export function post_voice(request) {
+    const VoiceResponse = twiml.VoiceResponse;
+    const twimlResponse = new VoiceResponse();
+
+    // Obtener el nombre del paciente desde los parámetros de la URL
+    const nombrePaciente = request.query.nombre || "estimado paciente";
+
+    // Mensaje personalizado en español
+    const mensaje = `Hola ${nombrePaciente}. Te llamamos de BSL Medicina Ocupacional.
+
+    Tienes una consulta médica virtual programada.
+
+    Por favor revisa tu WhatsApp donde te acabamos de enviar el link de acceso a la videollamada.
+
+    Asegúrate de permitir el acceso a tu cámara y micrófono cuando tu navegador te lo pida.
+
+    Gracias por tu atención.`;
+
+    // Configurar voz en español con opciones de Twilio
+    twimlResponse.say(
+        {
+            voice: 'alice',
+            language: 'es-MX' // Español de México (más clara que es-ES)
+        },
+        mensaje
+    );
 
     return ok({
         headers: {
@@ -1644,3 +1691,566 @@ export async function post_actualizarHistoriaClinica(request) {
         });
     }
 }
+
+//para digital ocean
+export function get_consultarUsuarioPorId(request) {
+    console.log("Buscando usuario por _id para alertas WhatsApp");
+
+    const { _id } = request.query;
+
+    if (!_id) {
+        return badRequest({ body: { message: "Falta el parámetro '_id'" } });
+    }
+
+    return wixData.get("HistoriaClinica", _id).then(item => {
+        if (!item) {
+            return notFound({ body: { message: "Usuario no encontrado con ese _id" } });
+        }
+
+        return ok({
+            headers: { "Content-Type": "application/json" },
+            body: {
+                success: true,
+                usuario: {
+                    _id: item._id,
+                    primerNombre: item.primerNombre,
+                    primerApellido: item.primerApellido,
+                    celular: item.celular,
+                    numeroId: item.numeroId,
+                    empresa: item.empresa,
+                    codEmpresa: item.codEmpresa
+                }
+            }
+        });
+    }).catch(error => {
+        console.error("Error consultando usuario por _id:", error);
+        return serverError({
+            body: {
+                success: false,
+                message: "Error al obtener información del usuario",
+                error: error.message
+            }
+        });
+    });
+}
+
+// ============================================================================
+// ENDPOINTS PARA PANEL MÉDICO
+// ============================================================================
+
+/**
+ * GET: Obtener estadísticas diarias del médico
+ * URL: /_functions/estadisticasMedico?medicoCode=CODIGO
+ */
+export async function get_estadisticasMedico(request) {
+  const { medicoCode } = request.query;
+
+  if (!medicoCode) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'medicoCode' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerEstadisticasMedico(medicoCode);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_estadisticasMedico:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * GET: Obtener lista paginada de pacientes pendientes
+ * URL: /_functions/pacientesPendientes?medicoCode=CODIGO&page=1&pageSize=10
+ */
+export async function get_pacientesPendientes(request) {
+  const { medicoCode, page = "1", pageSize = "10" } = request.query;
+
+  if (!medicoCode) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'medicoCode' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerPacientesPendientes(
+      medicoCode,
+      parseInt(page),
+      parseInt(pageSize)
+    );
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_pacientesPendientes:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+        },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * GET: Buscar paciente por número de documento o celular (SIN filtro de médico)
+ * URL: /_functions/buscarPaciente?searchTerm=123456
+ */
+export async function get_buscarPaciente(request) {
+  const { searchTerm } = request.query;
+
+  if (!searchTerm) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'searchTerm' es requerido" }
+    });
+  }
+
+  try {
+    // Buscar sin filtro de médico (null en segundo parámetro)
+    const resultado = await buscarPacientePorDocumento(searchTerm, null);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return notFound({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { success: false, message: resultado.message }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_buscarPaciente:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * POST: Marcar paciente como "No Contesta"
+ * URL: /_functions/marcarNoContesta
+ * Body: { "patientId": "abc123" }
+ */
+export async function post_marcarNoContesta(request) {
+  try {
+    const body = await request.body.json();
+    const { patientId } = body;
+
+    if (!patientId) {
+      return badRequest({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: "El parámetro 'patientId' es requerido" }
+      });
+    }
+
+    const resultado = await marcarPacienteNoContesta(patientId);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { success: true, message: resultado.message }
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en post_marcarNoContesta:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * GET: Obtener detalles completos del paciente
+ * URL: /_functions/detallesPaciente?documento=123456
+ */
+export async function get_detallesPaciente(request) {
+  const { documento } = request.query;
+
+  if (!documento) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'documento' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerDetallesPaciente(documento);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return notFound({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { success: false, message: resultado.message }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_detallesPaciente:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+/**
+ * GET: Obtener TODOS los programados hoy (incluyendo atendidos) - DEBUG
+ * URL: /_functions/todosProgramadosHoy?medicoCode=CODIGO
+ */
+export async function get_todosProgramadosHoy(request) {
+  const { medicoCode } = request.query;
+
+  if (!medicoCode) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'medicoCode' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerTodosProgramadosHoy(medicoCode);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_todosProgramadosHoy:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * PATCH: Actualizar historia clínica durante videollamada
+ * URL: /_functions/actualizarHistoriaClinica,
+  obtenerDatosFormularioPorHistoriaId,
+  obtenerDatosCompletosParaFormulario
+ * Body: { numeroId: string, datos: { talla, peso, mdAntecedentes, ... } }
+ */
+export async function patch_actualizarHistoriaClinica(request) {
+  try {
+    const { numeroId, datos } = await request.body.json();
+
+    if (!numeroId) {
+      return badRequest({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: "El parámetro 'numeroId' es requerido" }
+      });
+    }
+
+    if (!datos || typeof datos !== 'object') {
+      return badRequest({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: "El parámetro 'datos' es requerido y debe ser un objeto" }
+      });
+    }
+
+    const resultado = await actualizarHistoriaClinica(numeroId, datos);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en patch_actualizarHistoriaClinica:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+/**
+ * GET: Obtener datos completos para formulario médico (HistoriaClinica + FORMULARIO)
+ * URL: /_functions/datosCompletosFormulario?numeroId=DOCUMENTO
+ */
+export async function get_datosCompletosFormulario(request) {
+  const { numeroId } = request.query;
+
+  if (!numeroId) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "El parámetro 'numeroId' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerDatosCompletosParaFormulario(numeroId);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado.data
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_datosCompletosFormulario:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: error.message }
+    });
+  }
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * ENDPOINTS PARA HISTORIA CLÍNICA EN VIDEOLLAMADA
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * GET: Obtener historia clínica completa por _id
+ * URL: /_functions/getHistoriaClinica?historiaId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ */
+export async function get_getHistoriaClinica(request) {
+  const { historiaId } = request.query;
+
+  if (!historiaId) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { success: false, error: "El parámetro 'historiaId' es requerido" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerHistoriaClinica(historiaId);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado
+      });
+    } else {
+      return notFound({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_getHistoriaClinica:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { success: false, error: error.message }
+    });
+  }
+}
+
+/**
+ * POST: Actualizar historia clínica durante videollamada
+ * URL: /_functions/updateHistoriaClinica
+ * Body: { historiaId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", mdAntecedentes: "...", talla: "170", peso: "70", ... }
+ */
+export async function post_updateHistoriaClinica(request) {
+  try {
+    const body = await request.body.json();
+    const { historiaId, ...datos } = body;
+
+    if (!historiaId) {
+      return badRequest({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { success: false, error: "El parámetro 'historiaId' es requerido" }
+      });
+    }
+
+    const resultado = await actualizarHistoriaClinica(historiaId, datos);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: resultado
+      });
+    }
+  } catch (error) {
+    console.error("Error en post_updateHistoriaClinica:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { success: false, error: error.message }
+    });
+  }
+}
+

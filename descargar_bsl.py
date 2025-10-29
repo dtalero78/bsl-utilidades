@@ -1225,6 +1225,213 @@ def generar_certificado_desde_wix(wix_id):
                 "fecha": fecha_formateada
             })
 
+        # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
+        datos_visual = None
+        examenes = datos_wix.get('examenes', [])
+        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes)
+
+        if tiene_examen_visual:
+            try:
+                wix_id_historia = datos_wix.get('_id', '')
+                visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
+                print(f"🔍 Consultando datos visuales para HistoriaClinica ID: {wix_id_historia}")
+
+                visual_response = requests.get(visual_url, timeout=10)
+
+                if visual_response.status_code == 200:
+                    visual_data = visual_response.json()
+                    if visual_data.get('success') and visual_data.get('data'):
+                        datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
+                        print(f"✅ Datos visuales obtenidos correctamente")
+                    else:
+                        print(f"⚠️ No se encontraron datos visuales para {wix_id_historia}")
+                else:
+                    print(f"⚠️ Error al consultar datos visuales: {visual_response.status_code}")
+            except Exception as e:
+                print(f"❌ Error consultando datos visuales: {e}")
+
+        # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
+        datos_audiometria = None
+        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes)
+
+        if tiene_examen_audio:
+            try:
+                wix_id_historia = datos_wix.get('_id', '')
+                audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
+                print(f"🔍 Consultando datos de audiometría para HistoriaClinica ID: {wix_id_historia}")
+
+                audio_response = requests.get(audio_url, timeout=10)
+
+                if audio_response.status_code == 200:
+                    audio_data = audio_response.json()
+                    if audio_data.get('success') and audio_data.get('data'):
+                        datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
+
+                        if datos_raw:
+                            # Transformar datos de Wix al formato esperado
+                            frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+                            datosParaTabla = []
+
+                            for freq in frecuencias:
+                                campo_der = f"auDer{freq}"
+                                campo_izq = f"auIzq{freq}"
+                                datosParaTabla.append({
+                                    "frecuencia": freq,
+                                    "oidoDerecho": datos_raw.get(campo_der, 0),
+                                    "oidoIzquierdo": datos_raw.get(campo_izq, 0)
+                                })
+
+                            # Calcular diagnóstico automático basado en umbrales auditivos
+                            def calcular_diagnostico_audiometria(datos):
+                                # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
+                                umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
+                                umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
+                                tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
+
+                                # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
+                                freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
+                                valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
+                                valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+
+                                prom_der = sum(valores_der) / len(valores_der)
+                                prom_izq = sum(valores_izq) / len(valores_izq)
+
+                                def clasificar_umbral(umbral):
+                                    if umbral <= 25:
+                                        return "Normal"
+                                    elif umbral <= 40:
+                                        return "Leve"
+                                    elif umbral <= 55:
+                                        return "Moderada"
+                                    elif umbral <= 70:
+                                        return "Moderadamente Severa"
+                                    elif umbral <= 90:
+                                        return "Severa"
+                                    else:
+                                        return "Profunda"
+
+                                clasif_der = clasificar_umbral(prom_der)
+                                clasif_izq = clasificar_umbral(prom_izq)
+
+                                # Verificar pérdida en frecuencias graves (250 Hz)
+                                grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
+                                grave_250_izq = datos[0]['oidoIzquierdo']
+
+                                # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
+                                agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
+                                agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
+                                tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+
+                                # Construir diagnóstico base
+                                diagnostico_base = ""
+                                notas_adicionales = []
+
+                                if clasif_der == "Normal" and clasif_izq == "Normal":
+                                    if tiene_perdida_agudas:
+                                        diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
+                                    else:
+                                        diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
+                                elif clasif_der == "Normal":
+                                    diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                elif clasif_izq == "Normal":
+                                    diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
+                                else:
+                                    diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+
+                                # Agregar nota sobre pérdida en 250 Hz si es significativa
+                                if grave_250_der > 25 or grave_250_izq > 25:
+                                    if grave_250_der > 25 and grave_250_izq > 25:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
+                                    elif grave_250_der > 25:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
+                                    else:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
+
+                                # Agregar nota sobre umbrales atípicamente bajos si existen
+                                if tiene_umbrales_bajos:
+                                    frecuencias_afectadas = []
+                                    if umbrales_bajos_der:
+                                        frecuencias_afectadas.append("oído derecho")
+                                    if umbrales_bajos_izq:
+                                        frecuencias_afectadas.append("oído izquierdo")
+                                    notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
+
+                                # Combinar diagnóstico base con notas adicionales
+                                if notas_adicionales:
+                                    diagnostico_base += " " + " ".join(notas_adicionales)
+
+                                return diagnostico_base
+
+                            # Usar diagnóstico de Wix si existe, sino calcular automáticamente
+                            diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
+                            diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
+
+                            datos_audiometria = {
+                                "datosParaTabla": datosParaTabla,
+                                "diagnostico": diagnostico_final
+                            }
+                            print(f"✅ Datos de audiometría obtenidos y transformados correctamente")
+                            print(f"📊 Diagnóstico: {diagnostico_final}")
+                        else:
+                            datos_audiometria = None
+                    else:
+                        print(f"⚠️ No se encontraron datos de audiometría para {wix_id_historia}")
+                else:
+                    print(f"⚠️ Error al consultar datos de audiometría: {audio_response.status_code}")
+            except Exception as e:
+                print(f"❌ Error consultando datos de audiometría: {e}")
+
+        # ===== CONSULTAR DATOS DEL FORMULARIO (edad, hijos, etc.) =====
+        datos_formulario = None
+        try:
+            wix_id_historia = datos_wix.get('_id', wix_id)
+            formulario_url = f"https://www.bsl.com.co/_functions/formularioPorIdGeneral?idGeneral={wix_id_historia}"
+            print(f"🔍 Consultando datos del formulario para HistoriaClinica ID: {wix_id_historia}")
+
+            formulario_response = requests.get(formulario_url, timeout=10)
+
+            if formulario_response.status_code == 200:
+                formulario_data = formulario_response.json()
+                if formulario_data.get('success') and formulario_data.get('item'):
+                    datos_formulario = formulario_data['item']
+                    if datos_formulario:
+                        print(f"✅ Datos del formulario obtenidos correctamente")
+                        # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
+                        if datos_formulario.get('edad'):
+                            datos_wix['edad'] = datos_formulario.get('edad')
+                        if datos_formulario.get('genero'):
+                            datos_wix['genero'] = datos_formulario.get('genero')
+                        if datos_formulario.get('estadoCivil'):
+                            datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+                        if datos_formulario.get('hijos'):
+                            datos_wix['hijos'] = datos_formulario.get('hijos')
+                        if datos_formulario.get('email'):
+                            datos_wix['email'] = datos_formulario.get('email')
+                        if datos_formulario.get('profesionUOficio'):
+                            datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+                        if datos_formulario.get('ciudadDeResidencia'):
+                            datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+                        if datos_formulario.get('fechaNacimiento'):
+                            # Convertir fecha de nacimiento a formato string legible
+                            fecha_nac = datos_formulario.get('fechaNacimiento')
+                            if isinstance(fecha_nac, str):
+                                try:
+                                    fecha_obj = datetime.fromisoformat(fecha_nac.replace('Z', '+00:00'))
+                                    datos_wix['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
+                                except:
+                                    datos_wix['fechaNacimiento'] = fecha_nac
+                            elif isinstance(fecha_nac, datetime):
+                                datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
+                        print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
+                    else:
+                        print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
+                else:
+                    print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
+            else:
+                print(f"⚠️ Error al consultar datos del formulario: {formulario_response.status_code}")
+        except Exception as e:
+            print(f"❌ Error consultando datos del formulario: {e}")
+
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         textos_examenes = {
             "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
@@ -1285,6 +1492,7 @@ def generar_certificado_desde_wix(wix_id):
 
             # Exámenes
             "examenes_realizados": examenes_realizados,
+            "examenes": examenes,  # Lista de exámenes para verificar tipo
 
             # Resultados generales (con textos dinámicos)
             "resultados_generales": resultados_generales,
@@ -1294,6 +1502,12 @@ def generar_certificado_desde_wix(wix_id):
 
             # Recomendaciones médicas
             "recomendaciones_medicas": recomendaciones,
+
+            # Datos visuales (Optometría/Visiometría)
+            "datos_visual": datos_visual,
+
+            # Datos de audiometría
+            "datos_audiometria": datos_audiometria,
 
             # Firmas (se asignarán según el médico)
             "medico_nombre": "JUAN JOSE REATIGA",
@@ -1449,6 +1663,220 @@ def preview_certificado_html(wix_id):
                 "fecha": fecha_formateada
             })
 
+        # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
+        datos_visual = None
+        examenes = datos_wix.get('examenes', [])
+        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes)
+
+        if tiene_examen_visual:
+            try:
+                wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
+                visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
+                print(f"🔍 Consultando datos visuales para HistoriaClinica ID: {wix_id_historia}", flush=True)
+
+                visual_response = requests.get(visual_url, timeout=10)
+
+                if visual_response.status_code == 200:
+                    visual_data = visual_response.json()
+                    if visual_data.get('success') and visual_data.get('data'):
+                        datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
+                        print(f"✅ Datos visuales obtenidos correctamente", flush=True)
+                        print(f"📊 Datos: {datos_visual}", flush=True)
+                    else:
+                        print(f"⚠️ No se encontraron datos visuales para {wix_id_historia}", flush=True)
+                        datos_visual = None
+                else:
+                    print(f"⚠️ Error al consultar datos visuales: {visual_response.status_code}", flush=True)
+                    datos_visual = None
+            except Exception as e:
+                print(f"❌ Error consultando datos visuales: {e}", flush=True)
+                datos_visual = None
+
+        # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
+        datos_audiometria = None
+        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes)
+
+        if tiene_examen_audio:
+            try:
+                wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
+                audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
+                print(f"🔍 Consultando datos de audiometría para HistoriaClinica ID: {wix_id_historia}", flush=True)
+
+                audio_response = requests.get(audio_url, timeout=10)
+
+                if audio_response.status_code == 200:
+                    audio_data = audio_response.json()
+                    if audio_data.get('success') and audio_data.get('data'):
+                        datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
+
+                        if datos_raw:
+                            # Transformar datos de Wix al formato esperado
+                            frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+                            datosParaTabla = []
+
+                            for freq in frecuencias:
+                                campo_der = f"auDer{freq}"
+                                campo_izq = f"auIzq{freq}"
+                                datosParaTabla.append({
+                                    "frecuencia": freq,
+                                    "oidoDerecho": datos_raw.get(campo_der, 0),
+                                    "oidoIzquierdo": datos_raw.get(campo_izq, 0)
+                                })
+
+                            # Calcular diagnóstico automático basado en umbrales auditivos
+                            def calcular_diagnostico_audiometria(datos):
+                                # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
+                                umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
+                                umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
+                                tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
+
+                                # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
+                                freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
+                                valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
+                                valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+
+                                prom_der = sum(valores_der) / len(valores_der)
+                                prom_izq = sum(valores_izq) / len(valores_izq)
+
+                                def clasificar_umbral(umbral):
+                                    if umbral <= 25:
+                                        return "Normal"
+                                    elif umbral <= 40:
+                                        return "Leve"
+                                    elif umbral <= 55:
+                                        return "Moderada"
+                                    elif umbral <= 70:
+                                        return "Moderadamente Severa"
+                                    elif umbral <= 90:
+                                        return "Severa"
+                                    else:
+                                        return "Profunda"
+
+                                clasif_der = clasificar_umbral(prom_der)
+                                clasif_izq = clasificar_umbral(prom_izq)
+
+                                # Verificar pérdida en frecuencias graves (250 Hz)
+                                grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
+                                grave_250_izq = datos[0]['oidoIzquierdo']
+
+                                # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
+                                agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
+                                agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
+                                tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+
+                                # Construir diagnóstico base
+                                diagnostico_base = ""
+                                notas_adicionales = []
+
+                                if clasif_der == "Normal" and clasif_izq == "Normal":
+                                    if tiene_perdida_agudas:
+                                        diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
+                                    else:
+                                        diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
+                                elif clasif_der == "Normal":
+                                    diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                elif clasif_izq == "Normal":
+                                    diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
+                                else:
+                                    diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+
+                                # Agregar nota sobre pérdida en 250 Hz si es significativa
+                                if grave_250_der > 25 or grave_250_izq > 25:
+                                    if grave_250_der > 25 and grave_250_izq > 25:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
+                                    elif grave_250_der > 25:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
+                                    else:
+                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
+
+                                # Agregar nota sobre umbrales atípicamente bajos si existen
+                                if tiene_umbrales_bajos:
+                                    frecuencias_afectadas = []
+                                    if umbrales_bajos_der:
+                                        frecuencias_afectadas.append("oído derecho")
+                                    if umbrales_bajos_izq:
+                                        frecuencias_afectadas.append("oído izquierdo")
+                                    notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
+
+                                # Combinar diagnóstico base con notas adicionales
+                                if notas_adicionales:
+                                    diagnostico_base += " " + " ".join(notas_adicionales)
+
+                                return diagnostico_base
+
+                            # Usar diagnóstico de Wix si existe, sino calcular automáticamente
+                            diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
+                            diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
+
+                            datos_audiometria = {
+                                "datosParaTabla": datosParaTabla,
+                                "diagnostico": diagnostico_final
+                            }
+                            print(f"✅ Datos de audiometría obtenidos y transformados correctamente", flush=True)
+                            print(f"📊 Diagnóstico: {diagnostico_final}", flush=True)
+                        else:
+                            datos_audiometria = None
+                    else:
+                        print(f"⚠️ No se encontraron datos de audiometría para {wix_id_historia}", flush=True)
+                        datos_audiometria = None
+                else:
+                    print(f"⚠️ Error al consultar datos de audiometría: {audio_response.status_code}", flush=True)
+                    datos_audiometria = None
+            except Exception as e:
+                print(f"❌ Error consultando datos de audiometría: {e}", flush=True)
+                datos_audiometria = None
+
+        # ===== CONSULTAR DATOS DEL FORMULARIO (edad, hijos, etc.) =====
+        datos_formulario = None
+        try:
+            wix_id_historia = datos_wix.get('_id', wix_id)
+            formulario_url = f"https://www.bsl.com.co/_functions/formularioPorIdGeneral?idGeneral={wix_id_historia}"
+            print(f"🔍 Consultando datos del formulario para HistoriaClinica ID: {wix_id_historia}", flush=True)
+
+            formulario_response = requests.get(formulario_url, timeout=10)
+
+            if formulario_response.status_code == 200:
+                formulario_data = formulario_response.json()
+                if formulario_data.get('success') and formulario_data.get('item'):
+                    datos_formulario = formulario_data['item']
+                    if datos_formulario:
+                        print(f"✅ Datos del formulario obtenidos correctamente", flush=True)
+                        # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
+                        if datos_formulario.get('edad'):
+                            datos_wix['edad'] = datos_formulario.get('edad')
+                        if datos_formulario.get('genero'):
+                            datos_wix['genero'] = datos_formulario.get('genero')
+                        if datos_formulario.get('estadoCivil'):
+                            datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+                        if datos_formulario.get('hijos'):
+                            datos_wix['hijos'] = datos_formulario.get('hijos')
+                        if datos_formulario.get('email'):
+                            datos_wix['email'] = datos_formulario.get('email')
+                        if datos_formulario.get('profesionUOficio'):
+                            datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+                        if datos_formulario.get('ciudadDeResidencia'):
+                            datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+                        if datos_formulario.get('fechaNacimiento'):
+                            # Convertir fecha de nacimiento a formato string legible
+                            fecha_nac = datos_formulario.get('fechaNacimiento')
+                            if isinstance(fecha_nac, str):
+                                try:
+                                    fecha_obj = datetime.fromisoformat(fecha_nac.replace('Z', '+00:00'))
+                                    datos_wix['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
+                                except:
+                                    datos_wix['fechaNacimiento'] = fecha_nac
+                            elif isinstance(fecha_nac, datetime):
+                                datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
+                        print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
+                    else:
+                        print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
+                else:
+                    print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
+            else:
+                print(f"⚠️ Error al consultar datos del formulario: {formulario_response.status_code}", flush=True)
+        except Exception as e:
+            print(f"❌ Error consultando datos del formulario: {e}", flush=True)
+
         # Textos dinámicos según exámenes
         textos_examenes = {
             "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
@@ -1507,9 +1935,12 @@ def preview_certificado_html(wix_id):
             "vigencia": "Tres años",
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
+            "examenes": examenes,  # Lista de exámenes para verificar tipo
             "resultados_generales": resultados_generales,
             "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
             "recomendaciones_medicas": recomendaciones,
+            "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
+            "datos_audiometria": datos_audiometria,  # Datos de audiometría
             "medico_nombre": "JUAN JOSE REATIGA",
             "medico_registro": "REGISTRO MEDICO NO 14791",
             "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
