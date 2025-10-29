@@ -1566,6 +1566,34 @@ def generar_certificado_desde_wix(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
+        # Mapear médico a imagen de firma
+        medico = datos_wix.get('medico', 'JUAN 134')
+        firma_medico_map = {
+            "SIXTA": "FIRMA-SIXTA.png",
+            "JUAN 134": "FIRMA-JUAN134.jpeg",
+            "CESAR": "FIRMA-CESAR.png",
+            "MARY": "FIRMA-MARY.webp",
+            "PRESENCIAL": "FIRMA-PRESENCIAL.png"
+        }
+        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+
+        # Firma del paciente desde FORMULARIO
+        firma_paciente_wix = datos_wix.get('firma')
+        firma_paciente_url = None
+        if firma_paciente_wix:
+            if firma_paciente_wix.startswith('wix:image://v1/'):
+                # Convertir URL de Wix a URL estática accesible
+                parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
+                if len(parts) > 0:
+                    image_id = parts[0]
+                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+            else:
+                firma_paciente_url = firma_paciente_wix
+
+        # Firma del optómetra (siempre la misma)
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+
         # Preparar payload para el endpoint de generación
         payload_certificado = {
             # Datos personales
@@ -1611,10 +1639,13 @@ def generar_certificado_desde_wix(wix_id):
             # Datos de audiometría
             "datos_audiometria": datos_audiometria,
 
-            # Firmas (se asignarán según el médico)
+            # Firmas
             "medico_nombre": "JUAN JOSE REATIGA",
             "medico_registro": "REGISTRO MEDICO NO 14791",
             "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
+            "firma_medico_url": firma_medico_url,
+            "firma_paciente_url": firma_paciente_url,
+            "firma_optometra_url": firma_optometra_url,
 
             # Almacenamiento
             "guardar_drive": guardar_drive,
@@ -2149,6 +2180,34 @@ def preview_certificado_html(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
+        # Mapear médico a imagen de firma
+        medico = datos_wix.get('medico', 'JUAN 134')
+        firma_medico_map = {
+            "SIXTA": "FIRMA-SIXTA.png",
+            "JUAN 134": "FIRMA-JUAN134.jpeg",
+            "CESAR": "FIRMA-CESAR.png",
+            "MARY": "FIRMA-MARY.webp",
+            "PRESENCIAL": "FIRMA-PRESENCIAL.png"
+        }
+        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+
+        # Firma del paciente desde FORMULARIO
+        firma_paciente_wix = datos_wix.get('firma')
+        firma_paciente_url = None
+        if firma_paciente_wix:
+            if firma_paciente_wix.startswith('wix:image://v1/'):
+                # Convertir URL de Wix a URL estática accesible
+                parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
+                if len(parts) > 0:
+                    image_id = parts[0]
+                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+            else:
+                firma_paciente_url = firma_paciente_wix
+
+        # Firma del optómetra (siempre la misma)
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
 
@@ -2183,8 +2242,11 @@ def preview_certificado_html(wix_id):
             "medico_nombre": "JUAN JOSE REATIGA",
             "medico_registro": "REGISTRO MEDICO NO 14791",
             "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
+            "firma_medico_url": firma_medico_url,
+            "firma_paciente_url": firma_paciente_url,
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
             "optometra_registro": "Optómetra Ocupacional Res. 6473 04/07/2017",
+            "firma_optometra_url": firma_optometra_url,
             "examenes_detallados": [],
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }

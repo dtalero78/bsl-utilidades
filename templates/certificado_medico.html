@@ -542,7 +542,9 @@
                 <div class="signature-box">
                     <div class="signature-header">Firma Médico</div>
                     <div class="signature-line">
-                        <!-- Aquí iría la imagen de la firma -->
+                        {% if firma_medico_url %}
+                        <img src="{{ firma_medico_url }}" alt="Firma Médico" style="max-width: 200px; max-height: 60px; object-fit: contain;">
+                        {% endif %}
                     </div>
                     <div class="signature-name">{{ medico_nombre }}</div>
                     <div class="signature-details">
@@ -556,7 +558,9 @@
                 <div class="signature-box">
                     <div class="signature-header">Firma Paciente Atendido</div>
                     <div class="signature-line">
-                        <!-- Aquí iría la imagen de la firma -->
+                        {% if firma_paciente_url %}
+                        <img src="{{ firma_paciente_url }}" alt="Firma Paciente" style="max-width: 200px; max-height: 60px; object-fit: contain;">
+                        {% endif %}
                     </div>
                     <div class="signature-name">{{ nombres_apellidos }}</div>
                     <div class="signature-details">
@@ -610,11 +614,17 @@
                 <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: end;">
                         <div style="text-align: center;">
-                            <div style="border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px;">
+                            <div style="padding-bottom: 5px; margin-bottom: 5px; min-height: 60px; display: flex; align-items: center; justify-content: center;">
+                                {% if firma_optometra_url %}
+                                <img src="{{ firma_optometra_url }}" alt="Firma Optómetra" style="max-width: 200px; max-height: 60px; object-fit: contain;">
+                                {% else %}
                                 &nbsp;
+                                {% endif %}
                             </div>
-                            <p style="font-size: 10px; margin: 0; font-weight: bold;">Firma del Optómetra</p>
-                            <p style="font-size: 9px; margin: 0; color: #666;">Tarjeta Profesional No. TP-12345</p>
+                            <div style="border-top: 1px solid #333; padding-top: 5px;">
+                                <p style="font-size: 10px; margin: 0; font-weight: bold;">Firma del Optómetra</p>
+                                <p style="font-size: 9px; margin: 0; color: #666;">Tarjeta Profesional No. TP-12345</p>
+                            </div>
                         </div>
                         <div style="text-align: center;">
                             <p style="font-size: 9px; margin: 0; color: #666;">Fecha: {{ fecha_atencion }}</p>
