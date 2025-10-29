@@ -232,6 +232,52 @@
             color: #333;
         }
 
+        /* === ANÁLISIS POSTURAL === */
+        .postural-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border: 2px solid #0066cc;
+            border-radius: 8px;
+        }
+
+        .postural-box h4 {
+            color: #0066cc;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-align: center;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 8px;
+        }
+
+        .postural-data {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .postural-item {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #0066cc;
+        }
+
+        .postural-item strong {
+            color: #0066cc;
+            font-size: 9px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .postural-item span {
+            color: #333;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
         /* === FIRMAS === */
         .signatures-section {
             margin-top: 30px;
@@ -425,6 +471,58 @@
             </div>
             {% endfor %}
         </div>
+
+        <!-- ANÁLISIS POSTURAL -->
+        {% if analisis_postural and analisis_postural|length > 0 %}
+        <div class="section">
+            <div class="section-title">Análisis Postural</div>
+            {% for ejercicio in analisis_postural %}
+            <div class="postural-box">
+                <h4>EJERCICIO {{ ejercicio.numero }} - {{ ejercicio.hora }}</h4>
+
+                <div class="postural-data">
+                    <!-- Postura -->
+                    <div class="postural-item">
+                        <strong>Ángulo del tronco:</strong>
+                        <span>{{ ejercicio.angulo_tronco }}°</span>
+                    </div>
+                    <div class="postural-item">
+                        <strong>Alineación:</strong>
+                        <span>{{ ejercicio.alineacion }}</span>
+                    </div>
+
+                    <!-- Ángulos articulares -->
+                    <div class="postural-item">
+                        <strong>Codo izquierdo:</strong>
+                        <span>{{ ejercicio.angulos.codo_izq }}°</span>
+                    </div>
+                    <div class="postural-item">
+                        <strong>Codo derecho:</strong>
+                        <span>{{ ejercicio.angulos.codo_der }}°</span>
+                    </div>
+                    <div class="postural-item">
+                        <strong>Rodilla izquierda:</strong>
+                        <span>{{ ejercicio.angulos.rodilla_izq }}°</span>
+                    </div>
+                    <div class="postural-item">
+                        <strong>Rodilla derecha:</strong>
+                        <span>{{ ejercicio.angulos.rodilla_der }}°</span>
+                    </div>
+
+                    <!-- Simetría corporal -->
+                    <div class="postural-item">
+                        <strong>Simetría de hombros:</strong>
+                        <span>{{ ejercicio.simetria.hombros }} ({{ ejercicio.simetria.hombros_diff }}%)</span>
+                    </div>
+                    <div class="postural-item">
+                        <strong>Simetría de caderas:</strong>
+                        <span>{{ ejercicio.simetria.caderas }} ({{ ejercicio.simetria.caderas_diff }}%)</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- RECOMENDACIONES MÉDICAS ADICIONALES -->
         {% if recomendaciones_medicas %}

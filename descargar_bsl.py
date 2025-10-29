@@ -1486,6 +1486,70 @@ def generar_certificado_desde_wix(wix_id):
         resultados_generales = []
         observaciones_certificado = datos_wix.get('mdObservacionesCertificado', '')
 
+        # Detectar si hay análisis postural en las observaciones
+        analisis_postural = []
+        observaciones_sin_analisis = observaciones_certificado
+
+        if observaciones_certificado and '=== ANÁLISIS POSTURAL ===' in observaciones_certificado:
+            # Separar análisis postural de las observaciones regulares
+            import re
+            patron = r'=== ANÁLISIS POSTURAL ===\s*(.*?)\s*=== FIN ANÁLISIS POSTURAL ==='
+            matches = re.findall(patron, observaciones_certificado, re.DOTALL)
+
+            for match in matches:
+                # Parsear cada ejercicio
+                ejercicio_info = {}
+
+                # Extraer fecha
+                fecha_match = re.search(r'Fecha:\s*(\d{2}/\d{2}/\d{4})', match)
+                if fecha_match:
+                    ejercicio_info['fecha'] = fecha_match.group(1)
+
+                # Extraer número de ejercicio y hora
+                ejercicio_match = re.search(r'EJERCICIO\s+(\d+)\s*\(([^)]+)\)', match)
+                if ejercicio_match:
+                    ejercicio_info['numero'] = ejercicio_match.group(1)
+                    ejercicio_info['hora'] = ejercicio_match.group(2)
+
+                # Extraer ángulo del tronco
+                tronco_match = re.search(r'Ángulo del tronco:\s*([\d.]+)°', match)
+                if tronco_match:
+                    ejercicio_info['angulo_tronco'] = tronco_match.group(1)
+
+                # Extraer alineación
+                alineacion_match = re.search(r'Alineación:\s*(\w+)', match)
+                if alineacion_match:
+                    ejercicio_info['alineacion'] = alineacion_match.group(1)
+
+                # Extraer ángulos articulares
+                codo_izq = re.search(r'Codo izquierdo:\s*([\d.]+)°', match)
+                codo_der = re.search(r'Codo derecho:\s*([\d.]+)°', match)
+                rodilla_izq = re.search(r'Rodilla izquierda:\s*([\d.]+)°', match)
+                rodilla_der = re.search(r'Rodilla derecha:\s*([\d.]+)°', match)
+
+                ejercicio_info['angulos'] = {
+                    'codo_izq': codo_izq.group(1) if codo_izq else 'N/A',
+                    'codo_der': codo_der.group(1) if codo_der else 'N/A',
+                    'rodilla_izq': rodilla_izq.group(1) if rodilla_izq else 'N/A',
+                    'rodilla_der': rodilla_der.group(1) if rodilla_der else 'N/A'
+                }
+
+                # Extraer simetría
+                hombros_match = re.search(r'Hombros:\s*(\w+)\s*\(diferencia:\s*([\d.]+)%\)', match)
+                caderas_match = re.search(r'Caderas:\s*(\w+)\s*\(diferencia:\s*([\d.]+)%\)', match)
+
+                ejercicio_info['simetria'] = {
+                    'hombros': hombros_match.group(1) if hombros_match else 'N/A',
+                    'hombros_diff': hombros_match.group(2) if hombros_match else 'N/A',
+                    'caderas': caderas_match.group(1) if caderas_match else 'N/A',
+                    'caderas_diff': caderas_match.group(2) if caderas_match else 'N/A'
+                }
+
+                analisis_postural.append(ejercicio_info)
+
+            # Remover análisis postural de las observaciones
+            observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
+
         for examen in datos_wix.get('examenes', []):
             descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
@@ -1493,9 +1557,9 @@ def generar_certificado_desde_wix(wix_id):
                 "descripcion": descripcion
             })
 
-        # Si hay observaciones del certificado, agregarlas al primer examen
-        if observaciones_certificado and len(resultados_generales) > 0:
-            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_certificado}"
+        # Si hay observaciones (sin análisis postural), agregarlas al primer examen
+        if observaciones_sin_analisis and len(resultados_generales) > 0:
+            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_sin_analisis}"
 
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
@@ -1531,6 +1595,9 @@ def generar_certificado_desde_wix(wix_id):
 
             # Resultados generales (con textos dinámicos)
             "resultados_generales": resultados_generales,
+
+            # Análisis postural (si existe)
+            "analisis_postural": analisis_postural,
 
             # Concepto médico
             "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
@@ -1949,6 +2016,70 @@ def preview_certificado_html(wix_id):
         resultados_generales = []
         observaciones_certificado = datos_wix.get('mdObservacionesCertificado', '')
 
+        # Detectar si hay análisis postural en las observaciones
+        analisis_postural = []
+        observaciones_sin_analisis = observaciones_certificado
+
+        if observaciones_certificado and '=== ANÁLISIS POSTURAL ===' in observaciones_certificado:
+            # Separar análisis postural de las observaciones regulares
+            import re
+            patron = r'=== ANÁLISIS POSTURAL ===\s*(.*?)\s*=== FIN ANÁLISIS POSTURAL ==='
+            matches = re.findall(patron, observaciones_certificado, re.DOTALL)
+
+            for match in matches:
+                # Parsear cada ejercicio
+                ejercicio_info = {}
+
+                # Extraer fecha
+                fecha_match = re.search(r'Fecha:\s*(\d{2}/\d{2}/\d{4})', match)
+                if fecha_match:
+                    ejercicio_info['fecha'] = fecha_match.group(1)
+
+                # Extraer número de ejercicio y hora
+                ejercicio_match = re.search(r'EJERCICIO\s+(\d+)\s*\(([^)]+)\)', match)
+                if ejercicio_match:
+                    ejercicio_info['numero'] = ejercicio_match.group(1)
+                    ejercicio_info['hora'] = ejercicio_match.group(2)
+
+                # Extraer ángulo del tronco
+                tronco_match = re.search(r'Ángulo del tronco:\s*([\d.]+)°', match)
+                if tronco_match:
+                    ejercicio_info['angulo_tronco'] = tronco_match.group(1)
+
+                # Extraer alineación
+                alineacion_match = re.search(r'Alineación:\s*(\w+)', match)
+                if alineacion_match:
+                    ejercicio_info['alineacion'] = alineacion_match.group(1)
+
+                # Extraer ángulos articulares
+                codo_izq = re.search(r'Codo izquierdo:\s*([\d.]+)°', match)
+                codo_der = re.search(r'Codo derecho:\s*([\d.]+)°', match)
+                rodilla_izq = re.search(r'Rodilla izquierda:\s*([\d.]+)°', match)
+                rodilla_der = re.search(r'Rodilla derecha:\s*([\d.]+)°', match)
+
+                ejercicio_info['angulos'] = {
+                    'codo_izq': codo_izq.group(1) if codo_izq else 'N/A',
+                    'codo_der': codo_der.group(1) if codo_der else 'N/A',
+                    'rodilla_izq': rodilla_izq.group(1) if rodilla_izq else 'N/A',
+                    'rodilla_der': rodilla_der.group(1) if rodilla_der else 'N/A'
+                }
+
+                # Extraer simetría
+                hombros_match = re.search(r'Hombros:\s*(\w+)\s*\(diferencia:\s*([\d.]+)%\)', match)
+                caderas_match = re.search(r'Caderas:\s*(\w+)\s*\(diferencia:\s*([\d.]+)%\)', match)
+
+                ejercicio_info['simetria'] = {
+                    'hombros': hombros_match.group(1) if hombros_match else 'N/A',
+                    'hombros_diff': hombros_match.group(2) if hombros_match else 'N/A',
+                    'caderas': caderas_match.group(1) if caderas_match else 'N/A',
+                    'caderas_diff': caderas_match.group(2) if caderas_match else 'N/A'
+                }
+
+                analisis_postural.append(ejercicio_info)
+
+            # Remover análisis postural de las observaciones
+            observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
+
         for examen in datos_wix.get('examenes', []):
             descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
@@ -1956,8 +2087,8 @@ def preview_certificado_html(wix_id):
                 "descripcion": descripcion
             })
 
-        if observaciones_certificado and len(resultados_generales) > 0:
-            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_certificado}"
+        if observaciones_sin_analisis and len(resultados_generales) > 0:
+            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_sin_analisis}"
 
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
@@ -1990,6 +2121,7 @@ def preview_certificado_html(wix_id):
             "examenes_realizados": examenes_realizados,
             "examenes": examenes,  # Lista de exámenes para verificar tipo
             "resultados_generales": resultados_generales,
+            "analisis_postural": analisis_postural,
             "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
             "recomendaciones_medicas": recomendaciones,
             "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
