@@ -1647,11 +1647,65 @@ def generar_certificado_desde_wix(wix_id):
             else:
                 resultado_json = resultado
 
-            # Configurar CORS
-            response = jsonify(resultado_json)
-            response.headers["Access-Control-Allow-Origin"] = "*"
+            # Verificar si la generación fue exitosa
+            if not resultado_json.get('success'):
+                # Si hubo error, retornar JSON con el error
+                response = jsonify(resultado_json)
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                return response
 
-            return response
+            # Obtener URL del PDF generado
+            pdf_url = resultado_json.get('pdf_url')
+            if not pdf_url:
+                error_response = jsonify({
+                    "success": False,
+                    "error": "No se pudo obtener la URL del PDF generado"
+                })
+                error_response.headers["Access-Control-Allow-Origin"] = "*"
+                return error_response, 500
+
+            # Descargar PDF localmente para envío directo
+            print("💾 Descargando PDF para envío directo...")
+            documento_id = datos_wix.get('numeroId', wix_id)
+            documento_sanitized = str(documento_id).replace(" ", "_").replace("/", "_").replace("\\", "_")
+            local = f"certificado_medico_{documento_sanitized}.pdf"
+
+            try:
+                r2 = requests.get(pdf_url, timeout=30)
+                r2.raise_for_status()
+                with open(local, "wb") as f:
+                    f.write(r2.content)
+
+                print(f"✅ PDF descargado localmente: {local}")
+
+                # Enviar archivo como descarga directa
+                response = send_file(
+                    local,
+                    mimetype='application/pdf',
+                    as_attachment=True,
+                    download_name=f"certificado_medico_{documento_sanitized}.pdf"
+                )
+
+                # Configurar CORS
+                response.headers["Access-Control-Allow-Origin"] = "*"
+
+                # Limpiar archivo temporal después del envío
+                @response.call_on_close
+                def cleanup():
+                    try:
+                        os.remove(local)
+                        print(f"🗑️  Archivo temporal eliminado: {local}")
+                    except Exception as e:
+                        print(f"⚠️  Error al eliminar archivo temporal: {e}")
+
+                return response
+
+            except Exception as e:
+                print(f"❌ Error descargando PDF: {e}")
+                # Si falla la descarga, intentar redireccionar a la URL
+                response = redirect(pdf_url)
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                return response
 
     except Exception as e:
         print(f"❌ Error generando certificado desde Wix: {str(e)}")
