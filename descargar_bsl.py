@@ -748,6 +748,15 @@ def generar_certificado_medico():
             # Exámenes detallados (página 2, opcional)
             "examenes_detallados": data.get("examenes_detallados", []),
 
+            # Datos visuales (Optometría/Visiometría)
+            "datos_visual": data.get("datos_visual"),
+
+            # Datos de audiometría
+            "datos_audiometria": data.get("datos_audiometria"),
+
+            # Lista de exámenes para verificar tipo
+            "examenes": data.get("examenes", []),
+
             # Logo URL
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
