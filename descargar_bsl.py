@@ -653,6 +653,11 @@ def options_root():
 
 @app.route("/")
 def serve_frontend():
+    return send_from_directory(app.static_folder, "menu.html")
+
+@app.route("/descarga")
+def serve_descarga():
+    """Ruta alternativa para la página de descarga original"""
     return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/static/<path:filename>")
@@ -736,6 +741,9 @@ def generar_certificado_medico():
                     "descripcion": "Presión intraocular (PIO): 15 mmHg en ambos ojos. Reflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos. Campo visual: Normal en ambos ojos. Visión de colores: Normal. Fondo de ojo: Normal."
                 }
             ]),
+
+            # Recomendaciones médicas adicionales
+            "recomendaciones_medicas": data.get("recomendaciones_medicas", ""),
 
             # Firmas
             "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
@@ -1405,6 +1413,7 @@ def generar_certificado_desde_wix(wix_id):
                     datos_formulario = formulario_data['item']
                     if datos_formulario:
                         print(f"✅ Datos del formulario obtenidos correctamente")
+                        print(f"📸 Foto en FORMULARIO: {datos_formulario.get('foto', 'NO EXISTE')}")
                         # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
                         if datos_formulario.get('edad'):
                             datos_wix['edad'] = datos_formulario.get('edad')
@@ -1431,6 +1440,22 @@ def generar_certificado_desde_wix(wix_id):
                                     datos_wix['fechaNacimiento'] = fecha_nac
                             elif isinstance(fecha_nac, datetime):
                                 datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
+                        if datos_formulario.get('foto'):
+                            # Convertir URL de Wix a URL accesible
+                            foto_wix = datos_formulario.get('foto')
+                            if foto_wix.startswith('wix:image://v1/'):
+                                # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
+                                # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
+                                # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
+                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID
+                                parts = foto_wix.replace('wix:image://v1/', '').split('/')
+                                if len(parts) > 0:
+                                    image_id = parts[0]  # Solo tomar el ID de la imagen
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                else:
+                                    datos_wix['foto_paciente'] = foto_wix
+                            else:
+                                datos_wix['foto_paciente'] = foto_wix
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
@@ -1492,6 +1517,7 @@ def generar_certificado_desde_wix(wix_id):
             "profesion": datos_wix.get('profesionUOficio', ''),
             "email": datos_wix.get('email', ''),
             "tipo_examen": datos_wix.get('tipoExamen', ''),
+            "foto_paciente": datos_wix.get('foto_paciente', None),
 
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
@@ -1850,6 +1876,7 @@ def preview_certificado_html(wix_id):
                     datos_formulario = formulario_data['item']
                     if datos_formulario:
                         print(f"✅ Datos del formulario obtenidos correctamente", flush=True)
+                        print(f"📸 Foto en FORMULARIO: {datos_formulario.get('foto', 'NO EXISTE')}", flush=True)
                         # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
                         if datos_formulario.get('edad'):
                             datos_wix['edad'] = datos_formulario.get('edad')
@@ -1876,6 +1903,22 @@ def preview_certificado_html(wix_id):
                                     datos_wix['fechaNacimiento'] = fecha_nac
                             elif isinstance(fecha_nac, datetime):
                                 datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
+                        if datos_formulario.get('foto'):
+                            # Convertir URL de Wix a URL accesible
+                            foto_wix = datos_formulario.get('foto')
+                            if foto_wix.startswith('wix:image://v1/'):
+                                # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
+                                # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
+                                # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
+                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID
+                                parts = foto_wix.replace('wix:image://v1/', '').split('/')
+                                if len(parts) > 0:
+                                    image_id = parts[0]  # Solo tomar el ID de la imagen
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                else:
+                                    datos_wix['foto_paciente'] = foto_wix
+                            else:
+                                datos_wix['foto_paciente'] = foto_wix
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
@@ -1939,6 +1982,7 @@ def preview_certificado_html(wix_id):
             "profesion": datos_wix.get('profesionUOficio', ''),
             "email": datos_wix.get('email', ''),
             "tipo_examen": datos_wix.get('tipoExamen', ''),
+            "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
             "ciudad": "Bogotá",
             "vigencia": "Tres años",
