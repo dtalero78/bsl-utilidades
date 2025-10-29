@@ -115,14 +115,14 @@
 
         /* Foto del paciente */
         .patient-photo {
-            position: absolute;
-            left: 0;
-            top: 50px;
-            width: 80px;
-            height: 100px;
+            float: left;
+            width: 90px;
+            height: 110px;
             object-fit: cover;
             border: 2px solid #ddd;
             background: #f9f9f9;
+            margin-right: 15px;
+            margin-bottom: 10px;
         }
 
         /* Tabla de datos */
@@ -382,6 +382,9 @@
                 </tr>
             </table>
 
+            <!-- Clear float para que el contenido siguiente no se superponga -->
+            <div style="clear: both;"></div>
+
             <div class="legal-notice">
                 * De conformidad con la Ley de Protección de Datos Personales, informamos que la información contenida en este certificado médico es confidencial y será utilizada exclusivamente para los fines relacionados con la evaluación de la aptitud laboral del trabajador. El tratamiento de los datos personales se llevará a cabo conforme a la normativa vigente, garantizando su integridad, confidencialidad y seguridad, y no serán compartidos con terceros sin el consentimiento expreso del titular, salvo por mandato legal o judicial.
             </div>
@@ -421,6 +424,16 @@
             </div>
             {% endfor %}
         </div>
+
+        <!-- RECOMENDACIONES MÉDICAS ADICIONALES -->
+        {% if recomendaciones_medicas %}
+        <div class="section" style="margin-top: 30px;">
+            <div class="section-title">Recomendaciones Médicas Adicionales</div>
+            <div class="result-item">
+                <p style="white-space: pre-line;">{{ recomendaciones_medicas }}</p>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- FIRMAS -->
         <div class="signatures-section">
