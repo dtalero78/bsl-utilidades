@@ -1657,7 +1657,7 @@ def generar_certificado_desde_wix(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
 
         # Firma del paciente desde FORMULARIO
-        firma_paciente_wix = datos_wix.get('firma')
+        firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
         firma_paciente_url = None
         if firma_paciente_wix:
             print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
@@ -1672,7 +1672,7 @@ def generar_certificado_desde_wix(wix_id):
                 firma_paciente_url = firma_paciente_wix
                 print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
         else:
-            print(f"⚠️  No se encontró firma del paciente en datos de Wix")
+            print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
@@ -2256,7 +2256,7 @@ def preview_certificado_html(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
 
         # Firma del paciente desde FORMULARIO
-        firma_paciente_wix = datos_wix.get('firma')
+        firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
         firma_paciente_url = None
         if firma_paciente_wix:
             print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
@@ -2271,7 +2271,7 @@ def preview_certificado_html(wix_id):
                 firma_paciente_url = firma_paciente_wix
                 print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
         else:
-            print(f"⚠️  No se encontró firma del paciente en datos de Wix")
+            print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
