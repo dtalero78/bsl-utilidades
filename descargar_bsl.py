@@ -1578,9 +1578,22 @@ def generar_certificado_desde_wix(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # PRUEBA TEMPORAL: Usar URL de Wix para verificar si el problema es con las URLs del servidor
-        firma_medico_url = "https://static.wixstatic.com/media/cb6469_e1c1aa56591e406d8dd7d9e9db111f8c~mv2.png"
-        # firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # Convertir firma local a Base64 para embedding directo en HTML
+        import base64
+        import mimetypes
+        firma_medico_path = f"static/{firma_medico_filename}"
+        try:
+            with open(firma_medico_path, 'rb') as f:
+                firma_data = f.read()
+            mime_type, _ = mimetypes.guess_type(firma_medico_path)
+            if not mime_type:
+                mime_type = 'image/png'
+            firma_b64 = base64.b64encode(firma_data).decode('utf-8')
+            firma_medico_url = f"data:{mime_type};base64,{firma_b64}"
+            print(f"✅ Firma médico convertida a Base64 ({len(firma_b64)} chars)")
+        except Exception as e:
+            print(f"⚠️ Error convirtiendo firma médico a Base64: {e}")
+            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -1595,8 +1608,16 @@ def generar_certificado_desde_wix(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma) - Usar URL pública
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma) - Convertir a Base64
+        try:
+            with open("static/FIRMA-OPTOMETRA.png", 'rb') as f:
+                optometra_data = f.read()
+            optometra_b64 = base64.b64encode(optometra_data).decode('utf-8')
+            firma_optometra_url = f"data:image/png;base64,{optometra_b64}"
+            print(f"✅ Firma optómetra convertida a Base64 ({len(optometra_b64)} chars)")
+        except Exception as e:
+            print(f"⚠️ Error convirtiendo firma optómetra a Base64: {e}")
+            firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
 
         # Preparar payload para el endpoint de generación
         payload_certificado = {
@@ -2194,9 +2215,22 @@ def preview_certificado_html(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # PRUEBA TEMPORAL: Usar URL de Wix para verificar si el problema es con las URLs del servidor
-        firma_medico_url = "https://static.wixstatic.com/media/cb6469_e1c1aa56591e406d8dd7d9e9db111f8c~mv2.png"
-        # firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # Convertir firma local a Base64 para embedding directo en HTML
+        import base64
+        import mimetypes
+        firma_medico_path = f"static/{firma_medico_filename}"
+        try:
+            with open(firma_medico_path, 'rb') as f:
+                firma_data = f.read()
+            mime_type, _ = mimetypes.guess_type(firma_medico_path)
+            if not mime_type:
+                mime_type = 'image/png'
+            firma_b64 = base64.b64encode(firma_data).decode('utf-8')
+            firma_medico_url = f"data:{mime_type};base64,{firma_b64}"
+            print(f"✅ Firma médico convertida a Base64 ({len(firma_b64)} chars)")
+        except Exception as e:
+            print(f"⚠️ Error convirtiendo firma médico a Base64: {e}")
+            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -2211,8 +2245,16 @@ def preview_certificado_html(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma) - Usar URL pública
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma) - Convertir a Base64
+        try:
+            with open("static/FIRMA-OPTOMETRA.png", 'rb') as f:
+                optometra_data = f.read()
+            optometra_b64 = base64.b64encode(optometra_data).decode('utf-8')
+            firma_optometra_url = f"data:image/png;base64,{optometra_b64}"
+            print(f"✅ Firma optómetra convertida a Base64 ({len(optometra_b64)} chars)")
+        except Exception as e:
+            print(f"⚠️ Error convirtiendo firma optómetra a Base64: {e}")
+            firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
 
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
