@@ -1578,8 +1578,9 @@ def generar_certificado_desde_wix(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # Usar URL pública del servidor (igual que el logo) para compatibilidad con API2PDF
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # PRUEBA TEMPORAL: Usar URL de Wix para verificar si el problema es con las URLs del servidor
+        firma_medico_url = "https://static.wixstatic.com/media/cb6469_e1c1aa56591e406d8dd7d9e9db111f8c~mv2.png"
+        # firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -2193,8 +2194,9 @@ def preview_certificado_html(wix_id):
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # Usar URL pública del servidor (igual que el logo) para compatibilidad con API2PDF
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # PRUEBA TEMPORAL: Usar URL de Wix para verificar si el problema es con las URLs del servidor
+        firma_medico_url = "https://static.wixstatic.com/media/cb6469_e1c1aa56591e406d8dd7d9e9db111f8c~mv2.png"
+        # firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
