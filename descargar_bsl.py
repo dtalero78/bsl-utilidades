@@ -182,12 +182,12 @@ def ilovepdf_get_token():
         print(f"❌ Error obteniendo token de iLovePDF: {e}")
         raise
 
-def ilovepdf_html_to_pdf(html_content, output_filename="certificado"):
+def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
     """
-    Convierte HTML a PDF usando iLovePDF API
+    Convierte HTML a PDF usando iLovePDF API desde una URL pública
 
     Args:
-        html_content: Contenido HTML como string
+        html_url: URL pública del HTML a convertir
         output_filename: Nombre del archivo de salida (sin extensión)
 
     Returns:
@@ -210,19 +210,19 @@ def ilovepdf_html_to_pdf(html_content, output_filename="certificado"):
         task_id = task_data['task']
         print(f"✅ Tarea iniciada: {task_id} en servidor {server}")
 
-        # Paso 3: Subir HTML como archivo temporal
-        print("📤 Subiendo HTML a iLovePDF...")
-        html_bytes = html_content.encode('utf-8')
-        files = {'file': ('document.html', html_bytes, 'text/html')}
-        upload_response = requests.post(
+        # Paso 3: Agregar URL del HTML
+        print(f"📤 Agregando URL a iLovePDF: {html_url}")
+        add_url_response = requests.post(
             f'https://{server}/v1/upload',
-            files=files,
-            data={'task': task_id},
+            json={
+                'task': task_id,
+                'cloud_file': html_url
+            },
             headers=headers
         )
-        upload_response.raise_for_status()
-        server_filename = upload_response.json()['server_filename']
-        print(f"✅ HTML subido: {server_filename}")
+        add_url_response.raise_for_status()
+        server_filename = add_url_response.json()['server_filename']
+        print(f"✅ URL agregada: {server_filename}")
 
         # Paso 4: Procesar
         print("⚙️ Procesando HTML→PDF...")
@@ -1735,87 +1735,64 @@ def generar_certificado_desde_wix(wix_id):
         print(f"👤 Paciente: {nombre_completo}")
         print(f"🆔 Documento: {datos_wix.get('numeroId', '')}")
 
-        # Llamar al endpoint de generación de certificado internamente
-        # (simular la llamada interna)
-        from flask import current_app
+        # ========== GENERAR PDF CON iLovePDF ==========
+        # En lugar de llamar al endpoint interno, usar directamente iLovePDF con la URL del preview
 
-        with current_app.test_request_context(
-            '/generar-certificado-medico',
-            method='POST',
-            json=payload_certificado,
-            headers={'Content-Type': 'application/json'}
-        ):
-            resultado = generar_certificado_medico()
+        print("📄 Generando PDF con iLovePDF desde URL del preview...")
 
-            # Si es una tupla (response, status_code), extraer la response
-            if isinstance(resultado, tuple):
-                resultado = resultado[0]
+        # Construir URL del preview HTML
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}"
+        print(f"🔗 URL del preview: {preview_url}")
 
-            # Obtener el JSON de la respuesta
-            if hasattr(resultado, 'get_json'):
-                resultado_json = resultado.get_json()
-            else:
-                resultado_json = resultado
+        # Generar PDF usando iLovePDF
+        try:
+            pdf_content = ilovepdf_html_to_pdf_from_url(
+                html_url=preview_url,
+                output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+            )
 
-            # Verificar si la generación fue exitosa
-            if not resultado_json.get('success'):
-                # Si hubo error, retornar JSON con el error
-                response = jsonify(resultado_json)
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                return response
-
-            # Obtener URL del PDF generado
-            pdf_url = resultado_json.get('pdf_url')
-            if not pdf_url:
-                error_response = jsonify({
-                    "success": False,
-                    "error": "No se pudo obtener la URL del PDF generado"
-                })
-                error_response.headers["Access-Control-Allow-Origin"] = "*"
-                return error_response, 500
-
-            # Descargar PDF localmente para envío directo
-            print("💾 Descargando PDF para envío directo...")
+            # Guardar PDF localmente para envío directo
+            print("💾 Guardando PDF localmente...")
             documento_id = datos_wix.get('numeroId', wix_id)
             documento_sanitized = str(documento_id).replace(" ", "_").replace("/", "_").replace("\\", "_")
             local = f"certificado_medico_{documento_sanitized}.pdf"
 
-            try:
-                r2 = requests.get(pdf_url, timeout=30)
-                r2.raise_for_status()
-                with open(local, "wb") as f:
-                    f.write(r2.content)
+            with open(local, "wb") as f:
+                f.write(pdf_content)
 
-                print(f"✅ PDF descargado localmente: {local}")
+            print(f"✅ PDF generado y guardado localmente: {local}")
 
-                # Enviar archivo como descarga directa
-                response = send_file(
-                    local,
-                    mimetype='application/pdf',
-                    as_attachment=True,
-                    download_name=f"certificado_medico_{documento_sanitized}.pdf"
-                )
+            # Enviar archivo como descarga directa
+            response = send_file(
+                local,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"certificado_medico_{documento_sanitized}.pdf"
+            )
 
-                # Configurar CORS
-                response.headers["Access-Control-Allow-Origin"] = "*"
+            # Configurar CORS
+            response.headers["Access-Control-Allow-Origin"] = "*"
 
-                # Limpiar archivo temporal después del envío
-                @response.call_on_close
-                def cleanup():
-                    try:
-                        os.remove(local)
-                        print(f"🗑️  Archivo temporal eliminado: {local}")
-                    except Exception as e:
-                        print(f"⚠️  Error al eliminar archivo temporal: {e}")
+            # Limpiar archivo temporal después del envío
+            @response.call_on_close
+            def cleanup():
+                try:
+                    os.remove(local)
+                    print(f"🗑️  Archivo temporal eliminado: {local}")
+                except Exception as e:
+                    print(f"⚠️  Error al eliminar archivo temporal: {e}")
 
-                return response
+            return response
 
-            except Exception as e:
-                print(f"❌ Error descargando PDF: {e}")
-                # Si falla la descarga, intentar redireccionar a la URL
-                response = redirect(pdf_url)
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                return response
+        except Exception as e:
+            print(f"❌ Error generando PDF con iLovePDF: {e}")
+            traceback.print_exc()
+            error_response = jsonify({
+                "success": False,
+                "error": f"Error generando PDF: {str(e)}"
+            })
+            error_response.headers["Access-Control-Allow-Origin"] = "*"
+            return error_response, 500
 
     except Exception as e:
         print(f"❌ Error generando certificado desde Wix: {str(e)}")
