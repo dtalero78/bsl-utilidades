@@ -1674,9 +1674,9 @@ def generar_certificado_desde_wix(wix_id):
             },
             "MARY": {
                 "nombre": "MARY",
-                "registro": "REGISTRO MÉDICO NO 55300504",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
-                "fecha": "16 DE FEBRERO DE 2021"
+                "registro": "",
+                "licencia": "",
+                "fecha": ""
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
@@ -2319,9 +2319,9 @@ def preview_certificado_html(wix_id):
             },
             "MARY": {
                 "nombre": "MARY",
-                "registro": "REGISTRO MÉDICO NO 55300504",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
-                "fecha": "16 DE FEBRERO DE 2021"
+                "registro": "",
+                "licencia": "",
+                "fecha": ""
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
