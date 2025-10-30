@@ -92,8 +92,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            color: #999;
+            overflow: hidden;
+        }
+
+        .qr-code img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         /* === DATOS PERSONALES SECTION === */
@@ -391,7 +396,9 @@
 
             <!-- QR derecho -->
             <div class="qr-section">
-                <div class="qr-code">QR Code</div>
+                <div class="qr-code">
+                    <img src="https://static.wixstatic.com/media/cb6469_1a11f8c5effe4b0da2fcfdde7754195b~mv2.jpg" alt="QR Code">
+                </div>
             </div>
         </div>
 
