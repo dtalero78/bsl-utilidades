@@ -1690,10 +1690,10 @@ def api_generar_certificado_pdf(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "CESAR": {
-                "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
-                "fecha": "6 DE JULIO DE 2020"
+                "nombre": "CÉSAR ADOLFO ZAMBRANO MARTÍNEZ",
+                "registro": "REGISTRO MEDICO NO 1192803570",
+                "licencia": "LICENCIA SALUD OCUPACIONAL # 3241",
+                "fecha": "13 DE JULIO DE 2021"
             },
             "MARY": {
                 "nombre": "",
@@ -2335,10 +2335,10 @@ def preview_certificado_html(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "CESAR": {
-                "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
-                "fecha": "6 DE JULIO DE 2020"
+                "nombre": "CÉSAR ADOLFO ZAMBRANO MARTÍNEZ",
+                "registro": "REGISTRO MEDICO NO 1192803570",
+                "licencia": "LICENCIA SALUD OCUPACIONAL # 3241",
+                "fecha": "13 DE JULIO DE 2021"
             },
             "MARY": {
                 "nombre": "",
