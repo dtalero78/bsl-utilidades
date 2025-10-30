@@ -1673,7 +1673,7 @@ def generar_certificado_desde_wix(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "MARY": {
-                "nombre": "MARY",
+                "nombre": "",
                 "registro": "",
                 "licencia": "",
                 "fecha": ""
@@ -2318,7 +2318,7 @@ def preview_certificado_html(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "MARY": {
-                "nombre": "MARY",
+                "nombre": "",
                 "registro": "",
                 "licencia": "",
                 "fecha": ""
