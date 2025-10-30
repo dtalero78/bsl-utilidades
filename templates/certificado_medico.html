@@ -212,16 +212,16 @@
 
         /* === AVISO SIN SOPORTE === */
         .sin-soporte {
-            background: #fff3cd;
-            border: 3px solid #ffc107;
-            padding: 25px;
+            background: #ffe6e6;
+            border: 4px solid #dc3545;
+            padding: 30px;
             margin: 20px 0;
             text-align: center;
         }
 
         .sin-soporte .warning-text {
-            color: #856404;
-            font-size: 16px;
+            color: #c82333;
+            font-size: 18px;
             font-weight: bold;
             text-transform: uppercase;
             line-height: 1.8;
@@ -500,6 +500,7 @@
         {% endif %}
 
         <!-- RESULTADOS GENERALES -->
+        {% if not mostrar_sin_soporte %}
         <div class="section">
             <div class="section-title">Resultados Generales</div>
             {% for resultado in resultados_generales %}
@@ -573,6 +574,7 @@
         {% endif %}
 
         <!-- FIRMAS -->
+        {% if not mostrar_sin_soporte %}
         <div class="signatures-section">
             <div class="section-title">Firmas</div>
             <div class="signatures-container" style="grid-template-columns: repeat(2, 1fr);">
@@ -607,6 +609,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- RESULTADOS DE PRUEBA VISUAL (Optometría o Visiometría) -->
         {% if 'Optometría' in examenes or 'Visiometría' in examenes %}
@@ -791,6 +794,7 @@
                 </div>
             {% endif %}
         </div>
+        {% endif %}
         {% endif %}
 
         <!-- FOOTER -->
