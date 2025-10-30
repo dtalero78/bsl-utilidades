@@ -796,7 +796,7 @@ def generar_certificado_medico():
             payload = {
                 "html": html_content,
                 "options": {
-                    "delay": 3000,
+                    "delay": 8000,
                     "displayHeaderFooter": False,
                     "printBackground": True,
                     "format": "Letter",
@@ -1572,7 +1572,7 @@ def generar_certificado_desde_wix(wix_id):
             "SIXTA": "FIRMA-SIXTA.png",
             "JUAN 134": "FIRMA-JUAN134.jpeg",
             "CESAR": "FIRMA-CESAR.png",
-            "MARY": "FIRMA-MARY.webp",
+            "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
@@ -2187,7 +2187,7 @@ def preview_certificado_html(wix_id):
             "SIXTA": "FIRMA-SIXTA.png",
             "JUAN 134": "FIRMA-JUAN134.jpeg",
             "CESAR": "FIRMA-CESAR.png",
-            "MARY": "FIRMA-MARY.webp",
+            "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
