@@ -1577,11 +1577,10 @@ def generar_certificado_desde_wix(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
-        # 🧪 PRUEBA DEFINITIVA: Usar la misma URL que el logo (que SÍ funciona en PDF)
-        # Si esto funciona = problema con archivos de firma
-        # Si esto NO funciona = problema con posición/contexto HTML
-        firma_medico_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
-        print(f"🧪 PRUEBA DIAGNÓSTICA: Firma médico usando logo-bsl.png (imagen que SÍ aparece en PDF)")
+        # Obtener firma del médico desde archivos locales
+        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        print(f"✅ Firma médico: {firma_medico_filename}")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -1596,24 +1595,9 @@ def generar_certificado_desde_wix(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma) - Convertir a Base64 optimizado
-        try:
-            # Abrir imagen y redimensionar a tamaño exacto del PDF (150x50px)
-            img_opto = Image.open("static/FIRMA-OPTOMETRA.png")
-            img_opto = img_opto.resize((150, 50), Image.Resampling.LANCZOS)
-
-            # Guardar en buffer como PNG optimizado
-            buffer_opto = io.BytesIO()
-            img_opto.save(buffer_opto, format='PNG', optimize=True)
-            optometra_data = buffer_opto.getvalue()
-
-            # Convertir a Base64
-            optometra_b64 = base64.b64encode(optometra_data).decode('utf-8')
-            firma_optometra_url = f"data:image/png;base64,{optometra_b64}"
-            print(f"✅ Firma optómetra optimizada a 150x50px y convertida a Base64 ({len(optometra_b64)} chars)")
-        except Exception as e:
-            print(f"⚠️ Error convirtiendo firma optómetra a Base64: {e}")
-            firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma)
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.png")
 
         # Preparar payload para el endpoint de generación
         payload_certificado = {
@@ -2210,11 +2194,10 @@ def preview_certificado_html(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
-        # 🧪 PRUEBA DEFINITIVA: Usar la misma URL que el logo (que SÍ funciona en PDF)
-        # Si esto funciona = problema con archivos de firma
-        # Si esto NO funciona = problema con posición/contexto HTML
-        firma_medico_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
-        print(f"🧪 PRUEBA DIAGNÓSTICA: Firma médico usando logo-bsl.png (imagen que SÍ aparece en PDF)")
+        # Obtener firma del médico desde archivos locales
+        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        print(f"✅ Firma médico: {firma_medico_filename}")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -2229,24 +2212,9 @@ def preview_certificado_html(wix_id):
             else:
                 firma_paciente_url = firma_paciente_wix
 
-        # Firma del optómetra (siempre la misma) - Convertir a Base64 optimizado
-        try:
-            # Abrir imagen y redimensionar a tamaño exacto del PDF (150x50px)
-            img_opto = Image.open("static/FIRMA-OPTOMETRA.png")
-            img_opto = img_opto.resize((150, 50), Image.Resampling.LANCZOS)
-
-            # Guardar en buffer como PNG optimizado
-            buffer_opto = io.BytesIO()
-            img_opto.save(buffer_opto, format='PNG', optimize=True)
-            optometra_data = buffer_opto.getvalue()
-
-            # Convertir a Base64
-            optometra_b64 = base64.b64encode(optometra_data).decode('utf-8')
-            firma_optometra_url = f"data:image/png;base64,{optometra_b64}"
-            print(f"✅ Firma optómetra optimizada a 150x50px y convertida a Base64 ({len(optometra_b64)} chars)")
-        except Exception as e:
-            print(f"⚠️ Error convirtiendo firma optómetra a Base64: {e}")
-            firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        # Firma del optómetra (siempre la misma)
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
+        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.png")
 
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
