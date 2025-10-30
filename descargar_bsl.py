@@ -1577,29 +1577,11 @@ def generar_certificado_desde_wix(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
-        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # Convertir firma local a Base64 optimizado para embedding directo en HTML
-        import base64
-        from PIL import Image
-        import io
-        firma_medico_path = f"static/{firma_medico_filename}"
-        try:
-            # Abrir imagen y redimensionar a tamaño exacto del PDF (150x50px)
-            img = Image.open(firma_medico_path)
-            img = img.resize((150, 50), Image.Resampling.LANCZOS)
-
-            # Guardar en buffer como PNG optimizado
-            buffer = io.BytesIO()
-            img.save(buffer, format='PNG', optimize=True)
-            firma_data = buffer.getvalue()
-
-            # Convertir a Base64
-            firma_b64 = base64.b64encode(firma_data).decode('utf-8')
-            firma_medico_url = f"data:image/png;base64,{firma_b64}"
-            print(f"✅ Firma médico optimizada a 150x50px y convertida a Base64 ({len(firma_b64)} chars)")
-        except Exception as e:
-            print(f"⚠️ Error convirtiendo firma médico a Base64: {e}")
-            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # 🧪 PRUEBA DEFINITIVA: Usar la misma URL que el logo (que SÍ funciona en PDF)
+        # Si esto funciona = problema con archivos de firma
+        # Si esto NO funciona = problema con posición/contexto HTML
+        firma_medico_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+        print(f"🧪 PRUEBA DIAGNÓSTICA: Firma médico usando logo-bsl.png (imagen que SÍ aparece en PDF)")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
@@ -2228,29 +2210,11 @@ def preview_certificado_html(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
-        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")  # Default a JUAN 134
-        # Convertir firma local a Base64 optimizado para embedding directo en HTML
-        import base64
-        from PIL import Image
-        import io
-        firma_medico_path = f"static/{firma_medico_filename}"
-        try:
-            # Abrir imagen y redimensionar a tamaño exacto del PDF (150x50px)
-            img = Image.open(firma_medico_path)
-            img = img.resize((150, 50), Image.Resampling.LANCZOS)
-
-            # Guardar en buffer como PNG optimizado
-            buffer = io.BytesIO()
-            img.save(buffer, format='PNG', optimize=True)
-            firma_data = buffer.getvalue()
-
-            # Convertir a Base64
-            firma_b64 = base64.b64encode(firma_data).decode('utf-8')
-            firma_medico_url = f"data:image/png;base64,{firma_b64}"
-            print(f"✅ Firma médico optimizada a 150x50px y convertida a Base64 ({len(firma_b64)} chars)")
-        except Exception as e:
-            print(f"⚠️ Error convirtiendo firma médico a Base64: {e}")
-            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        # 🧪 PRUEBA DEFINITIVA: Usar la misma URL que el logo (que SÍ funciona en PDF)
+        # Si esto funciona = problema con archivos de firma
+        # Si esto NO funciona = problema con posición/contexto HTML
+        firma_medico_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+        print(f"🧪 PRUEBA DIAGNÓSTICA: Firma médico usando logo-bsl.png (imagen que SÍ aparece en PDF)")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_wix.get('firma')
