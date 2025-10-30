@@ -1898,14 +1898,6 @@ def api_generar_certificado_pdf(wix_id):
             "nombre_archivo": f"certificado_{datos_wix.get('numeroId', wix_id)}_{datetime.now().strftime('%Y%m%d')}.pdf"
         }
 
-        # Determinar si mostrar aviso de sin soporte
-        mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(datos_wix)
-        datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
-        datos_certificado["texto_sin_soporte"] = texto_aviso
-
-        if mostrar_aviso:
-            print(f"⚠️ Mostrando aviso de pago pendiente para {datos_wix.get('codEmpresa', 'N/A')}")
-
         print(f"📄 Datos preparados para generar certificado")
         print(f"👤 Paciente: {nombre_completo}")
         print(f"🆔 Documento: {datos_wix.get('numeroId', '')}")
