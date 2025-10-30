@@ -2399,9 +2399,10 @@ def preview_certificado_html(wix_id):
             "recomendaciones_medicas": recomendaciones,
             "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
             "datos_audiometria": datos_audiometria,  # Datos de audiometría
-            "medico_nombre": "JUAN JOSE REATIGA",
-            "medico_registro": "REGISTRO MEDICO NO 14791",
-            "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
+            "medico_nombre": datos_medico['nombre'],
+            "medico_registro": datos_medico['registro'],
+            "medico_licencia": datos_medico['licencia'],
+            "medico_fecha": datos_medico['fecha'],
             "firma_medico_url": firma_medico_url,
             "firma_paciente_url": firma_paciente_url,
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
