@@ -808,6 +808,8 @@ def generar_certificado_medico():
                         "right": "0"
                     }
                 },
+                "puppeteerWaitForMethod": "WaitForNavigation",
+                "puppeteerWaitForValue": "networkidle0",
                 "inlineHtml": True
             }
 
