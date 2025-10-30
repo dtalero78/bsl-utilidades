@@ -13,58 +13,67 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            color: #fff;
+            color: #333;
         }
 
         .loader-container {
             text-align: center;
-            max-width: 500px;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            padding: 60px 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
         .logo {
-            width: 180px;
+            width: 200px;
             height: auto;
-            margin-bottom: 30px;
-            animation: pulse 2s ease-in-out infinite;
+            margin-bottom: 40px;
+            animation: fadeIn 0.8s ease-in;
         }
 
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-                opacity: 1;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
             }
-            50% {
-                transform: scale(1.05);
-                opacity: 0.8;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
         h1 {
-            font-size: 28px;
-            margin-bottom: 20px;
+            font-size: 26px;
+            margin-bottom: 15px;
             font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 35px;
         }
 
         .phrase {
-            font-size: 18px;
-            margin: 20px 0;
-            padding: 15px 25px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-            min-height: 80px;
+            font-size: 16px;
+            margin: 25px 0;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            border-radius: 8px;
+            min-height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: #555;
+            line-height: 1.5;
             animation: fadeInOut 3s ease-in-out infinite;
         }
 
@@ -80,11 +89,11 @@
         }
 
         .spinner {
-            margin: 30px auto;
-            width: 60px;
-            height: 60px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-top: 5px solid #fff;
+            margin: 35px auto;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #0066cc;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -96,16 +105,16 @@
 
         .progress-bar {
             width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.2);
+            height: 6px;
+            background: #e8e8e8;
             border-radius: 10px;
-            margin-top: 30px;
+            margin-top: 35px;
             overflow: hidden;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
             border-radius: 10px;
             animation: progress 15s linear forwards;
         }
@@ -116,9 +125,17 @@
         }
 
         .status {
-            margin-top: 20px;
+            margin-top: 25px;
             font-size: 14px;
-            opacity: 0.8;
+            color: #777;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
         }
     </style>
 </head>
@@ -126,10 +143,11 @@
     <div class="loader-container">
         <img src="https://static.wixstatic.com/media/cdd2cd_ff77da6e72d44b7e8c16d75e86f5d9e2~mv2.png" alt="BSL Logo" class="logo">
 
-        <h1>Generando tu certificado...</h1>
+        <h1>Generando Certificado Médico</h1>
+        <p class="subtitle">Por favor espera mientras preparamos el documento</p>
 
         <div class="phrase" id="phrase">
-            Cargando frases...
+            Preparando documento...
         </div>
 
         <div class="spinner"></div>
@@ -139,25 +157,23 @@
         </div>
 
         <div class="status" id="status">
-            Preparando documento...
+            Procesando información del examen médico ocupacional
         </div>
     </div>
 
     <script>
         const phrases = [
-            "🩺 Revisando que todo esté en orden...",
-            "✨ Puliendo tu aptitud física...",
-            "📋 Verificando que no tengas superpoderes...",
-            "🔍 Buscando excusas para no trabajar... (no encontramos ninguna)",
-            "💪 Confirmando que estás más sano que una manzana...",
-            "🎯 Calibrando tu nivel de elegibilidad...",
-            "📝 Agregando sellos oficiales muy oficiales...",
-            "🏥 Consultando con el consejo de doctores imaginarios...",
-            "✅ Verificando que pasaste todas las pruebas (spoiler: sí)",
-            "🎉 Preparando tu pase VIP al mundo laboral...",
-            "🔬 Analizando tu capacidad de tomar café en la oficina...",
-            "👨‍⚕️ Los doctores están firmando con su mejor letra...",
-            "📄 Imprimiendo en papel digital de la más alta calidad..."
+            "Recopilando información del examen médico ocupacional",
+            "Procesando resultados de laboratorio y pruebas clínicas",
+            "Verificando aptitud física y mental del colaborador",
+            "Consolidando datos de audiometría y optometría",
+            "Generando concepto médico ocupacional",
+            "Validando recomendaciones y restricciones laborales",
+            "Preparando firmas digitales de los especialistas",
+            "Compilando historial clínico del trabajador",
+            "Organizando resultados de exámenes complementarios",
+            "Estructurando documento con estándares de salud ocupacional",
+            "Finalizando certificado médico para el colaborador"
         ];
 
         let currentPhraseIndex = 0;
@@ -199,8 +215,8 @@
                 document.body.removeChild(a);
 
                 // Mostrar mensaje de éxito
-                document.getElementById('status').innerHTML = '✅ <strong>¡Certificado descargado exitosamente!</strong>';
-                phraseElement.textContent = '🎉 ¡Todo listo! Revisa tu carpeta de descargas.';
+                document.getElementById('status').innerHTML = '<span class="success"><strong>✓ Certificado descargado exitosamente</strong></span>';
+                phraseElement.textContent = 'Documento generado correctamente. Revisa tu carpeta de descargas.';
 
                 // Cerrar ventana después de 3 segundos
                 setTimeout(() => {
@@ -209,8 +225,8 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('status').innerHTML = '❌ <strong>Error al generar certificado</strong>';
-                phraseElement.textContent = 'Hubo un problema. Por favor intenta nuevamente.';
+                document.getElementById('status').innerHTML = '<span class="error"><strong>✕ Error al generar certificado</strong></span>';
+                phraseElement.textContent = 'Ha ocurrido un error en el proceso. Por favor contacta al administrador.';
             });
     </script>
 </body>
