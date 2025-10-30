@@ -1660,14 +1660,19 @@ def generar_certificado_desde_wix(wix_id):
         firma_paciente_wix = datos_wix.get('firma')
         firma_paciente_url = None
         if firma_paciente_wix:
+            print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
             if firma_paciente_wix.startswith('wix:image://v1/'):
                 # Convertir URL de Wix a URL estática accesible (mantener como URL)
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
                     firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+                    print(f"✅ Firma paciente convertida: {firma_paciente_url}")
             else:
                 firma_paciente_url = firma_paciente_wix
+                print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
+        else:
+            print(f"⚠️  No se encontró firma del paciente en datos de Wix")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
@@ -2254,14 +2259,19 @@ def preview_certificado_html(wix_id):
         firma_paciente_wix = datos_wix.get('firma')
         firma_paciente_url = None
         if firma_paciente_wix:
+            print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
             if firma_paciente_wix.startswith('wix:image://v1/'):
                 # Convertir URL de Wix a URL estática accesible (mantener como URL)
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
                     firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+                    print(f"✅ Firma paciente convertida: {firma_paciente_url}")
             else:
                 firma_paciente_url = firma_paciente_wix
+                print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
+        else:
+            print(f"⚠️  No se encontró firma del paciente en datos de Wix")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
