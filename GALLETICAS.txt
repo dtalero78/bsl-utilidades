@@ -1,17 +1,2 @@
-por otra parte, las firmas deben llevar los datos del médico. Son los siguientes
+cuando el certificado está descargando en https://bsl-utilidades-yp78a.ondigitalocean.app/generar-certificado-desde-wix/750e08d3-00e6-4ed8-b502-5ca01679ead1 Necesitamos hacer un loader con el logo de bsl y unas frases que vayan apareciendo las cuales serán:
 
-
-SIXTA:
-SIXTA VIVERO CARRASCAL
-REGISTRO MÉDICO NO 55300504
-LICENCIA SALUD OCUPACIONAL 583
-16 DE FEBRERO DE 2021
-
-
-optometra:
-Dr. Miguel Garzón Rincón
-Optómetra Ocupacional
-Res. 6473 04/07/2017
-
-
-Adicionalmente la doctora MARY debe tener la firma  FIRMA-MARY.png

@@ -1208,7 +1208,30 @@ def procesar_csv():
 @app.route("/generar-certificado-desde-wix/<wix_id>", methods=["GET", "OPTIONS"])
 def generar_certificado_desde_wix(wix_id):
     """
-    Endpoint que consulta los datos de Wix usando el _id y genera el certificado
+    Endpoint que muestra loader mientras se genera el certificado
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    # Mostrar página de loader
+    return render_template('certificado_loader.html', wix_id=wix_id)
+
+
+@app.route("/api/generar-certificado-pdf/<wix_id>", methods=["GET", "OPTIONS"])
+def api_generar_certificado_pdf(wix_id):
+    """
+    Endpoint API que genera el PDF del certificado (usado por el loader en background)
 
     Args:
         wix_id: ID del registro en la colección HistoriaClinica de Wix

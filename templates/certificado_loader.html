@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generando tu certificado médico...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .loader-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            width: 180px;
+            height: auto;
+            margin-bottom: 30px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .phrase {
+            font-size: 18px;
+            margin: 20px 0;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            10%, 90% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .spinner {
+            margin: 30px auto;
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10px;
+            animation: progress 15s linear forwards;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container">
+        <img src="https://static.wixstatic.com/media/cdd2cd_ff77da6e72d44b7e8c16d75e86f5d9e2~mv2.png" alt="BSL Logo" class="logo">
+
+        <h1>Generando tu certificado...</h1>
+
+        <div class="phrase" id="phrase">
+            Cargando frases...
+        </div>
+
+        <div class="spinner"></div>
+
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+
+        <div class="status" id="status">
+            Preparando documento...
+        </div>
+    </div>
+
+    <script>
+        const phrases = [
+            "🩺 Revisando que todo esté en orden...",
+            "✨ Puliendo tu aptitud física...",
+            "📋 Verificando que no tengas superpoderes...",
+            "🔍 Buscando excusas para no trabajar... (no encontramos ninguna)",
+            "💪 Confirmando que estás más sano que una manzana...",
+            "🎯 Calibrando tu nivel de elegibilidad...",
+            "📝 Agregando sellos oficiales muy oficiales...",
+            "🏥 Consultando con el consejo de doctores imaginarios...",
+            "✅ Verificando que pasaste todas las pruebas (spoiler: sí)",
+            "🎉 Preparando tu pase VIP al mundo laboral...",
+            "🔬 Analizando tu capacidad de tomar café en la oficina...",
+            "👨‍⚕️ Los doctores están firmando con su mejor letra...",
+            "📄 Imprimiendo en papel digital de la más alta calidad..."
+        ];
+
+        let currentPhraseIndex = 0;
+        const phraseElement = document.getElementById('phrase');
+
+        function showNextPhrase() {
+            phraseElement.style.animation = 'none';
+            setTimeout(() => {
+                phraseElement.textContent = phrases[currentPhraseIndex];
+                phraseElement.style.animation = 'fadeInOut 3s ease-in-out infinite';
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+            }, 50);
+        }
+
+        // Mostrar primera frase inmediatamente
+        showNextPhrase();
+
+        // Cambiar frase cada 3 segundos
+        setInterval(showNextPhrase, 3000);
+
+        // Iniciar descarga en segundo plano
+        const wixId = "{{ wix_id }}";
+        const downloadUrl = `/api/generar-certificado-pdf/${wixId}`;
+
+        fetch(downloadUrl)
+            .then(response => {
+                if (!response.ok) throw new Error('Error al generar certificado');
+                return response.blob();
+            })
+            .then(blob => {
+                // Descargar archivo
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `certificado_medico_${wixId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Mostrar mensaje de éxito
+                document.getElementById('status').innerHTML = '✅ <strong>¡Certificado descargado exitosamente!</strong>';
+                phraseElement.textContent = '🎉 ¡Todo listo! Revisa tu carpeta de descargas.';
+
+                // Cerrar ventana después de 3 segundos
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '❌ <strong>Error al generar certificado</strong>';
+                phraseElement.textContent = 'Hubo un problema. Por favor intenta nuevamente.';
+            });
+    </script>
+</body>
+</html>
