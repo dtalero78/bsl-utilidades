@@ -210,6 +210,27 @@
             color: #333;
         }
 
+        /* === AVISO SIN SOPORTE === */
+        .sin-soporte {
+            background: #fff3cd;
+            border: 3px solid #ffc107;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .sin-soporte .warning-text {
+            color: #856404;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.8;
+        }
+
+        .hidden {
+            display: none;
+        }
+
         /* === RESULTADOS GENERALES === */
         .result-item {
             margin-bottom: 20px;
@@ -456,6 +477,16 @@
             </div>
         </div>
 
+        <!-- AVISO SIN SOPORTE DE PAGO -->
+        {% if mostrar_sin_soporte %}
+        <div class="section">
+            <div class="sin-soporte">
+                <div class="warning-text">
+                    {{ texto_sin_soporte }}
+                </div>
+            </div>
+        </div>
+        {% else %}
         <!-- CONCEPTO DE EVALUACIÓN MÉDICA -->
         <div class="section">
             <div class="section-title">Concepto de Evaluación Médica</div>
@@ -466,6 +497,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- RESULTADOS GENERALES -->
         <div class="section">

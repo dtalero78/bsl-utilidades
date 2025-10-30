@@ -43,12 +43,23 @@ EMPRESA_CONFIG = {
         "pdf_selector": None  # Sin selector, captura toda la página
     },
     "LGS": {
-        "domain": "https://www.lgsplataforma.com", 
+        "domain": "https://www.lgsplataforma.com",
         "path": "/contrato-imprimir/",
         "query_params": "?forReview=",
         "pdf_selector": "#text1"  # Selector del elemento HTML embed que contiene el contrato
     }
 }
+
+# Empresas que NO muestran el concepto médico si no han pagado
+EMPRESAS_SIN_SOPORTE = [
+    "CAYENA", "SITEL", "KM2", "TTEC", "CP360", "SALVATECH", "PARTICULAR",
+    "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
+    "SIIGO", "RIPPLING", "RESSOLVE", "CENTRAL", "EVERTECBOGOTA", "ATR",
+    "AVANTO", "RICOH", "HEALTHATOM", "TAMESIS"
+]
+
+# Tipos de examen que NUNCA muestran aviso de soporte
+TIPOS_EXAMEN_SIN_AVISO = ["PostIncapacidad", "Post Incapacidad", "Periódico"]
 
 # Para compatibilidad con código existente
 EMPRESA_DOMAINS = {
@@ -261,6 +272,80 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
         if hasattr(e, 'response') and e.response is not None:
             print(f"❌ Respuesta del servidor: {e.response.text}")
         raise
+
+# ================================================
+# FUNCIONES DE VALIDACIÓN DE SOPORTE DE PAGO
+# ================================================
+
+def debe_colapsar_soporte(datos_wix):
+    """
+    Determina si se debe ocultar el aviso de soporte (siempre mostrar concepto)
+
+    Returns:
+        True si NO se debe mostrar aviso (casos especiales)
+    """
+    tipo_examen = datos_wix.get('tipoExamen', '')
+    cod_empresa = datos_wix.get('codEmpresa', '')
+
+    # Casos donde NUNCA se muestra el aviso (siempre mostrar concepto)
+    if tipo_examen in TIPOS_EXAMEN_SIN_AVISO:
+        return True
+
+    # Empresas especiales o códigos numéricos de 6+ dígitos
+    if es_empresa_especial(cod_empresa):
+        return True
+
+    return False
+
+def debe_expandir_soporte(datos_wix):
+    """
+    Determina si se debe mostrar el aviso de "sin soporte de pago"
+
+    Returns:
+        True si se debe mostrar el aviso en lugar del concepto
+    """
+    pv_estado = datos_wix.get('pvEstado', '')
+
+    # Si NO está pagado, mostrar aviso
+    return pv_estado != "Pagado"
+
+def es_empresa_especial(cod_empresa):
+    """
+    Verifica si es una empresa que no requiere pago
+    o si es un código numérico de 6+ dígitos
+    """
+    if not cod_empresa:
+        return False
+
+    # Verificar si está en la lista de empresas especiales
+    if cod_empresa in EMPRESAS_SIN_SOPORTE:
+        return True
+
+    # Verificar si es código numérico de 6+ dígitos
+    import re
+    if re.match(r'^\d{6,}$', str(cod_empresa)):
+        return True
+
+    return False
+
+def determinar_mostrar_sin_soporte(datos_wix):
+    """
+    Función principal que determina si mostrar el aviso de sin soporte
+
+    Returns:
+        tuple: (mostrar_aviso: bool, texto_aviso: str)
+    """
+    # Primero verificar si debe colapsar (nunca mostrar aviso)
+    if debe_colapsar_soporte(datos_wix):
+        return False, ""
+
+    # Luego verificar si debe expandir (mostrar aviso)
+    if debe_expandir_soporte(datos_wix):
+        texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
+        return True, texto
+
+    # Por defecto, mostrar concepto normal
+    return False, ""
 
 # ================================================
 
@@ -872,6 +957,14 @@ def generar_certificado_medico():
             # Logo URL
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
+
+        # Determinar si mostrar aviso de sin soporte
+        mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
+        datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
+        datos_certificado["texto_sin_soporte"] = texto_aviso
+
+        if mostrar_aviso:
+            print(f"⚠️ Mostrando aviso de pago pendiente")
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML...")
@@ -1805,6 +1898,14 @@ def api_generar_certificado_pdf(wix_id):
             "nombre_archivo": f"certificado_{datos_wix.get('numeroId', wix_id)}_{datetime.now().strftime('%Y%m%d')}.pdf"
         }
 
+        # Determinar si mostrar aviso de sin soporte
+        mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(datos_wix)
+        datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
+        datos_certificado["texto_sin_soporte"] = texto_aviso
+
+        if mostrar_aviso:
+            print(f"⚠️ Mostrando aviso de pago pendiente para {datos_wix.get('codEmpresa', 'N/A')}")
+
         print(f"📄 Datos preparados para generar certificado")
         print(f"👤 Paciente: {nombre_completo}")
         print(f"🆔 Documento: {datos_wix.get('numeroId', '')}")
@@ -2434,6 +2535,14 @@ def preview_certificado_html(wix_id):
             "examenes_detallados": [],
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
+
+        # Determinar si mostrar aviso de sin soporte
+        mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(datos_wix)
+        datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
+        datos_certificado["texto_sin_soporte"] = texto_aviso
+
+        if mostrar_aviso:
+            print(f"⚠️ Preview mostrará aviso de pago pendiente para {datos_wix.get('codEmpresa', 'N/A')}")
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")
