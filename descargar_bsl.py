@@ -1642,7 +1642,7 @@ def generar_certificado_desde_wix(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
-        # Mapear médico a imagen de firma (usar URLs públicas)
+        # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
@@ -1651,10 +1651,55 @@ def generar_certificado_desde_wix(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
+
+        # Datos de cada médico
+        medico_datos_map = {
+            "SIXTA": {
+                "nombre": "SIXTA VIVERO CARRASCAL",
+                "registro": "REGISTRO MÉDICO NO 55300504",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
+                "fecha": "16 DE FEBRERO DE 2021"
+            },
+            "JUAN 134": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "CESAR": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "MARY": {
+                "nombre": "MARY",
+                "registro": "REGISTRO MÉDICO NO 55300504",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
+                "fecha": "16 DE FEBRERO DE 2021"
+            },
+            "NUBIA": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "PRESENCIAL": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            }
+        }
+
         # Obtener firma del médico desde archivos locales
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
         firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+
+        # Obtener datos del médico
+        datos_medico = medico_datos_map.get(medico, medico_datos_map["JUAN 134"])
         print(f"✅ Firma médico: {firma_medico_filename}")
+        print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
@@ -1724,9 +1769,10 @@ def generar_certificado_desde_wix(wix_id):
             "datos_audiometria": datos_audiometria,
 
             # Firmas
-            "medico_nombre": "JUAN JOSE REATIGA",
-            "medico_registro": "REGISTRO MEDICO NO 14791",
-            "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
+            "medico_nombre": datos_medico['nombre'],
+            "medico_registro": datos_medico['registro'],
+            "medico_licencia": datos_medico['licencia'],
+            "medico_fecha": datos_medico['fecha'],
             "firma_medico_url": firma_medico_url,
             "firma_paciente_url": firma_paciente_url,
             "firma_optometra_url": firma_optometra_url,
@@ -2241,7 +2287,7 @@ def preview_certificado_html(wix_id):
         if not recomendaciones:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
-        # Mapear médico a imagen de firma (usar URLs públicas)
+        # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
@@ -2250,10 +2296,55 @@ def preview_certificado_html(wix_id):
             "MARY": "FIRMA-MARY.png",
             "PRESENCIAL": "FIRMA-PRESENCIAL.png"
         }
+
+        # Datos de cada médico
+        medico_datos_map = {
+            "SIXTA": {
+                "nombre": "SIXTA VIVERO CARRASCAL",
+                "registro": "REGISTRO MÉDICO NO 55300504",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
+                "fecha": "16 DE FEBRERO DE 2021"
+            },
+            "JUAN 134": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "CESAR": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "MARY": {
+                "nombre": "MARY",
+                "registro": "REGISTRO MÉDICO NO 55300504",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 583",
+                "fecha": "16 DE FEBRERO DE 2021"
+            },
+            "NUBIA": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            },
+            "PRESENCIAL": {
+                "nombre": "JUAN JOSE REATIGA",
+                "registro": "REGISTRO MEDICO NO 14791",
+                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
+                "fecha": "6 DE JULIO DE 2020"
+            }
+        }
+
         # Obtener firma del médico desde archivos locales
         firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
         firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+
+        # Obtener datos del médico
+        datos_medico = medico_datos_map.get(medico, medico_datos_map["JUAN 134"])
         print(f"✅ Firma médico: {firma_medico_filename}")
+        print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde FORMULARIO
         firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
