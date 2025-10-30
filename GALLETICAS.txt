@@ -1,7 +1,0 @@
-git add .
-git commit -m "multiempresas desde claude"
-git push
-
-
-DESCARGAR
-zip -r bot_bsl.zip . -x "node_modules/*" "__pycache__/*" ".git/*" "*.pyc" "*.log"

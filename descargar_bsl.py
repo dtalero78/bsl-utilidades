@@ -69,6 +69,8 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
         f.write(base64.b64decode(TOKEN_B64))
 
 API2PDF_KEY = os.getenv("API2PDF_KEY")
+ILOVEPDF_PUBLIC_KEY = os.getenv("ILOVEPDF_PUBLIC_KEY")
+ILOVEPDF_SECRET_KEY = os.getenv("ILOVEPDF_SECRET_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
 
 # --- Importar funciones para almacenamiento externo ---
@@ -162,6 +164,105 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
         print(f"📄 Capturando página completa para {empresa}")
     
     return api_payload
+
+# ============== FUNCIONES iLovePDF ==============
+
+def ilovepdf_get_token():
+    """Obtiene un token de autenticación de iLovePDF"""
+    try:
+        response = requests.post(
+            'https://api.ilovepdf.com/v1/auth',
+            json={'public_key': ILOVEPDF_PUBLIC_KEY}
+        )
+        response.raise_for_status()
+        token = response.json()['token']
+        print(f"✅ Token de iLovePDF obtenido")
+        return token
+    except Exception as e:
+        print(f"❌ Error obteniendo token de iLovePDF: {e}")
+        raise
+
+def ilovepdf_html_to_pdf(html_content, output_filename="certificado"):
+    """
+    Convierte HTML a PDF usando iLovePDF API
+
+    Args:
+        html_content: Contenido HTML como string
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+    """
+    try:
+        # Paso 1: Obtener token
+        token = ilovepdf_get_token()
+        headers = {'Authorization': f'Bearer {token}'}
+
+        # Paso 2: Iniciar tarea
+        print("📄 Iniciando tarea HTML→PDF en iLovePDF...")
+        start_response = requests.get(
+            'https://api.ilovepdf.com/v1/start/htmlpdf/eu',
+            headers=headers
+        )
+        start_response.raise_for_status()
+        task_data = start_response.json()
+        server = task_data['server']
+        task_id = task_data['task']
+        print(f"✅ Tarea iniciada: {task_id} en servidor {server}")
+
+        # Paso 3: Subir HTML como archivo temporal
+        print("📤 Subiendo HTML a iLovePDF...")
+        html_bytes = html_content.encode('utf-8')
+        files = {'file': ('document.html', html_bytes, 'text/html')}
+        upload_response = requests.post(
+            f'https://{server}/v1/upload',
+            files=files,
+            data={'task': task_id},
+            headers=headers
+        )
+        upload_response.raise_for_status()
+        server_filename = upload_response.json()['server_filename']
+        print(f"✅ HTML subido: {server_filename}")
+
+        # Paso 4: Procesar
+        print("⚙️ Procesando HTML→PDF...")
+        process_payload = {
+            'task': task_id,
+            'tool': 'htmlpdf',
+            'files': [{
+                'server_filename': server_filename,
+                'filename': 'document.html'
+            }],
+            'output_filename': output_filename
+        }
+        process_response = requests.post(
+            f'https://{server}/v1/process',
+            json=process_payload,
+            headers=headers
+        )
+        process_response.raise_for_status()
+        result = process_response.json()
+        print(f"✅ PDF generado: {result.get('download_filename')} ({result.get('filesize')} bytes)")
+
+        # Paso 5: Descargar
+        print("📥 Descargando PDF...")
+        download_response = requests.get(
+            f'https://{server}/v1/download/{task_id}',
+            headers=headers
+        )
+        download_response.raise_for_status()
+        pdf_content = download_response.content
+        print(f"✅ PDF descargado exitosamente ({len(pdf_content)} bytes)")
+
+        return pdf_content
+
+    except Exception as e:
+        print(f"❌ Error en iLovePDF HTML→PDF: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"❌ Respuesta del servidor: {e.response.text}")
+        raise
+
+# ================================================
 
 def buscar_pdf_en_drive(documento, folder_id):
     """Busca un PDF en Google Drive por nombre de documento"""
@@ -749,9 +850,12 @@ def generar_certificado_medico():
             "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
             "medico_registro": data.get("medico_registro", "REGISTRO MEDICO NO 14791"),
             "medico_licencia": data.get("medico_licencia", "LICENCIA SALUD OCUPACIONAL 460"),
+            "firma_medico_url": data.get("firma_medico_url"),
+            "firma_paciente_url": data.get("firma_paciente_url"),
 
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
             "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
+            "firma_optometra_url": data.get("firma_optometra_url"),
 
             # Exámenes detallados (página 2, opcional)
             "examenes_detallados": data.get("examenes_detallados", []),
@@ -773,61 +877,31 @@ def generar_certificado_medico():
         print("🎨 Renderizando plantilla HTML...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
 
-        # Configurar API2PDF
-        api2pdf_key = API2PDF_KEY
+        # Generar PDF con iLovePDF
+        print("📄 Generando PDF con iLovePDF...")
 
-        # Modo desarrollo: si la API key es dummy, devolver HTML en lugar de PDF
-        if api2pdf_key == "dummy-api-key-for-dev":
-            print("🔧 Modo desarrollo: devolviendo HTML en lugar de PDF")
-            # Guardar HTML temporalmente para descarga
-            temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w')
-            temp_html.write(html_content)
-            temp_html.close()
-            pdf_url = f"file://{temp_html.name}"
-            print(f"📄 HTML de prueba guardado en: {temp_html.name}")
-        else:
-            if not api2pdf_key:
-                raise Exception("API2PDF_KEY no configurada en variables de entorno")
+        if not ILOVEPDF_PUBLIC_KEY:
+            raise Exception("ILOVEPDF_PUBLIC_KEY no configurada en variables de entorno")
 
-            # Generar PDF con API2PDF
-            print("📄 Generando PDF con API2PDF...")
-            api2pdf_url = "https://v2.api2pdf.com/chrome/html"
+        # Usar la función de iLovePDF
+        pdf_content = ilovepdf_html_to_pdf(
+            html_content=html_content,
+            output_filename=f"certificado_{datos_certificado['documento_identidad']}"
+        )
 
-            payload = {
-                "html": html_content,
-                "options": {
-                    "delay": 8000,
-                    "displayHeaderFooter": False,
-                    "printBackground": True,
-                    "format": "Letter",
-                    "scale": 1,
-                    "margin": {
-                        "top": "0",
-                        "bottom": "0",
-                        "left": "0",
-                        "right": "0"
-                    }
-                },
-                "puppeteerWaitForMethod": "WaitForNavigation",
-                "puppeteerWaitForValue": "networkidle0",
-                "inlineHtml": True
-            }
+        # Guardar PDF temporalmente
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp_pdf.write(pdf_content)
+        temp_pdf.close()
+        pdf_url = f"file://{temp_pdf.name}"
+        print(f"✅ PDF generado y guardado en: {temp_pdf.name}")
 
-            headers = {
-                "Authorization": api2pdf_key,
-                "Content-Type": "application/json"
-            }
-
-            response = requests.post(api2pdf_url, json=payload, headers=headers)
-
-            if response.status_code != 200:
-                raise Exception(f"Error generando PDF: {response.text}")
-
-            result = response.json()
-            pdf_url = result.get("FileUrl") or result.get("pdf")
-
-            if not pdf_url:
-                raise Exception("No se pudo obtener la URL del PDF generado")
+        # Crear objeto de resultado compatible con el código existente
+        result = {
+            "success": True,
+            "pdf": pdf_url,
+            "fileSize": len(pdf_content)
+        }
 
         print(f"✅ PDF generado exitosamente: {pdf_url}")
 
