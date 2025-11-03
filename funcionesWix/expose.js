@@ -343,17 +343,40 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
 
         console.log(`🕐 Rango UTC: ${inicio.toISOString()} hasta ${fin.toISOString()}`);
 
-        const result = await wixData.query("HistoriaClinica")
-            .contains("codEmpresa", "SANITHELP-JJ")
-            .ge("fechaConsulta", inicio)
-            .le("fechaConsulta", fin)
-            .limit(1000)
-            .find();
+        // Paginación para obtener TODOS los registros (Wix tiene límite de 1000 por query)
+        let allItems = [];
+        let hasMore = true;
+        let skip = 0;
+        const pageSize = 1000;
+
+        while (hasMore) {
+            const result = await wixData.query("HistoriaClinica")
+                .contains("codEmpresa", "SANITHELP-JJ")
+                .ge("fechaConsulta", inicio)
+                .le("fechaConsulta", fin)
+                .limit(pageSize)
+                .skip(skip)
+                .find();
+
+            allItems = allItems.concat(result.items);
+            console.log(`📄 Página obtenida: ${result.items.length} registros (skip: ${skip})`);
+
+            hasMore = result.items.length === pageSize;
+            skip += pageSize;
+
+            // Seguridad: evitar loops infinitos
+            if (skip > 10000) {
+                console.warn("⚠️ Límite de seguridad alcanzado (10000 registros)");
+                break;
+            }
+        }
+
+        console.log(`✅ Total de registros obtenidos: ${allItems.length}`);
 
         // Agrupar por fecha
         const conteosPorFecha = {};
 
-        result.items.forEach(item => {
+        allItems.forEach(item => {
             if (item.fechaConsulta) {
                 // Convertir la fecha UTC a hora de Colombia (UTC-5)
                 const fechaUTC = new Date(item.fechaConsulta);
@@ -367,11 +390,11 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
             }
         });
 
-        console.log(`✅ Estadísticas obtenidas: ${result.items.length} registros totales`);
+        console.log(`✅ Estadísticas agrupadas: ${Object.keys(conteosPorFecha).length} días con consultas`);
 
         return {
             success: true,
-            total: result.items.length,
+            total: allItems.length,
             conteosPorFecha: conteosPorFecha
         };
     } catch (error) {
