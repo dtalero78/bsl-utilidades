@@ -570,6 +570,9 @@
             const diasOrdenados = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
             const datos = diasOrdenados.map(dia => consultasPorDiaSemana[dia]);
 
+            // Calcular el total de consultas
+            const totalConsultas = datos.reduce((a, b) => a + b, 0);
+
             chartDiasSemana = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -606,11 +609,15 @@
                                 size: 14
                             },
                             bodyFont: {
-                                size: 14
+                                size: 13
                             },
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.parsed.y} consultas`;
+                                    return `Total: ${context.parsed.y} consultas`;
+                                },
+                                afterLabel: function(context) {
+                                    const promedio = (context.parsed.y / 7).toFixed(1);
+                                    return `Promedio: ${promedio} consultas/día`;
                                 }
                             }
                         }
