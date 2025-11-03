@@ -8,6 +8,9 @@
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -242,6 +245,33 @@
         .refresh-btn:active {
             transform: translateY(0);
         }
+
+        /* Sección de gráfico por día de semana */
+        .chart-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .chart-section h2 {
+            color: #00a651;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #chartDiasSemana {
+            max-height: 400px;
+        }
     </style>
 </head>
 <body>
@@ -315,6 +345,14 @@
             <button class="refresh-btn" onclick="cargarEstadisticas()">🔄 Actualizar</button>
         </div>
 
+        <!-- Sección de gráfico por día de semana -->
+        <div class="chart-section">
+            <h2>📈 Consultas por Día de la Semana</h2>
+            <div class="chart-container">
+                <canvas id="chartDiasSemana"></canvas>
+            </div>
+        </div>
+
         <div class="calendar-wrapper">
             <div id="loading" class="loading">Cargando estadísticas</div>
             <div id="calendar"></div>
@@ -326,6 +364,7 @@
 
     <script>
         let calendar;
+        let chartDiasSemana;
         const WIX_API_URL = 'https://www.bsl.com.co/_functions/estadisticasConsultas';
 
         // Función para cambiar entre modo mes y rango de fechas
@@ -447,7 +486,7 @@
                 console.log('📊 Datos recibidos:', data);
 
                 if (data.success) {
-                    mostrarEstadisticas(data.conteosPorFecha, data.total);
+                    mostrarEstadisticas(data.conteosPorFecha, data.total, fechaInicioStr, fechaFinStr);
                 } else {
                     mostrarError(data.error || 'Error al cargar estadísticas');
                 }
@@ -461,7 +500,7 @@
             }
         }
 
-        function mostrarEstadisticas(conteosPorFecha, total) {
+        function mostrarEstadisticas(conteosPorFecha, total, fechaInicio, fechaFin) {
             // Convertir los datos a eventos de FullCalendar
             const eventos = Object.keys(conteosPorFecha).map(fecha => ({
                 title: `${conteosPorFecha[fecha]} consultas`,
@@ -472,9 +511,14 @@
                 }
             }));
 
-            // Actualizar calendario
+            // Actualizar calendario y moverlo a la fecha inicial del período
             calendar.removeAllEvents();
             calendar.addEventSource(eventos);
+
+            // Mover el calendario a la fecha de inicio del período seleccionado
+            if (fechaInicio) {
+                calendar.gotoDate(fechaInicio);
+            }
 
             // Calcular estadísticas
             const valores = Object.values(conteosPorFecha);
@@ -489,7 +533,115 @@
             document.getElementById('promedioDiario').textContent = promedio;
             document.getElementById('diaMaximo').textContent = maximo;
 
+            // Calcular consultas por día de la semana
+            const consultasPorDiaSemana = {
+                'Lunes': 0,
+                'Martes': 0,
+                'Miércoles': 0,
+                'Jueves': 0,
+                'Viernes': 0,
+                'Sábado': 0,
+                'Domingo': 0
+            };
+
+            const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            Object.keys(conteosPorFecha).forEach(fechaStr => {
+                const fecha = new Date(fechaStr + 'T12:00:00'); // Agregar hora para evitar problemas de timezone
+                const diaSemana = nombresDias[fecha.getDay()];
+                consultasPorDiaSemana[diaSemana] += conteosPorFecha[fechaStr];
+            });
+
+            // Actualizar gráfico
+            actualizarGraficoDiasSemana(consultasPorDiaSemana);
+
             console.log(`✅ Mostrando ${eventos.length} días con consultas`);
+            console.log('📊 Consultas por día de semana:', consultasPorDiaSemana);
+        }
+
+        function actualizarGraficoDiasSemana(consultasPorDiaSemana) {
+            const ctx = document.getElementById('chartDiasSemana').getContext('2d');
+
+            // Destruir gráfico anterior si existe
+            if (chartDiasSemana) {
+                chartDiasSemana.destroy();
+            }
+
+            const diasOrdenados = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            const datos = diasOrdenados.map(dia => consultasPorDiaSemana[dia]);
+
+            chartDiasSemana = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: diasOrdenados,
+                    datasets: [{
+                        label: 'Consultas',
+                        data: datos,
+                        borderColor: '#00a651',
+                        backgroundColor: 'rgba(0, 166, 81, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#00a651',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14
+                            },
+                            bodyFont: {
+                                size: 14
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.y} consultas`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function mostrarError(mensaje) {
