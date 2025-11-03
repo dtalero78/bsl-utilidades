@@ -347,6 +347,7 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
             .contains("codEmpresa", "SANITHELP-JJ")
             .ge("fechaConsulta", inicio)
             .le("fechaConsulta", fin)
+            .limit(1000)
             .find();
 
         // Agrupar por fecha
