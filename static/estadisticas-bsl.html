@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas BSL - Consultas por Día</title>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #00a651 0%, #008241 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #00a651;
+        }
+
+        .calendar-wrapper {
+            padding: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .loading:after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #c00;
+        }
+
+        /* Personalización de FullCalendar */
+        .fc {
+            font-size: 1em;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .fc .fc-button {
+            background: #00a651;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fc .fc-button:hover {
+            background: #008241;
+        }
+
+        .fc .fc-button:disabled {
+            background: #ccc;
+        }
+
+        .fc-daygrid-day-number {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .fc-daygrid-event {
+            background: #00a651;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-weight: 600;
+        }
+
+        /* Indicador de carga en el calendario */
+        #calendar.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .month-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .month-selector select {
+            padding: 10px 15px;
+            border: 2px solid #00a651;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .month-selector select:hover {
+            background: #f0f0f0;
+        }
+
+        .refresh-btn {
+            background: #00a651;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .refresh-btn:hover {
+            background: #008241;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 166, 81, 0.3);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Estadísticas de Consultas BSL</h1>
+            <p>Visualización de consultas médicas por día</p>
+        </div>
+
+        <div class="stats-summary">
+            <div class="stat-card">
+                <div class="label">Total Consultas</div>
+                <div class="value" id="totalConsultas">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Mes Actual</div>
+                <div class="value" id="mesActual">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Promedio Diario</div>
+                <div class="value" id="promedioDiario">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Día Máximo</div>
+                <div class="value" id="diaMaximo">-</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="month-selector">
+                <label for="yearSelect"><strong>Año:</strong></label>
+                <select id="yearSelect">
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                </select>
+                <label for="monthSelect"><strong>Mes:</strong></label>
+                <select id="monthSelect">
+                    <option value="0">Enero</option>
+                    <option value="1">Febrero</option>
+                    <option value="2">Marzo</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Mayo</option>
+                    <option value="5">Junio</option>
+                    <option value="6">Julio</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Septiembre</option>
+                    <option value="9">Octubre</option>
+                    <option value="10">Noviembre</option>
+                    <option value="11">Diciembre</option>
+                </select>
+            </div>
+            <button class="refresh-btn" onclick="cargarEstadisticas()">🔄 Actualizar</button>
+        </div>
+
+        <div class="calendar-wrapper">
+            <div id="loading" class="loading">Cargando estadísticas</div>
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <script>
+        let calendar;
+        const WIX_API_URL = 'https://www.bsl.com.co/_functions/estadisticasConsultas';
+
+        // Inicializar el calendario
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+
+            // Configurar selectores al mes/año actual
+            const hoy = new Date();
+            document.getElementById('yearSelect').value = hoy.getFullYear();
+            document.getElementById('monthSelect').value = hoy.getMonth();
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,dayGridWeek'
+                },
+                buttonText: {
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana'
+                },
+                events: [],
+                eventClick: function(info) {
+                    alert('Consultas: ' + info.event.title + '\nFecha: ' + info.event.startStr);
+                },
+                height: 'auto',
+                eventColor: '#00a651'
+            });
+
+            calendar.render();
+
+            // Cargar estadísticas iniciales
+            cargarEstadisticas();
+
+            // Event listeners para cambios de mes/año
+            document.getElementById('monthSelect').addEventListener('change', cargarEstadisticas);
+            document.getElementById('yearSelect').addEventListener('change', cargarEstadisticas);
+        });
+
+        async function cargarEstadisticas() {
+            const loadingDiv = document.getElementById('loading');
+            const calendarDiv = document.getElementById('calendar');
+
+            loadingDiv.style.display = 'block';
+            calendarDiv.style.opacity = '0.5';
+
+            try {
+                // Obtener mes y año seleccionados
+                const year = document.getElementById('yearSelect').value;
+                const month = document.getElementById('monthSelect').value;
+
+                // Calcular primer y último día del mes
+                const fechaInicio = new Date(year, month, 1);
+                const fechaFin = new Date(year, parseInt(month) + 1, 0);
+
+                const fechaInicioStr = fechaInicio.toISOString().split('T')[0];
+                const fechaFinStr = fechaFin.toISOString().split('T')[0];
+
+                console.log(`📅 Cargando estadísticas: ${fechaInicioStr} a ${fechaFinStr}`);
+
+                const response = await fetch(`${WIX_API_URL}?fechaInicio=${fechaInicioStr}&fechaFin=${fechaFinStr}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('📊 Datos recibidos:', data);
+
+                if (data.success) {
+                    mostrarEstadisticas(data.conteosPorFecha, data.total);
+                } else {
+                    mostrarError(data.error || 'Error al cargar estadísticas');
+                }
+
+            } catch (error) {
+                console.error('❌ Error:', error);
+                mostrarError('Error al conectar con el servidor: ' + error.message);
+            } finally {
+                loadingDiv.style.display = 'none';
+                calendarDiv.style.opacity = '1';
+            }
+        }
+
+        function mostrarEstadisticas(conteosPorFecha, total) {
+            // Convertir los datos a eventos de FullCalendar
+            const eventos = Object.keys(conteosPorFecha).map(fecha => ({
+                title: `${conteosPorFecha[fecha]} consultas`,
+                start: fecha,
+                allDay: true,
+                extendedProps: {
+                    count: conteosPorFecha[fecha]
+                }
+            }));
+
+            // Actualizar calendario
+            calendar.removeAllEvents();
+            calendar.addEventSource(eventos);
+
+            // Calcular estadísticas
+            const valores = Object.values(conteosPorFecha);
+            const totalConsultas = total;
+            const diasConConsultas = valores.length;
+            const promedio = diasConConsultas > 0 ? (totalConsultas / diasConConsultas).toFixed(1) : 0;
+            const maximo = valores.length > 0 ? Math.max(...valores) : 0;
+
+            // Actualizar tarjetas de estadísticas
+            document.getElementById('totalConsultas').textContent = totalConsultas;
+            document.getElementById('mesActual').textContent = valores.reduce((a, b) => a + b, 0);
+            document.getElementById('promedioDiario').textContent = promedio;
+            document.getElementById('diaMaximo').textContent = maximo;
+
+            console.log(`✅ Mostrando ${eventos.length} días con consultas`);
+        }
+
+        function mostrarError(mensaje) {
+            const calendarWrapper = document.querySelector('.calendar-wrapper');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = '⚠️ ' + mensaje;
+
+            // Remover errores anteriores
+            const erroresAnteriores = calendarWrapper.querySelectorAll('.error');
+            erroresAnteriores.forEach(e => e.remove());
+
+            calendarWrapper.insertBefore(errorDiv, calendarWrapper.firstChild);
+
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+    </script>
+</body>
+</html>

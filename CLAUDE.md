@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Flask-based PDF generation and management service that supports multiple companies (BSL and LGS). The application converts web pages to PDFs using API2PDF and uploads them to various cloud storage destinations (Google Drive, Google Cloud Storage).
+This is a Flask-based PDF generation and management service with three main capabilities:
+1. **Multi-tenant PDF generation** - Converts company-specific web pages to PDFs (BSL, LGS)
+2. **Medical certificate generation** - Creates and manages occupational health certificates with QR validation
+3. **CSV processing** - Bulk processes patient scheduling data with intelligent assignment logic
+
+The application uses API2PDF and iLovePDF for PDF generation, with flexible cloud storage (Google Drive, Google Cloud Storage).
 
 ## Architecture
 
@@ -17,11 +22,15 @@ The application is built around a multi-tenant architecture supporting different
 
 ### Core Components
 
-- `descargar_bsl.py` - Main Flask application with all endpoints
-- `drive_uploader.py` - Google Drive service account integration  
+- `descargar_bsl.py` - Main Flask application with all endpoints (~2500 lines)
+- `drive_uploader.py` - Google Drive service account integration
 - `upload_to_drive_oauth.py` - Google Drive OAuth integration
 - `gcs_uploader.py` - Google Cloud Storage integration
+- `templates/certificado_medico.html` - Jinja2 template for medical certificates
+- `templates/certificado_loader.html` - Loading page for certificate generation
 - `static/index.html` - Frontend for direct PDF download
+- `static/procesar-csv.html` - CSV processing interface
+- `test_generar_certificado.py` - Test script for certificate generation
 
 ### Company Configuration Structure
 
@@ -49,20 +58,30 @@ python descargar_bsl.py --port 8080
 ### Environment Setup
 
 Required environment variables in `.env`:
-- `API2PDF_KEY` - API2PDF service key
+
+**PDF Generation:**
+- `API2PDF_KEY` - API2PDF service key for web page to PDF conversion
+- `ILOVEPDF_PUBLIC_KEY` - iLovePDF public key for medical certificate HTML to PDF conversion
+- `ILOVEPDF_SECRET_KEY` - iLovePDF secret key (optional, not actively used)
+
+**Google Drive/Cloud Storage:**
 - `GOOGLE_CREDENTIALS_BASE64` - Base64 encoded Google service account JSON
 - `GOOGLE_DRIVE_FOLDER_ID_BSL` - BSL company folder ID
-- `GOOGLE_DRIVE_FOLDER_ID_LGS` - LGS company folder ID  
+- `GOOGLE_DRIVE_FOLDER_ID_LGS` - LGS company folder ID
+- `GOOGLE_DRIVE_FOLDER_ID_TTEC` - TTEC company folder ID
 - `STORAGE_DESTINATION` - Storage backend: "drive", "drive-oauth", or "gcs"
 
-For RIPPLING company (special case):
-- `GOOGLE_DRIVE_FOLDER_ID_RIPPLING_INGRESO`
-- `GOOGLE_DRIVE_FOLDER_ID_RIPPLING_PERIODICO`
+**Special Company Folders:**
+- `GOOGLE_DRIVE_FOLDER_ID_RIPPLING_INGRESO` - RIPPLING intake exams
+- `GOOGLE_DRIVE_FOLDER_ID_RIPPLING_PERIODICO` - RIPPLING periodic exams
 
-For OAuth mode:
+**OAuth Mode (optional):**
 - `GOOGLE_OAUTH_CREDENTIALS_BASE64`
 - `GOOGLE_OAUTH_TOKEN_B64`
 - `GOOGLE_OAUTH_TOKEN_FILE`
+
+**Development Mode:**
+- Set `GOOGLE_CREDENTIALS_BASE64=dummy-credentials` to run without real Google credentials
 
 ### Deployment
 
@@ -71,12 +90,27 @@ The application is configured for Heroku deployment:
 - Uses port 8080 by default
 - Environment variables must be set in hosting platform
 
-### Quick Commands (from GALLETICAS.txt)
+### Testing
 
 ```bash
-# Commit changes
+# Test medical certificate generation
+python test_generar_certificado.py
+
+# Manual endpoint testing with curl
+curl -X POST http://localhost:8080/generar-certificado-medico \
+  -H "Content-Type: application/json" \
+  -d @test_data.json
+
+# Test CSV processing
+# Use the web interface at http://localhost:8080/static/procesar-csv.html
+```
+
+### Quick Commands
+
+```bash
+# Commit and deploy
 git add .
-git commit -m "multiempresas desde claude"
+git commit -m "description of changes"
 git push
 
 # Create deployment package
@@ -85,12 +119,33 @@ zip -r bot_bsl.zip . -x "node_modules/*" "__pycache__/*" ".git/*" "*.pyc" "*.log
 
 ## API Endpoints
 
-### PDF Generation Endpoints
-- `POST /generar-pdf` - Generate PDF and upload to storage
+### PDF Generation Endpoints (Multi-tenant)
+- `POST /generar-pdf` - Generate PDF from company URL and upload to storage
+  - Detects company from Origin/Referer headers or JSON body
+  - Uses API2PDF for HTML to PDF conversion
+  - Returns Drive link and file metadata
 - `POST /subir-pdf-directo` - Upload existing PDF URL to storage
 - `GET|POST /descargar-pdf-empresas` - Generate and directly download PDF
 - `GET /descargar-pdf-drive/<documento>` - Download PDF from Google Drive
 - `GET /` - Serve frontend interface
+
+### Medical Certificate Endpoints
+- `POST /generar-certificado-medico` - Generate occupational health certificate
+  - Accepts patient data, exam results, medical concept
+  - Renders HTML template with Jinja2 (`templates/certificado_medico.html`)
+  - Converts to PDF using iLovePDF API
+  - Generates unique security code and QR validation
+  - Conditionally hides medical results for unpaid companies (see `EMPRESAS_SIN_SOPORTE`)
+  - Optionally uploads to Google Drive
+  - Returns: `{success, pdf_url, codigo_seguridad, drive_web_link}`
+- `GET /generar-certificado-desde-wix/<wix_id>` - Show loader page while generating
+  - Serves `certificado_loader.html` with animated BSL logo
+  - Polls `/api/generar-certificado-pdf/<wix_id>` for completion
+- `GET /api/generar-certificado-pdf/<wix_id>` - Backend PDF generation for Wix
+  - Fetches patient data from Wix API
+  - Generates certificate and returns PDF URL
+- `GET /preview-certificado-html/<wix_id>` - Preview certificate HTML (debugging)
+- `GET /images/<filename>` - Serve public images (logos, signatures, QR codes)
 
 ### CSV Processing Endpoint
 - `POST /procesar-csv` - Process CSV files with person data
@@ -118,6 +173,48 @@ All endpoints support CORS for company-specific domains and include proper error
 ### RIPPLING Company (Special Case)
 - Dynamically routes to different folders based on `tipoExamen` parameter
 - Supports "ingreso" and "periódico" exam types
+- Different Google Drive folders for each exam type
+
+### TTEC Company
+- Has dedicated Google Drive folder (`GOOGLE_DRIVE_FOLDER_ID_TTEC`)
+
+## Medical Certificate Feature
+
+### Overview
+The medical certificate system generates PDF certificates for occupational health exams with the following features:
+- **QR Code Validation**: Each certificate includes a QR code linking to validation URL
+- **Conditional Content Display**: Companies without payment support see limited information
+- **Professional Layout**: Three-column header with logo, company info, and QR code
+- **Digital Signatures**: Embedded signature images for medical professionals
+
+### Payment Support Logic
+
+The system conditionally displays medical results based on company payment status:
+
+**Companies Without Support** (`EMPRESAS_SIN_SOPORTE`):
+- List includes: CAYENA, SITEL, KM2, TTEC, CP360, SALVATECH, PARTICULAR, STORI, OMEGA, EVERTEC, ZIMMER, HUNTY, FDN, SIIGO, RIPPLING, RESSOLVE, CENTRAL, EVERTECBOGOTA, ATR, AVANTO, RICOH, HEALTHATOM, TAMESIS
+- Also includes any 6+ digit numeric company codes
+- Shows red warning: "Este certificado se emite sin soporte de pago"
+- Hides: Medical concept, detailed results, and signature sections
+
+**Exam Types Never Showing Warning**:
+- PostIncapacidad / Post Incapacidad
+- Periódico
+
+**Implementation**:
+- Function `es_empresa_sin_soporte()` checks company code
+- Function `determinar_mostrar_sin_soporte()` evaluates payment display logic
+- Template `certificado_medico.html` uses `mostrar_sin_soporte` flag
+
+### Certificate Generation Flow
+1. Receive patient data via POST to `/generar-certificado-medico`
+2. Render Jinja2 template with patient data and exam results
+3. Save HTML to temporary file
+4. Call iLovePDF API to convert HTML to PDF
+5. Generate unique security code (UUID4)
+6. Create QR code with validation URL
+7. Optionally upload PDF to Google Drive
+8. Return PDF URL and security code to client
 
 ## CSV Processing Feature
 
@@ -321,3 +418,44 @@ The web interface (`/static/procesar-csv.html`) provides:
 
 ### Data Flow
 CSV Upload → Backend Processing → Normalization + Sorting → Frontend Display → User Edits → JSON Download
+
+---
+
+## Key Architecture Patterns
+
+### Multi-Service PDF Generation
+The application uses two different PDF generation services based on use case:
+- **API2PDF**: For converting live web pages to PDF (company documents)
+  - Uses Chrome headless browser
+  - Supports CSS selectors for partial page capture
+  - Configured per-company with delays, margins, scale
+- **iLovePDF**: For converting static HTML templates to PDF (medical certificates)
+  - Receives pre-rendered HTML from Flask
+  - Better for template-based documents
+  - Function: `ilovepdf_html_to_pdf_from_url()`
+
+### Storage Abstraction Layer
+Storage destination is determined by `STORAGE_DESTINATION` environment variable:
+- `"drive"`: Uses service account (`drive_uploader.py`)
+- `"drive-oauth"`: Uses OAuth tokens (`upload_to_drive_oauth.py`)
+- `"gcs"`: Uses Google Cloud Storage (`gcs_uploader.py`)
+
+Each storage module exports a `subir_pdf_a_*` function with the same signature, allowing the main application to remain agnostic of the storage backend.
+
+### Company Detection Strategy
+The `determinar_empresa()` function uses a priority chain:
+1. **JSON body parameter** - Explicit `empresa` field
+2. **Origin header** - Domain-based detection
+3. **Referer header** - Fallback domain detection
+4. **Default** - BSL for backward compatibility
+
+This allows the same endpoint to serve multiple tenants without separate deployments.
+
+### Template Rendering with Conditional Logic
+Medical certificates use Jinja2 templates with complex conditional rendering:
+- `mostrar_sin_soporte` flag controls content visibility
+- Patient photo is optional (shows placeholder if missing)
+- QR code is dynamically generated with base64 embedding
+- Signature images are conditionally displayed
+
+Key template variables: `nombres_apellidos`, `documento_identidad`, `cargo`, `empresa`, `concepto_medico`, `examenes_realizados`, `resultados_generales`, `medico_nombre`, `codigo_seguridad`, `qr_code_base64`

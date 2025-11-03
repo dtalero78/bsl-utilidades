@@ -330,3 +330,51 @@ export async function actualizarAdcTest(_id, datos) {
         return { success: false, error: error.message };
     }
 }
+
+// FUNCIÓN PARA OBTENER ESTADÍSTICAS DE CONSULTAS POR RANGO DE FECHAS
+export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
+    try {
+        console.log(`📊 Obteniendo estadísticas desde ${fechaInicio} hasta ${fechaFin}`);
+
+        const inicio = new Date(fechaInicio);
+        const fin = new Date(fechaFin);
+
+        // Ajustar el fin del día al último segundo
+        fin.setHours(23, 59, 59, 999);
+
+        const result = await wixData.query("HistoriaClinica")
+            .ge("fechaConsulta", inicio)
+            .le("fechaConsulta", fin)
+            .find();
+
+        // Agrupar por fecha
+        const conteosPorFecha = {};
+
+        result.items.forEach(item => {
+            if (item.fechaConsulta) {
+                // Convertir la fecha a formato YYYY-MM-DD
+                const fecha = new Date(item.fechaConsulta);
+                const fechaStr = fecha.toISOString().split('T')[0];
+
+                if (!conteosPorFecha[fechaStr]) {
+                    conteosPorFecha[fechaStr] = 0;
+                }
+                conteosPorFecha[fechaStr]++;
+            }
+        });
+
+        console.log(`✅ Estadísticas obtenidas: ${result.items.length} registros totales`);
+
+        return {
+            success: true,
+            total: result.items.length,
+            conteosPorFecha: conteosPorFecha
+        };
+    } catch (error) {
+        console.error("❌ Error obteniendo estadísticas:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}

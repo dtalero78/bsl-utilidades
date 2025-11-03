@@ -846,6 +846,11 @@ def serve_menu():
     """Ruta para el menú principal de utilidades"""
     return send_from_directory(app.static_folder, "menu.html")
 
+@app.route("/estadisticas-bsl")
+def estadisticas_bsl():
+    """Ruta para el calendario de estadísticas de consultas BSL"""
+    return send_from_directory(app.static_folder, "estadisticas-bsl.html")
+
 @app.route("/static/<path:filename>")
 def static_files(filename):
     return send_from_directory(app.static_folder, filename)

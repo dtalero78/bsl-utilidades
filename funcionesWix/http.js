@@ -19,6 +19,7 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
+import { obtenerEstadisticasConsultas } from 'backend/exposeDataBase';
 import {
   obtenerEstadisticasMedico,
   obtenerPacientesPendientes,
@@ -2244,6 +2245,61 @@ export async function post_updateHistoriaClinica(request) {
     }
   } catch (error) {
     console.error("Error en post_updateHistoriaClinica:", error);
+    return serverError({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { success: false, error: error.message }
+    });
+  }
+}
+
+
+
+/**
+ * GET: Obtener estadísticas de consultas por rango de fechas
+ * URL: /_functions/estadisticasConsultas?fechaInicio=2025-01-01&fechaFin=2025-12-31
+ */
+export async function get_estadisticasConsultas(request) {
+  const { fechaInicio, fechaFin } = request.query;
+
+  if (\!fechaInicio || \!fechaFin) {
+    return badRequest({
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: { error: "Los parámetros 'fechaInicio' y 'fechaFin' son requeridos (formato: YYYY-MM-DD)" }
+    });
+  }
+
+  try {
+    const resultado = await obtenerEstadisticasConsultas(fechaInicio, fechaFin);
+
+    if (resultado.success) {
+      return ok({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: {
+          success: true,
+          total: resultado.total,
+          conteosPorFecha: resultado.conteosPorFecha
+        }
+      });
+    } else {
+      return serverError({
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: { success: false, error: resultado.error }
+      });
+    }
+  } catch (error) {
+    console.error("Error en get_estadisticasConsultas:", error);
     return serverError({
       headers: {
         "Content-Type": "application/json",
