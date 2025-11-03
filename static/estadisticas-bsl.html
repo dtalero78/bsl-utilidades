@@ -544,22 +544,42 @@
                 'Domingo': 0
             };
 
+            const cantidadDiasPorSemana = {
+                'Lunes': 0,
+                'Martes': 0,
+                'Miércoles': 0,
+                'Jueves': 0,
+                'Viernes': 0,
+                'Sábado': 0,
+                'Domingo': 0
+            };
+
             const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+            // Contar todas las ocurrencias de cada día en el período
+            const inicio = new Date(fechaInicio + 'T12:00:00');
+            const fin = new Date(fechaFin + 'T12:00:00');
+
+            for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+                const diaSemana = nombresDias[d.getDay()];
+                cantidadDiasPorSemana[diaSemana]++;
+            }
+
+            // Sumar consultas por día de la semana
             Object.keys(conteosPorFecha).forEach(fechaStr => {
                 const fecha = new Date(fechaStr + 'T12:00:00'); // Agregar hora para evitar problemas de timezone
                 const diaSemana = nombresDias[fecha.getDay()];
                 consultasPorDiaSemana[diaSemana] += conteosPorFecha[fechaStr];
             });
 
-            // Actualizar gráfico
-            actualizarGraficoDiasSemana(consultasPorDiaSemana);
+            // Actualizar gráfico con las cantidades reales de días
+            actualizarGraficoDiasSemana(consultasPorDiaSemana, cantidadDiasPorSemana);
 
             console.log(`✅ Mostrando ${eventos.length} días con consultas`);
             console.log('📊 Consultas por día de semana:', consultasPorDiaSemana);
         }
 
-        function actualizarGraficoDiasSemana(consultasPorDiaSemana) {
+        function actualizarGraficoDiasSemana(consultasPorDiaSemana, cantidadDiasPorSemana) {
             const ctx = document.getElementById('chartDiasSemana').getContext('2d');
 
             // Destruir gráfico anterior si existe
@@ -569,9 +589,6 @@
 
             const diasOrdenados = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
             const datos = diasOrdenados.map(dia => consultasPorDiaSemana[dia]);
-
-            // Calcular el total de consultas
-            const totalConsultas = datos.reduce((a, b) => a + b, 0);
 
             chartDiasSemana = new Chart(ctx, {
                 type: 'line',
@@ -616,8 +633,10 @@
                                     return `Total: ${context.parsed.y} consultas`;
                                 },
                                 afterLabel: function(context) {
-                                    const promedio = (context.parsed.y / 7).toFixed(1);
-                                    return `Promedio: ${promedio} consultas/día`;
+                                    const diaSemana = diasOrdenados[context.dataIndex];
+                                    const cantidadDias = cantidadDiasPorSemana[diaSemana];
+                                    const promedio = cantidadDias > 0 ? (context.parsed.y / cantidadDias).toFixed(1) : 0;
+                                    return `Promedio: ${promedio} consultas/día (${cantidadDias} ${diaSemana}s en el período)`;
                                 }
                             }
                         }
