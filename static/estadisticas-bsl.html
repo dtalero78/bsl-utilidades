@@ -180,7 +180,8 @@
             align-items: center;
         }
 
-        .month-selector select {
+        .month-selector select,
+        .month-selector input[type="date"] {
             padding: 10px 15px;
             border: 2px solid #00a651;
             border-radius: 8px;
@@ -190,8 +191,15 @@
             transition: all 0.3s ease;
         }
 
-        .month-selector select:hover {
+        .month-selector select:hover,
+        .month-selector input[type="date"]:hover {
             background: #f0f0f0;
+        }
+
+        .month-selector input[type="date"]:focus {
+            outline: none;
+            border-color: #008241;
+            box-shadow: 0 0 0 3px rgba(0, 166, 81, 0.1);
         }
 
         .refresh-btn {
@@ -247,6 +255,15 @@
 
         <div class="controls">
             <div class="month-selector">
+                <label for="modoSelector"><strong>Modo:</strong></label>
+                <select id="modoSelector" onchange="cambiarModo()">
+                    <option value="mes">Por Mes</option>
+                    <option value="rango">Rango de Fechas</option>
+                </select>
+            </div>
+
+            <!-- Selector de mes (visible por defecto) -->
+            <div class="month-selector" id="selectorMes">
                 <label for="yearSelect"><strong>Año:</strong></label>
                 <select id="yearSelect">
                     <option value="2025">2025</option>
@@ -269,6 +286,15 @@
                     <option value="11">Diciembre</option>
                 </select>
             </div>
+
+            <!-- Selector de rango (oculto por defecto) -->
+            <div class="month-selector" id="selectorRango" style="display: none;">
+                <label for="fechaInicio"><strong>Desde:</strong></label>
+                <input type="date" id="fechaInicio" />
+                <label for="fechaFin"><strong>Hasta:</strong></label>
+                <input type="date" id="fechaFin" />
+            </div>
+
             <button class="refresh-btn" onclick="cargarEstadisticas()">🔄 Actualizar</button>
         </div>
 
@@ -284,6 +310,31 @@
     <script>
         let calendar;
         const WIX_API_URL = 'https://www.bsl.com.co/_functions/estadisticasConsultas';
+
+        // Función para cambiar entre modo mes y rango de fechas
+        function cambiarModo() {
+            const modo = document.getElementById('modoSelector').value;
+            const selectorMes = document.getElementById('selectorMes');
+            const selectorRango = document.getElementById('selectorRango');
+
+            if (modo === 'mes') {
+                selectorMes.style.display = 'flex';
+                selectorRango.style.display = 'none';
+            } else {
+                selectorMes.style.display = 'none';
+                selectorRango.style.display = 'flex';
+
+                // Inicializar fechas si están vacías
+                if (!document.getElementById('fechaInicio').value) {
+                    const hoy = new Date();
+                    const hace30Dias = new Date(hoy);
+                    hace30Dias.setDate(hoy.getDate() - 30);
+
+                    document.getElementById('fechaInicio').value = hace30Dias.toISOString().split('T')[0];
+                    document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+                }
+            }
+        }
 
         // Inicializar el calendario
         document.addEventListener('DOMContentLoaded', function() {
@@ -323,6 +374,8 @@
             // Event listeners para cambios de mes/año
             document.getElementById('monthSelect').addEventListener('change', cargarEstadisticas);
             document.getElementById('yearSelect').addEventListener('change', cargarEstadisticas);
+            document.getElementById('fechaInicio').addEventListener('change', cargarEstadisticas);
+            document.getElementById('fechaFin').addEventListener('change', cargarEstadisticas);
         });
 
         async function cargarEstadisticas() {
@@ -333,16 +386,38 @@
             calendarDiv.style.opacity = '0.5';
 
             try {
-                // Obtener mes y año seleccionados
-                const year = document.getElementById('yearSelect').value;
-                const month = document.getElementById('monthSelect').value;
+                let fechaInicioStr, fechaFinStr;
 
-                // Calcular primer y último día del mes
-                const fechaInicio = new Date(year, month, 1);
-                const fechaFin = new Date(year, parseInt(month) + 1, 0);
+                // Determinar modo y obtener fechas apropiadas
+                const modo = document.getElementById('modoSelector').value;
 
-                const fechaInicioStr = fechaInicio.toISOString().split('T')[0];
-                const fechaFinStr = fechaFin.toISOString().split('T')[0];
+                if (modo === 'mes') {
+                    // Modo mes: usar selectores de año y mes
+                    const year = document.getElementById('yearSelect').value;
+                    const month = document.getElementById('monthSelect').value;
+
+                    // Calcular primer y último día del mes
+                    const fechaInicio = new Date(year, month, 1);
+                    const fechaFin = new Date(year, parseInt(month) + 1, 0);
+
+                    fechaInicioStr = fechaInicio.toISOString().split('T')[0];
+                    fechaFinStr = fechaFin.toISOString().split('T')[0];
+                } else {
+                    // Modo rango: usar inputs de fecha
+                    fechaInicioStr = document.getElementById('fechaInicio').value;
+                    fechaFinStr = document.getElementById('fechaFin').value;
+
+                    if (!fechaInicioStr || !fechaFinStr) {
+                        mostrarError('Por favor selecciona ambas fechas');
+                        return;
+                    }
+
+                    // Validar que fecha inicio sea menor o igual a fecha fin
+                    if (new Date(fechaInicioStr) > new Date(fechaFinStr)) {
+                        mostrarError('La fecha de inicio debe ser menor o igual a la fecha de fin');
+                        return;
+                    }
+                }
 
                 console.log(`📅 Cargando estadísticas: ${fechaInicioStr} a ${fechaFinStr}`);
 
