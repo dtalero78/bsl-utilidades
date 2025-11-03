@@ -2264,7 +2264,7 @@ export async function post_updateHistoriaClinica(request) {
 export async function get_estadisticasConsultas(request) {
   const { fechaInicio, fechaFin } = request.query;
 
-  if (\!fechaInicio || \!fechaFin) {
+  if (!fechaInicio || !fechaFin) {
     return badRequest({
       headers: {
         "Content-Type": "application/json",
