@@ -343,6 +343,7 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
         fin.setHours(23, 59, 59, 999);
 
         const result = await wixData.query("HistoriaClinica")
+            .contains("codEmpresa", "SANITHELP-JJ")
             .ge("fechaConsulta", inicio)
             .le("fechaConsulta", fin)
             .find();
