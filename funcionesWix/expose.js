@@ -336,11 +336,12 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
     try {
         console.log(`📊 Obteniendo estadísticas desde ${fechaInicio} hasta ${fechaFin}`);
 
-        const inicio = new Date(fechaInicio);
-        const fin = new Date(fechaFin);
+        // Crear fechas en hora local de Colombia (UTC-5)
+        // Cuando en Colombia son las 00:00:00, en UTC son las 05:00:00
+        const inicio = new Date(`${fechaInicio}T00:00:00-05:00`);
+        const fin = new Date(`${fechaFin}T23:59:59-05:00`);
 
-        // Ajustar el fin del día al último segundo
-        fin.setHours(23, 59, 59, 999);
+        console.log(`🕐 Rango UTC: ${inicio.toISOString()} hasta ${fin.toISOString()}`);
 
         const result = await wixData.query("HistoriaClinica")
             .contains("codEmpresa", "SANITHELP-JJ")
@@ -353,9 +354,10 @@ export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
 
         result.items.forEach(item => {
             if (item.fechaConsulta) {
-                // Convertir la fecha a formato YYYY-MM-DD
-                const fecha = new Date(item.fechaConsulta);
-                const fechaStr = fecha.toISOString().split('T')[0];
+                // Convertir la fecha UTC a hora de Colombia (UTC-5)
+                const fechaUTC = new Date(item.fechaConsulta);
+                const fechaColombia = new Date(fechaUTC.getTime() - (5 * 60 * 60 * 1000));
+                const fechaStr = fechaColombia.toISOString().split('T')[0];
 
                 if (!conteosPorFecha[fechaStr]) {
                     conteosPorFecha[fechaStr] = 0;
