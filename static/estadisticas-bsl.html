@@ -189,6 +189,7 @@
             background: white;
             cursor: pointer;
             transition: all 0.3s ease;
+            min-width: 150px;
         }
 
         .month-selector select:hover,
@@ -196,10 +197,26 @@
             background: #f0f0f0;
         }
 
-        .month-selector input[type="date"]:focus {
+        .month-selector input[type="date"]:focus,
+        .month-selector select:focus {
             outline: none;
             border-color: #008241;
             box-shadow: 0 0 0 3px rgba(0, 166, 81, 0.1);
+        }
+
+        /* Mejorar visualización del date picker */
+        .month-selector input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            background: none;
+            padding: 5px;
+            font-size: 1.2em;
+        }
+
+        .month-selector input[type="date"]::-webkit-datetime-edit-text,
+        .month-selector input[type="date"]::-webkit-datetime-edit-month-field,
+        .month-selector input[type="date"]::-webkit-datetime-edit-day-field,
+        .month-selector input[type="date"]::-webkit-datetime-edit-year-field {
+            padding: 2px;
         }
 
         .refresh-btn {
@@ -290,9 +307,9 @@
             <!-- Selector de rango (oculto por defecto) -->
             <div class="month-selector" id="selectorRango" style="display: none;">
                 <label for="fechaInicio"><strong>Desde:</strong></label>
-                <input type="date" id="fechaInicio" />
+                <input type="date" id="fechaInicio" placeholder="Fecha inicial" required />
                 <label for="fechaFin"><strong>Hasta:</strong></label>
-                <input type="date" id="fechaFin" />
+                <input type="date" id="fechaFin" placeholder="Fecha final" required />
             </div>
 
             <button class="refresh-btn" onclick="cargarEstadisticas()">🔄 Actualizar</button>
@@ -323,17 +340,10 @@
             } else {
                 selectorMes.style.display = 'none';
                 selectorRango.style.display = 'flex';
-
-                // Inicializar fechas si están vacías
-                if (!document.getElementById('fechaInicio').value) {
-                    const hoy = new Date();
-                    const hace30Dias = new Date(hoy);
-                    hace30Dias.setDate(hoy.getDate() - 30);
-
-                    document.getElementById('fechaInicio').value = hace30Dias.toISOString().split('T')[0];
-                    document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
-                }
             }
+
+            // Recargar estadísticas con el nuevo modo
+            cargarEstadisticas();
         }
 
         // Inicializar el calendario
@@ -344,6 +354,12 @@
             const hoy = new Date();
             document.getElementById('yearSelect').value = hoy.getFullYear();
             document.getElementById('monthSelect').value = hoy.getMonth();
+
+            // Inicializar date pickers con valores por defecto (últimos 30 días)
+            const hace30Dias = new Date(hoy);
+            hace30Dias.setDate(hoy.getDate() - 30);
+            document.getElementById('fechaInicio').value = hace30Dias.toISOString().split('T')[0];
+            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
 
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
