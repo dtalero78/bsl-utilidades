@@ -2585,17 +2585,15 @@ def enviar_certificado_whatsapp():
     try:
         data = request.get_json()
         numero_id = data.get('numeroId')
-        whatsapp = data.get('whatsapp')
 
-        if not numero_id or not whatsapp:
+        if not numero_id:
             return jsonify({
                 "success": False,
-                "message": "Faltan parámetros requeridos: numeroId y whatsapp"
+                "message": "Falta el parámetro requerido: numeroId"
             }), 400
 
         print(f"📱 Solicitud de certificado por WhatsApp")
         print(f"   Cédula: {numero_id}")
-        print(f"   WhatsApp: {whatsapp}")
 
         # Buscar el certificado en Wix por número de cédula usando el nuevo endpoint
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
@@ -2633,7 +2631,21 @@ def enviar_certificado_whatsapp():
                 "message": "No se encontró un certificado con ese número de cédula"
             }), 404
 
+        # Obtener celular del registro de HistoriaClinica
+        celular_raw = datos_wix.get('celular', '')
+        if not celular_raw:
+            return jsonify({
+                "success": False,
+                "message": "No se encontró número de celular registrado para esta cédula"
+            }), 400
+
+        # Limpiar y formatear el celular (agregar prefijo 57 si no lo tiene)
+        celular = str(celular_raw).strip().replace(' ', '').replace('-', '')
+        if not celular.startswith('57'):
+            celular = '57' + celular
+
         print(f"✅ Certificado encontrado: {wix_id}")
+        print(f"📱 Celular de envío: {celular}")
 
         # Generar URL del certificado PDF
         pdf_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/generar-certificado-desde-wix/{wix_id}"
@@ -2654,7 +2666,7 @@ def enviar_certificado_whatsapp():
         certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}"
 
         # Enviar por WhatsApp
-        print(f"📤 Enviando certificado por WhatsApp a {whatsapp}")
+        print(f"📤 Enviando certificado por WhatsApp a {celular}")
 
         whatsapp_url = "https://gate.whapi.cloud/messages/document"
         whatsapp_headers = {
@@ -2667,7 +2679,7 @@ def enviar_certificado_whatsapp():
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
 
         whatsapp_payload = {
-            "to": whatsapp,
+            "to": celular,
             "media": certificado_url,
             "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {numero_id}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_\nwww.bsl.com.co"
         }
