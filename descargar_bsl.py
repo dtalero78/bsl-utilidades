@@ -2681,7 +2681,7 @@ def enviar_certificado_whatsapp():
         whatsapp_payload = {
             "to": celular,
             "media": certificado_url,
-            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {numero_id}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_\nwww.bsl.com.co"
+            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {numero_id}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
         }
 
         whatsapp_response = requests.post(
