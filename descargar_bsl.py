@@ -2597,27 +2597,40 @@ def enviar_certificado_whatsapp():
         print(f"   Cédula: {numero_id}")
         print(f"   WhatsApp: {whatsapp}")
 
-        # Buscar el certificado en Wix por número de cédula
+        # Buscar el certificado en Wix por número de cédula usando el nuevo endpoint
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
         wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
 
         print(f"🔍 Consultando Wix: {wix_url}")
+
         wix_response = requests.get(wix_url, timeout=10)
 
+        if wix_response.status_code == 404:
+            print(f"❌ No se encontró certificado para cédula: {numero_id}")
+            return jsonify({
+                "success": False,
+                "message": "No se encontró un certificado con ese número de cédula. Verifica el número ingresado."
+            }), 404
+
         if wix_response.status_code != 200:
+            print(f"❌ Error en Wix: {wix_response.status_code}")
+            print(f"   Respuesta: {wix_response.text[:200]}")
+            return jsonify({
+                "success": False,
+                "message": "Error al consultar la información. Intenta nuevamente."
+            }), 500
+
+        wix_data = wix_response.json()
+        print(f"✅ Respuesta de Wix: {wix_data}")
+
+        # La respuesta tiene formato: { "_id": "...", "data": {...} }
+        datos_wix = wix_data.get('data')
+        wix_id = wix_data.get('_id')
+
+        if not datos_wix or not wix_id:
             return jsonify({
                 "success": False,
                 "message": "No se encontró un certificado con ese número de cédula"
-            }), 404
-
-        wix_data = wix_response.json()
-        datos_wix = wix_data.get('data', {})
-        wix_id = datos_wix.get('_id')
-
-        if not wix_id:
-            return jsonify({
-                "success": False,
-                "message": "No se encontró registro del certificado"
             }), 404
 
         print(f"✅ Certificado encontrado: {wix_id}")

@@ -1659,6 +1659,44 @@ export function get_historiaClinicaPorId(request) {
     });
 }
 
+// ENDPOINT PARA BUSCAR HISTORIA CLÍNICA POR NUMERO DE IDENTIFICACION
+export function get_historiaClinicaPorNumeroId(request) {
+    console.log("Buscando información de HistoriaClinica por numeroId");
+
+    const { numeroId } = request.query;
+
+    if (!numeroId) {
+        return badRequest({ body: { message: "Falta el parámetro 'numeroId'" } });
+    }
+
+    return wixData.query("HistoriaClinica")
+        .eq("numeroId", numeroId)
+        .descending("fechaConsulta")  // Obtener el más reciente primero
+        .find()
+        .then(result => {
+            if (!result.items || result.items.length === 0) {
+                return notFound({
+                    body: { message: "No se encontró información para el paciente con ese número de identificación" }
+                });
+            }
+
+            // Retornar el más reciente (primero en la lista)
+            const item = result.items[0];
+
+            return ok({
+                headers: { "Content-Type": "application/json" },
+                body: {
+                    _id: item._id,
+                    data: item
+                }
+            });
+        })
+        .catch(error => {
+            console.error("Error al obtener información por numeroId:", error);
+            return serverError({ body: { message: "Error al obtener la información" } });
+        });
+}
+
 // ENDPOINT PARA ACTUALIZAR HISTORIA CLÍNICA
 export async function post_actualizarHistoriaClinica(request) {
     try {
