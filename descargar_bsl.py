@@ -335,16 +335,19 @@ def determinar_mostrar_sin_soporte(datos_wix):
     Returns:
         tuple: (mostrar_aviso: bool, texto_aviso: str)
     """
-    # Primero verificar si debe colapsar (nunca mostrar aviso)
-    if debe_colapsar_soporte(datos_wix):
-        return False, ""
+    # PRIORIDAD 1: Verificar el estado de pago primero
+    # Si NO está pagado (null, undefined, vacío, o cualquier valor != "Pagado"), mostrar aviso
+    pv_estado = datos_wix.get('pvEstado', '')
+    if pv_estado != "Pagado":
+        # Solo ocultar el aviso si es empresa especial o código numérico
+        if es_empresa_especial(datos_wix.get('codEmpresa', '')):
+            return False, ""
 
-    # Luego verificar si debe expandir (mostrar aviso)
-    if debe_expandir_soporte(datos_wix):
+        # Mostrar aviso rojo (incluso si es Periódico, PostIncapacidad, etc.)
         texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
         return True, texto
 
-    # Por defecto, mostrar concepto normal
+    # Si está pagado, mostrar concepto normal
     return False, ""
 
 # ================================================
