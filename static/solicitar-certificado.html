@@ -16,7 +16,7 @@
 
         body {
             font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -26,8 +26,8 @@
 
         .container {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             max-width: 500px;
             width: 100%;
             padding: 40px;
@@ -98,7 +98,7 @@
         .btn {
             width: 100%;
             padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -111,7 +111,7 @@
 
         .btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgba(0, 102, 204, 0.3);
         }
 
         .btn:disabled {
@@ -163,18 +163,44 @@
         }
 
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #0066cc;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto 15px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .loading-phrase {
+            font-size: 15px;
+            color: #555;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            border-radius: 8px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            10%, 90% {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .whatsapp-icon {
@@ -222,7 +248,9 @@
 
         <div class="loader" id="loader">
             <div class="spinner"></div>
-            <p>Generando y enviando tu certificado...</p>
+            <div class="loading-phrase" id="loadingPhrase">
+                Buscando tu certificado médico...
+            </div>
         </div>
 
         <div class="message" id="message"></div>
@@ -238,6 +266,45 @@
         const submitBtn = document.getElementById('submitBtn');
         const loader = document.getElementById('loader');
         const messageDiv = document.getElementById('message');
+        const loadingPhrase = document.getElementById('loadingPhrase');
+
+        const phrases = [
+            "Buscando tu certificado médico en la base de datos...",
+            "Recopilando información de tu examen ocupacional...",
+            "Procesando resultados de laboratorio y pruebas...",
+            "Verificando aptitud física y mental del trabajador...",
+            "Consolidando datos de audiometría y optometría...",
+            "Generando concepto médico ocupacional...",
+            "Validando recomendaciones laborales...",
+            "Preparando firmas digitales de especialistas...",
+            "Organizando información clínica del paciente...",
+            "Estructurando documento según normas de salud...",
+            "Finalizando certificado médico ocupacional...",
+            "Enviando certificado a tu WhatsApp..."
+        ];
+
+        let phraseInterval;
+        let currentPhraseIndex = 0;
+
+        function startPhraseAnimation() {
+            currentPhraseIndex = 0;
+            loadingPhrase.textContent = phrases[0];
+
+            phraseInterval = setInterval(() => {
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+                loadingPhrase.style.animation = 'none';
+                setTimeout(() => {
+                    loadingPhrase.textContent = phrases[currentPhraseIndex];
+                    loadingPhrase.style.animation = 'fadeInOut 3s ease-in-out infinite';
+                }, 50);
+            }, 3000);
+        }
+
+        function stopPhraseAnimation() {
+            if (phraseInterval) {
+                clearInterval(phraseInterval);
+            }
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -255,10 +322,11 @@
                 return;
             }
 
-            // Mostrar loader
+            // Mostrar loader con frases animadas
             submitBtn.disabled = true;
             loader.style.display = 'block';
             messageDiv.style.display = 'none';
+            startPhraseAnimation();
 
             try {
                 const response = await fetch('/enviar-certificado-whatsapp', {
@@ -283,6 +351,7 @@
                 console.error('Error:', error);
                 showMessage('Error de conexión. Por favor verifica tu internet e intenta nuevamente.', 'error');
             } finally {
+                stopPhraseAnimation();
                 submitBtn.disabled = false;
                 loader.style.display = 'none';
             }
