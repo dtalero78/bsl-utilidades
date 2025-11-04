@@ -2568,5 +2568,125 @@ def preview_certificado_html(wix_id):
         </html>
         """, 500, {'Content-Type': 'text/html; charset=utf-8'}
 
+# --- Endpoint: ENVIAR CERTIFICADO POR WHATSAPP ---
+@app.route("/enviar-certificado-whatsapp", methods=["POST", "OPTIONS"])
+def enviar_certificado_whatsapp():
+    """
+    Endpoint que busca un certificado por número de cédula y lo envía por WhatsApp
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        data = request.get_json()
+        numero_id = data.get('numeroId')
+        whatsapp = data.get('whatsapp')
+
+        if not numero_id or not whatsapp:
+            return jsonify({
+                "success": False,
+                "message": "Faltan parámetros requeridos: numeroId y whatsapp"
+            }), 400
+
+        print(f"📱 Solicitud de certificado por WhatsApp")
+        print(f"   Cédula: {numero_id}")
+        print(f"   WhatsApp: {whatsapp}")
+
+        # Buscar el certificado en Wix por número de cédula
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
+
+        print(f"🔍 Consultando Wix: {wix_url}")
+        wix_response = requests.get(wix_url, timeout=10)
+
+        if wix_response.status_code != 200:
+            return jsonify({
+                "success": False,
+                "message": "No se encontró un certificado con ese número de cédula"
+            }), 404
+
+        wix_data = wix_response.json()
+        datos_wix = wix_data.get('data', {})
+        wix_id = datos_wix.get('_id')
+
+        if not wix_id:
+            return jsonify({
+                "success": False,
+                "message": "No se encontró registro del certificado"
+            }), 404
+
+        print(f"✅ Certificado encontrado: {wix_id}")
+
+        # Generar URL del certificado PDF
+        pdf_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/generar-certificado-desde-wix/{wix_id}"
+
+        print(f"📄 Generando certificado: {pdf_url}")
+
+        # Generar el PDF (hacer request al endpoint)
+        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}", timeout=60)
+
+        if pdf_response.status_code != 200:
+            return jsonify({
+                "success": False,
+                "message": "Error al generar el certificado PDF"
+            }), 500
+
+        # Guardar PDF temporalmente y subirlo a un lugar accesible
+        # Para simplificar, vamos a usar la URL del preview como link
+        certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}"
+
+        # Enviar por WhatsApp
+        print(f"📤 Enviando certificado por WhatsApp a {whatsapp}")
+
+        whatsapp_url = "https://gate.whapi.cloud/messages/document"
+        whatsapp_headers = {
+            "accept": "application/json",
+            "authorization": "Bearer due3eWCwuBM2Xqd6cPujuTRqSbMb68lt",
+            "content-type": "application/json"
+        }
+
+        # Obtener nombre del paciente
+        nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
+
+        whatsapp_payload = {
+            "to": whatsapp,
+            "media": certificado_url,
+            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {numero_id}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_\nwww.bsl.com.co"
+        }
+
+        whatsapp_response = requests.post(
+            whatsapp_url,
+            headers=whatsapp_headers,
+            json=whatsapp_payload,
+            timeout=30
+        )
+
+        if whatsapp_response.status_code in [200, 201]:
+            print(f"✅ Certificado enviado exitosamente por WhatsApp")
+            return jsonify({
+                "success": True,
+                "message": "Certificado enviado exitosamente por WhatsApp"
+            }), 200
+        else:
+            print(f"❌ Error enviando por WhatsApp: {whatsapp_response.status_code}")
+            print(f"   Respuesta: {whatsapp_response.text}")
+            return jsonify({
+                "success": False,
+                "message": "Error al enviar el mensaje por WhatsApp. Verifica el número."
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Error en enviar_certificado_whatsapp: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Error interno: {str(e)}"
+        }), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
