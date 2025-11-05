@@ -1431,6 +1431,13 @@ def api_generar_certificado_pdf(wix_id):
         fecha_consulta = datos_wix.get('fechaConsulta')
         if isinstance(fecha_consulta, datetime):
             fecha_formateada = fecha_consulta.strftime('%d de %B de %Y')
+        elif isinstance(fecha_consulta, str):
+            # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
+            try:
+                fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
+                fecha_formateada = fecha_obj.strftime('%d de %B de %Y')
+            except (ValueError, AttributeError):
+                fecha_formateada = datetime.now().strftime('%d de %B de %Y')
         else:
             fecha_formateada = datetime.now().strftime('%d de %B de %Y')
 
@@ -2070,6 +2077,13 @@ def preview_certificado_html(wix_id):
         fecha_consulta = datos_wix.get('fechaConsulta')
         if isinstance(fecha_consulta, datetime):
             fecha_formateada = fecha_consulta.strftime('%d de %B de %Y')
+        elif isinstance(fecha_consulta, str):
+            # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
+            try:
+                fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
+                fecha_formateada = fecha_obj.strftime('%d de %B de %Y')
+            except (ValueError, AttributeError):
+                fecha_formateada = datetime.now().strftime('%d de %B de %Y')
         else:
             fecha_formateada = datetime.now().strftime('%d de %B de %Y')
 
