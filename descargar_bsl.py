@@ -2736,6 +2736,45 @@ def medidata_principal():
     """
     return send_from_directory('static', 'medidata-principal.html')
 
+# --- PROXY ENDPOINTS PARA MEDIDATA (SOLUCION CORS) ---
+@app.route("/api/medidata/<endpoint>", methods=['GET', 'POST', 'OPTIONS'])
+def proxy_medidata(endpoint):
+    """
+    Proxy para endpoints MediData de Wix que maneja CORS correctamente
+    """
+    if request.method == 'OPTIONS':
+        # Manejar preflight CORS
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response, 200
+
+    try:
+        # Mapear endpoint a función de Wix (camelCase)
+        wix_url = f"https://www.bsl.com.co/_functions/{endpoint}"
+
+        # Preparar la petición
+        if request.method == 'GET':
+            # Pasar query params
+            params = request.args.to_dict()
+            response = requests.get(wix_url, params=params, timeout=30)
+        else:  # POST
+            # Pasar JSON body
+            data = request.get_json() if request.is_json else {}
+            response = requests.post(wix_url, json=data, timeout=30)
+
+        # Retornar respuesta de Wix con headers CORS
+        result = jsonify(response.json())
+        result.headers.add('Access-Control-Allow-Origin', '*')
+        return result, response.status_code
+
+    except Exception as e:
+        logger.error(f"Error en proxy MediData: {str(e)}")
+        response = jsonify({'success': False, 'error': str(e)})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

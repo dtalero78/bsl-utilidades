@@ -25,7 +25,7 @@ import {
   obtenerPacientesPendientes,
   buscarPacientePorDocumento,
   marcarPacienteNoContesta,
-  obtenerDetallesPaciente,
+  obtenerDetallesPaciente,ya hi
   obtenerTodosProgramadosHoy,
   actualizarHistoriaClinica,
   obtenerDatosFormularioPorHistoriaId,

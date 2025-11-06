@@ -344,7 +344,8 @@
     </div>
 
     <script>
-        const WIX_BASE_URL = 'https://www.bsl.com.co/_functions';
+        // Usar proxy Flask para evitar problemas de CORS con Wix
+        const API_BASE_URL = window.location.origin + '/api/medidata';
 
         // Nombres de endpoints en Wix (camelCase, no kebab-case)
         const ENDPOINTS = {
@@ -393,7 +394,7 @@
             messageDiv.style.display = 'none';
 
             try {
-                const response = await fetch(`${WIX_BASE_URL}/${ENDPOINTS.buscar}?termino=${encodeURIComponent(termino)}`);
+                const response = await fetch(`${API_BASE_URL}/${ENDPOINTS.buscar}?termino=${encodeURIComponent(termino)}`);
                 const data = await response.json();
 
                 if (data.success && data.items && data.items.length > 0) {
@@ -435,7 +436,7 @@
             resultsContainer.style.display = 'none';
 
             try {
-                const response = await fetch(`${WIX_BASE_URL}/${ENDPOINTS.paciente}?historiaId=${historiaId}`);
+                const response = await fetch(`${API_BASE_URL}/${ENDPOINTS.paciente}?historiaId=${historiaId}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -544,7 +545,7 @@
 
             try {
                 // Actualizar Historia Clínica
-                const historiaResponse = await fetch(`${WIX_BASE_URL}/${ENDPOINTS.actualizarHistoria}`, {
+                const historiaResponse = await fetch(`${API_BASE_URL}/${ENDPOINTS.actualizarHistoria}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(historiaChanges)
@@ -552,7 +553,7 @@
 
                 // Actualizar Formulario (si existe)
                 if (formularioChanges) {
-                    await fetch(`${WIX_BASE_URL}/${ENDPOINTS.actualizarFormulario}`, {
+                    await fetch(`${API_BASE_URL}/${ENDPOINTS.actualizarFormulario}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formularioChanges)
