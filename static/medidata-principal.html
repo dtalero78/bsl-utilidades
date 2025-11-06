@@ -43,6 +43,11 @@
             font-size: 14px;
         }
 
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
         .btn-solicitar {
             padding: 12px 24px;
             background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
@@ -58,11 +63,39 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
         }
 
         .btn-solicitar:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-descargar {
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Figtree', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-descargar:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 102, 204, 0.3);
+        }
+
+        .btn-descargar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .search-container {
@@ -332,9 +365,14 @@
             <h1>🏥 MediData - Panel Principal</h1>
             <p>Búsqueda y edición de datos de pacientes</p>
         </div>
-        <a href="/static/solicitar-certificado.html" class="btn-solicitar">
-            📄 Solicitar Certificado
-        </a>
+        <div class="header-buttons">
+            <a href="/static/solicitar-certificado.html" target="_blank" class="btn-solicitar">
+                📄 Solicitar Certificado
+            </a>
+            <button class="btn-descargar" id="btnDescargarCertificado" disabled>
+                📥 Descargar Certificado
+            </button>
+        </div>
     </div>
 
     <div class="search-container">
@@ -394,8 +432,10 @@
         const backBtn = document.getElementById('backBtn');
         const loader = document.getElementById('loader');
         const messageDiv = document.getElementById('message');
+        const btnDescargarCertificado = document.getElementById('btnDescargarCertificado');
 
         let currentPatientData = null;
+        let currentPatientId = null;
 
         // Buscar al presionar Enter
         searchInput.addEventListener('keypress', (e) => {
@@ -408,6 +448,15 @@
         backBtn.addEventListener('click', () => {
             detailsContainer.style.display = 'none';
             resultsContainer.style.display = 'block';
+            currentPatientId = null;
+            btnDescargarCertificado.disabled = true;
+        });
+
+        btnDescargarCertificado.addEventListener('click', () => {
+            if (currentPatientId) {
+                const url = `${window.location.origin}/generar-certificado-desde-wix/${currentPatientId}`;
+                window.open(url, '_blank');
+            }
         });
 
         async function buscarPacientes() {
@@ -471,6 +520,8 @@
 
                 if (data.success) {
                     currentPatientData = data;
+                    currentPatientId = historiaId;
+                    btnDescargarCertificado.disabled = false;
                     mostrarDetalles(data);
                 } else {
                     showMessage('Error al cargar los detalles del paciente', 'error');
