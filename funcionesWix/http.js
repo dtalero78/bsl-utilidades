@@ -2517,53 +2517,6 @@ export async function post_medidataActualizarFormulario(request) {
     }
 }
 
-/**
- * OPTIONS: CORS preflight para endpoints MediData
- */
-export function options_medidataBuscar(request) {
-    return {
-        status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        },
-        body: {}
-    };
-}
-
-export function options_medidataPaciente(request) {
-    return {
-        status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        },
-        body: {}
-    };
-}
-
-export function options_medidataActualizarHistoria(request) {
-    return {
-        status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        },
-        body: {}
-    };
-}
-
-export function options_medidataActualizarFormulario(request) {
-    return {
-        status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
-        },
-        body: {}
-    };
-}
+// NOTA: Wix maneja automáticamente las peticiones OPTIONS y los headers CORS
+// No es necesario definir funciones options_ manualmente
+// Los endpoints GET y POST ya incluyen access-control-allow-origin: *
