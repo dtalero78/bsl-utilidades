@@ -336,24 +336,51 @@ export async function buscarPacientesMediData(termino) {
     try {
         console.log(`🔍 Buscando pacientes con término: ${termino}`);
 
-        // Buscar por numeroId, celular o apellido
-        let query = wixData.query("HistoriaClinica");
+        let result;
 
         // Si el término es numérico, buscar por numeroId o celular
         if (/^\d+$/.test(termino)) {
-            query = query.or(
-                wixData.query("HistoriaClinica").eq("numeroId", termino),
-                wixData.query("HistoriaClinica").eq("celular", termino)
-            );
+            // Buscar por numeroId
+            const resultNumeroId = await wixData.query("HistoriaClinica")
+                .eq("numeroId", termino)
+                .limit(50)
+                .find();
+
+            // Buscar por celular
+            const resultCelular = await wixData.query("HistoriaClinica")
+                .eq("celular", termino)
+                .limit(50)
+                .find();
+
+            // Combinar resultados y eliminar duplicados
+            const combinedItems = [...resultNumeroId.items, ...resultCelular.items];
+            const uniqueItems = Array.from(new Map(combinedItems.map(item => [item._id, item])).values());
+
+            result = {
+                items: uniqueItems,
+                totalCount: uniqueItems.length
+            };
         } else {
             // Si es texto, buscar por apellidos
-            query = query.or(
-                wixData.query("HistoriaClinica").contains("primerApellido", termino.toUpperCase()),
-                wixData.query("HistoriaClinica").contains("segundoApellido", termino.toUpperCase())
-            );
-        }
+            const resultPrimerApellido = await wixData.query("HistoriaClinica")
+                .contains("primerApellido", termino.toUpperCase())
+                .limit(50)
+                .find();
 
-        const result = await query.limit(50).find();
+            const resultSegundoApellido = await wixData.query("HistoriaClinica")
+                .contains("segundoApellido", termino.toUpperCase())
+                .limit(50)
+                .find();
+
+            // Combinar resultados y eliminar duplicados
+            const combinedItems = [...resultPrimerApellido.items, ...resultSegundoApellido.items];
+            const uniqueItems = Array.from(new Map(combinedItems.map(item => [item._id, item])).values());
+
+            result = {
+                items: uniqueItems,
+                totalCount: uniqueItems.length
+            };
+        }
 
         console.log(`✅ Encontrados ${result.items.length} pacientes`);
 
