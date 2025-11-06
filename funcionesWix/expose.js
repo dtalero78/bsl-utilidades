@@ -331,6 +331,84 @@ export async function actualizarAdcTest(_id, datos) {
     }
 }
 
+// FUNCIÓN PARA BUSCAR PACIENTES EN HISTORIA CLÍNICA (MEDIDATA)
+export async function buscarPacientesMediData(termino) {
+    try {
+        console.log(`🔍 Buscando pacientes con término: ${termino}`);
+
+        // Buscar por numeroId, celular o apellido
+        let query = wixData.query("HistoriaClinica");
+
+        // Si el término es numérico, buscar por numeroId o celular
+        if (/^\d+$/.test(termino)) {
+            query = query.or(
+                wixData.query("HistoriaClinica").eq("numeroId", termino),
+                wixData.query("HistoriaClinica").eq("celular", termino)
+            );
+        } else {
+            // Si es texto, buscar por apellidos
+            query = query.or(
+                wixData.query("HistoriaClinica").contains("primerApellido", termino.toUpperCase()),
+                wixData.query("HistoriaClinica").contains("segundoApellido", termino.toUpperCase())
+            );
+        }
+
+        const result = await query.limit(50).find();
+
+        console.log(`✅ Encontrados ${result.items.length} pacientes`);
+
+        return {
+            success: true,
+            items: result.items,
+            total: result.totalCount
+        };
+    } catch (error) {
+        console.error("❌ Error buscando pacientes:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// FUNCIÓN PARA OBTENER DATOS COMPLETOS DE UN PACIENTE (MEDIDATA)
+export async function obtenerDatosCompletosPaciente(historiaId) {
+    try {
+        console.log(`📋 Obteniendo datos completos para Historia ID: ${historiaId}`);
+
+        // Obtener datos de HistoriaClinica
+        const historiaClinica = await wixData.get("HistoriaClinica", historiaId);
+
+        // Buscar datos en FORMULARIO usando idGeneral
+        let formulario = null;
+        try {
+            const formularioResult = await wixData.query("FORMULARIO")
+                .eq("idGeneral", historiaId)
+                .find();
+
+            if (formularioResult.items.length > 0) {
+                formulario = formularioResult.items[0];
+            }
+        } catch (err) {
+            console.warn("No se encontró formulario para este paciente");
+        }
+
+        console.log(`✅ Datos obtenidos - HistoriaClinica: Sí, Formulario: ${formulario ? 'Sí' : 'No'}`);
+
+        return {
+            success: true,
+            historiaClinica: historiaClinica,
+            formulario: formulario
+        };
+    } catch (error) {
+        console.error("❌ Error obteniendo datos completos:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 // FUNCIÓN PARA OBTENER ESTADÍSTICAS DE CONSULTAS POR RANGO DE FECHAS
 export async function obtenerEstadisticasConsultas(fechaInicio, fechaFin) {
     try {

@@ -19,7 +19,7 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { obtenerEstadisticasConsultas } from 'backend/exposeDataBase';
+import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente } from 'backend/exposeDataBase';
 import {
   obtenerEstadisticasMedico,
   obtenerPacientesPendientes,
@@ -2361,4 +2361,209 @@ export function options_estadisticasConsultas(request) {
     },
     body: {}
   };
+}
+
+// ============================================
+// MEDIDATA - BÚSQUEDA Y EDICIÓN DE PACIENTES
+// ============================================
+
+/**
+ * GET: Buscar pacientes en HistoriaClinica por numeroId, celular o apellido
+ * URL: /medidata-buscar?termino=12345
+ */
+export async function get_medidataBuscar(request) {
+    const { termino } = request.query;
+
+    if (!termino) {
+        return badRequest({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: "El parámetro 'termino' es requerido" }
+        });
+    }
+
+    try {
+        const resultado = await buscarPacientesMediData(termino);
+
+        if (resultado.success) {
+            return ok({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: resultado
+            });
+        } else {
+            return serverError({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: resultado.error }
+            });
+        }
+    } catch (error) {
+        console.error("Error en medidata-buscar:", error);
+        return serverError({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: error.message }
+        });
+    }
+}
+
+/**
+ * GET: Obtener datos completos de un paciente (HistoriaClinica + Formulario)
+ * URL: /medidata-paciente?historiaId=xxx
+ */
+export async function get_medidataPaciente(request) {
+    const { historiaId } = request.query;
+
+    if (!historiaId) {
+        return badRequest({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: "El parámetro 'historiaId' es requerido" }
+        });
+    }
+
+    try {
+        const resultado = await obtenerDatosCompletosPaciente(historiaId);
+
+        if (resultado.success) {
+            return ok({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: resultado
+            });
+        } else {
+            return serverError({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: resultado.error }
+            });
+        }
+    } catch (error) {
+        console.error("Error en medidata-paciente:", error);
+        return serverError({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: error.message }
+        });
+    }
+}
+
+/**
+ * POST: Actualizar datos de HistoriaClinica
+ * URL: /medidata-actualizar-historia
+ */
+export async function post_medidataActualizarHistoria(request) {
+    try {
+        const body = await request.body.json();
+        const { _id, ...datos } = body;
+
+        if (!_id) {
+            return badRequest({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: "El parámetro '_id' es requerido" }
+            });
+        }
+
+        const resultado = await actualizarHistoriaClinica(_id, datos);
+
+        if (resultado.success) {
+            return ok({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: resultado
+            });
+        } else {
+            return serverError({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: resultado.error }
+            });
+        }
+    } catch (error) {
+        console.error("Error en medidata-actualizar-historia:", error);
+        return serverError({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: error.message }
+        });
+    }
+}
+
+/**
+ * POST: Actualizar datos de Formulario
+ * URL: /medidata-actualizar-formulario
+ */
+export async function post_medidataActualizarFormulario(request) {
+    try {
+        const body = await request.body.json();
+        const { _id, ...datos } = body;
+
+        if (!_id) {
+            return badRequest({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: "El parámetro '_id' es requerido" }
+            });
+        }
+
+        const resultado = await actualizarFormulario(_id, datos);
+
+        if (resultado.success) {
+            return ok({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: resultado
+            });
+        } else {
+            return serverError({
+                headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+                body: { error: resultado.error }
+            });
+        }
+    } catch (error) {
+        console.error("Error en medidata-actualizar-formulario:", error);
+        return serverError({
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            body: { error: error.message }
+        });
+    }
+}
+
+/**
+ * OPTIONS: CORS preflight para endpoints MediData
+ */
+export function options_medidataBuscar(request) {
+    return {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: {}
+    };
+}
+
+export function options_medidataPaciente(request) {
+    return {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: {}
+    };
+}
+
+export function options_medidataActualizarHistoria(request) {
+    return {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: {}
+    };
+}
+
+export function options_medidataActualizarFormulario(request) {
+    return {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: {}
+    };
 }

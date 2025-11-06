@@ -2727,5 +2727,15 @@ def enviar_certificado_whatsapp():
             "message": f"Error interno: {str(e)}"
         }), 500
 
+
+# --- Endpoint: MEDIDATA PANEL PRINCIPAL ---
+@app.route("/medidata-principal")
+def medidata_principal():
+    """
+    Servir la página HTML del panel MediData principal
+    """
+    return send_from_directory('static', 'medidata-principal.html')
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
