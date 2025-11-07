@@ -19,19 +19,7 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente } from 'backend/exposeDataBase';
-import {
-  obtenerEstadisticasMedico,
-  obtenerPacientesPendientes,
-  buscarPacientePorDocumento,
-  marcarPacienteNoContesta,
-  obtenerDetallesPaciente,ya hi
-  obtenerTodosProgramadosHoy,
-  actualizarHistoriaClinica,
-  obtenerDatosFormularioPorHistoriaId,
-  obtenerDatosCompletosParaFormulario,
-  obtenerHistoriaClinica
-} from 'backend/integracionPanelMedico';
+import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente, actualizarHistoriaClinica } from 'backend/exposeDataBase';
 
 import { callOpenAI } from 'backend/open-ai';
 import { consultarCita } from 'backend/consultaHistoriaClinicaBot';
