@@ -622,6 +622,9 @@
                 }
             }
 
+            console.log('📤 Enviando cambios de Historia:', historiaChanges);
+            if (formularioChanges) console.log('📤 Enviando cambios de Formulario:', formularioChanges);
+
             loader.style.display = 'block';
 
             try {
@@ -632,13 +635,27 @@
                     body: JSON.stringify(historiaChanges)
                 });
 
+                const historiaData = await historiaResponse.json();
+                console.log('📥 Respuesta Historia:', historiaData);
+
+                if (!historiaData.success) {
+                    throw new Error(historiaData.error || 'Error al actualizar Historia Clínica');
+                }
+
                 // Actualizar Formulario (si existe)
-                if (formularioChanges) {
-                    await fetch(`${API_BASE_URL}/${ENDPOINTS.actualizarFormulario}`, {
+                if (formularioChanges && Object.keys(formularioChanges).length > 1) {
+                    const formularioResponse = await fetch(`${API_BASE_URL}/${ENDPOINTS.actualizarFormulario}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formularioChanges)
                     });
+
+                    const formularioData = await formularioResponse.json();
+                    console.log('📥 Respuesta Formulario:', formularioData);
+
+                    if (!formularioData.success) {
+                        throw new Error(formularioData.error || 'Error al actualizar Formulario');
+                    }
                 }
 
                 showMessage('✅ Cambios guardados exitosamente', 'success');
@@ -649,8 +666,8 @@
                 }, 1500);
 
             } catch (error) {
-                console.error('Error guardando cambios:', error);
-                showMessage('❌ Error al guardar los cambios', 'error');
+                console.error('❌ Error guardando cambios:', error);
+                showMessage(`❌ Error: ${error.message}`, 'error');
             } finally {
                 loader.style.display = 'none';
             }
