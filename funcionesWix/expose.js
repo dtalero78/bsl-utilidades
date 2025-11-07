@@ -93,19 +93,27 @@ export async function consultarPorDocumento(numeroId) {
 // FUNCIÓN PARA ACTUALIZAR HISTORIA CLÍNICA
 export async function actualizarHistoriaClinica(_id, datos) {
     try {
+        console.log(`📝 Actualizando Historia Clínica ID: ${_id}`);
+        console.log(`📝 Datos recibidos:`, datos);
+
         const existingItem = await wixData.get("HistoriaClinica", _id);
+        console.log(`📝 Item existente obtenido:`, existingItem.segundoNombre);
 
         // Actualizar solo los campos proporcionados
         Object.keys(datos).forEach(key => {
             if (key !== '_id') {
+                console.log(`📝 Actualizando campo ${key}: "${existingItem[key]}" -> "${datos[key]}"`);
                 existingItem[key] = datos[key];
             }
         });
 
+        console.log(`📝 Item antes de guardar:`, existingItem.segundoNombre);
         const result = await wixData.update("HistoriaClinica", existingItem);
+        console.log(`✅ Item guardado:`, result.segundoNombre);
+
         return { success: true, item: result };
     } catch (error) {
-        console.error("Error actualizando historia clínica:", error);
+        console.error("❌ Error actualizando historia clínica:", error);
         return { success: false, error: error.message };
     }
 }
