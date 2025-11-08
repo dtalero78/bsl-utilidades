@@ -19,7 +19,19 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente, actualizarHistoriaClinica } from 'backend/exposeDataBase';
+import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente } from 'backend/exposeDataBase';
+import {
+  obtenerEstadisticasMedico,
+  obtenerPacientesPendientes,
+  buscarPacientePorDocumento,
+  marcarPacienteNoContesta,
+  obtenerDetallesPaciente,
+  obtenerTodosProgramadosHoy,
+  actualizarHistoriaClinica,
+  obtenerDatosFormularioPorHistoriaId,
+  obtenerDatosCompletosParaFormulario,
+  obtenerHistoriaClinica
+} from 'backend/integracionPanelMedico';
 
 import { callOpenAI } from 'backend/open-ai';
 import { consultarCita } from 'backend/consultaHistoriaClinicaBot';
@@ -447,7 +459,7 @@ export async function post_guardarConversacion(request) {
     }
 
     try {
-        const { userId, nombre, mensajes = [], threadId, ultimoMensajeBot } = body;
+        const { userId, nombre, mensajes = [], threadId, ultimoMensajeBot, stopBot } = body;
 
         if (!Array.isArray(mensajes) || !userId) {
             return {
@@ -489,10 +501,18 @@ export async function post_guardarConversacion(request) {
             item.ultimoMensajeBot = ultimoMensajeBot;
         }
 
+        // ✅ NUEVO: Manejar el campo stopBot
+        if (stopBot !== undefined) {
+            item.stopBot = stopBot;
+            console.log(`📌 Campo stopBot actualizado a: ${stopBot} para userId: ${userId}`);
+        }
+
         if (previo._id) {
             await wixData.update("WHP", item);
+            console.log(`✅ Conversación actualizada en WHP para userId: ${userId}`);
         } else {
             await wixData.insert("WHP", item);
+            console.log(`✅ Nueva conversación creada en WHP para userId: ${userId}`);
         }
 
         // --- REENVIAR A OPENAI DESDE WIX DESPUÉS DE GUARDAR ---
@@ -600,6 +620,12 @@ export async function post_actualizarObservaciones(request) {
 
         const item = result.items[0];
         item.observaciones = observaciones;
+
+        // ✅ NUEVO: Si observaciones contiene "stop", marcar stopBot = true
+        if (observaciones.toLowerCase().includes("stop")) {
+            item.stopBot = true;
+            console.log(`🛑 stopBot marcado como true para userId: ${userId}`);
+        }
 
         const actualizado = await wixData.update("WHP", item);
 
@@ -749,7 +775,7 @@ export async function post_eliminarConversacion(request) {
 
 const BOT_NUMBER = "573008021701";
 
-export function post_handleInput(request) {
+export function post_handleInput1(request) {
     return request.body.json()
         .then(async (body) => {
             if (body && body.statuses && Array.isArray(body.statuses)) {
