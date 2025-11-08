@@ -397,9 +397,9 @@
         <div class="details-header">
             <h2>Datos del Paciente</h2>
             <div class="header-buttons">
-                <a href="/static/solicitar-certificado.html" target="_blank" class="btn-solicitar">
+                <button class="btn-solicitar" id="btnSolicitarCertificado" disabled>
                     📄 Solicitar Certificado
-                </a>
+                </button>
                 <button class="btn-descargar" id="btnDescargarCertificado" disabled>
                     📥 Descargar Certificado
                 </button>
@@ -450,11 +450,20 @@
             resultsContainer.style.display = 'block';
             currentPatientId = null;
             btnDescargarCertificado.disabled = true;
+            btnSolicitarCertificado.disabled = true;
         });
 
         btnDescargarCertificado.addEventListener('click', () => {
             if (currentPatientId) {
                 const url = `${window.location.origin}/generar-certificado-desde-wix/${currentPatientId}`;
+                window.open(url, '_blank');
+            }
+        });
+
+        const btnSolicitarCertificado = document.getElementById('btnSolicitarCertificado');
+        btnSolicitarCertificado.addEventListener('click', () => {
+            if (currentPatientId) {
+                const url = `${window.location.origin}/static/solicitar-certificado.html?id=${currentPatientId}`;
                 window.open(url, '_blank');
             }
         });
@@ -522,6 +531,7 @@
                     currentPatientData = data;
                     currentPatientId = historiaId;
                     btnDescargarCertificado.disabled = false;
+                    btnSolicitarCertificado.disabled = false;
                     mostrarDetalles(data);
                 } else {
                     showMessage('Error al cargar los detalles del paciente', 'error');
