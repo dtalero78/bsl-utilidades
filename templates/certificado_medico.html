@@ -382,6 +382,55 @@
             margin-top: 20px;
             border: 1px solid #ccc;
         }
+
+        /* === CONTROLES DE SALTO DE PÁGINA === */
+        @media print {
+            /* Evitar que las secciones se dividan entre páginas */
+            .section {
+                page-break-inside: avoid;
+            }
+
+            /* Evitar que la cabecera se divida */
+            .header {
+                page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+
+            /* Evitar que las tablas se dividan */
+            .data-table {
+                page-break-inside: avoid;
+            }
+
+            /* Evitar que los items de resultado se dividan */
+            .result-item {
+                page-break-inside: avoid;
+            }
+
+            /* Evitar que el análisis postural se divida */
+            .postural-box {
+                page-break-inside: avoid;
+            }
+
+            /* Evitar que el concepto médico se divida */
+            .medical-concept {
+                page-break-inside: avoid;
+            }
+
+            /* Evitar que las firmas se dividan */
+            .signatures-section {
+                page-break-inside: avoid;
+            }
+
+            /* Permitir saltos de página automáticos antes de secciones cuando sea necesario */
+            .section {
+                page-break-before: auto;
+            }
+
+            /* El footer siempre al final */
+            .footer {
+                page-break-inside: avoid;
+            }
+        }
     </style>
 </head>
 <body>

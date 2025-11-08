@@ -24,7 +24,8 @@ CORS(app, resources={
     r"/descargar-pdf-drive/*": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]},
     r"/generar-certificado-medico": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Permitir cualquier origen para Wix
-    r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir imágenes públicamente
+    r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
+    r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir archivos HTML temporales para iLovePDF
 })
 
 # Configuración de carpetas por empresa
@@ -193,6 +194,54 @@ def ilovepdf_get_token():
         print(f"❌ Error obteniendo token de iLovePDF: {e}")
         raise
 
+def ilovepdf_html_to_pdf(html_content, output_filename="certificado"):
+    """
+    Convierte contenido HTML a PDF usando iLovePDF API
+
+    Args:
+        html_content: Contenido HTML como string
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+    """
+    try:
+        # Guardar HTML en archivo temporal
+        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w', encoding='utf-8')
+        temp_html.write(html_content)
+        temp_html.close()
+
+        # Hacer el archivo accesible vía endpoint temporal
+        temp_filename = os.path.basename(temp_html.name)
+
+        # Usar la URL del servidor para acceder al archivo temporal
+        # Nota: El archivo debe ser accesible públicamente para iLovePDF
+        # Usaremos el endpoint /temp-html/ que crearemos
+        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
+        html_url = f"{base_url}/temp-html/{temp_filename}"
+
+        # Guardar referencia al archivo temporal para que el endpoint pueda servirlo
+        if not hasattr(app, 'temp_html_files'):
+            app.temp_html_files = {}
+        app.temp_html_files[temp_filename] = temp_html.name
+
+        # Convertir usando la función existente
+        pdf_content = ilovepdf_html_to_pdf_from_url(html_url, output_filename)
+
+        # Limpiar archivo temporal
+        try:
+            os.unlink(temp_html.name)
+            if temp_filename in app.temp_html_files:
+                del app.temp_html_files[temp_filename]
+        except Exception as cleanup_error:
+            print(f"⚠️ Error limpiando archivo temporal: {cleanup_error}")
+
+        return pdf_content
+
+    except Exception as e:
+        print(f"❌ Error en ilovepdf_html_to_pdf: {e}")
+        raise
+
 def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
     """
     Convierte HTML a PDF usando iLovePDF API desde una URL pública
@@ -244,7 +293,12 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
                 'server_filename': server_filename,
                 'filename': 'document.html'
             }],
-            'output_filename': output_filename
+            'output_filename': output_filename,
+            'single_page': False,  # CRÍTICO: Permite PDFs de múltiples páginas
+            'page_size': 'Letter',  # Tamaño de página estándar
+            'page_margin': 20,  # Márgenes en píxeles para evitar compresión
+            'view_width': 850,  # Ancho del viewport antes de conversión
+            'page_orientation': 'portrait'  # Orientación vertical
         }
         process_response = requests.post(
             f'https://{server}/v1/process',
@@ -1077,6 +1131,22 @@ def serve_image(filename):
         return send_from_directory("static", filename)
     except FileNotFoundError:
         return "Image not found", 404
+
+@app.route("/temp-html/<filename>")
+def serve_temp_html(filename):
+    """Servir archivos HTML temporales para iLovePDF"""
+    try:
+        if not hasattr(app, 'temp_html_files'):
+            return "Temporary file not found", 404
+
+        file_path = app.temp_html_files.get(filename)
+        if not file_path or not os.path.exists(file_path):
+            return "Temporary file not found", 404
+
+        return send_file(file_path, mimetype='text/html')
+    except Exception as e:
+        print(f"❌ Error sirviendo HTML temporal: {e}")
+        return "Error serving temporary file", 500
 
 # --- Función auxiliar para separar nombres completos ---
 def separar_nombre_completo(nombre_completo):
