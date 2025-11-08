@@ -19,7 +19,7 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente } from 'backend/exposeDataBase';
+import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente, actualizarHistoriaClinica } from 'backend/exposeDataBase';
 import {
   obtenerEstadisticasMedico,
   obtenerPacientesPendientes,
@@ -27,7 +27,6 @@ import {
   marcarPacienteNoContesta,
   obtenerDetallesPaciente,
   obtenerTodosProgramadosHoy,
-  actualizarHistoriaClinica,
   obtenerDatosFormularioPorHistoriaId,
   obtenerDatosCompletosParaFormulario,
   obtenerHistoriaClinica
