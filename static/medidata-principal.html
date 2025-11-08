@@ -18,29 +18,50 @@
             font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #f5f7fa;
             min-height: 100vh;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
         }
 
         .header {
             background: white;
             padding: 20px 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+            border-bottom: 1px solid #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .header-content h1 {
-            font-size: 28px;
+            font-size: 24px;
             color: #1a1a1a;
             margin-bottom: 5px;
         }
 
         .header-content p {
             color: #666;
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        /* Layout de dos columnas tipo Salesforce */
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 90px);
+            overflow: hidden;
+        }
+
+        .left-panel {
+            width: 45%;
+            border-right: 1px solid #e0e0e0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            width: 55%;
+            background: #f5f7fa;
+            display: flex;
+            flex-direction: column;
         }
 
         .header-buttons {
@@ -100,15 +121,39 @@
 
         .search-container {
             background: white;
-            padding: 25px 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+            padding: 20px 25px;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         .search-box {
             display: flex;
             gap: 12px;
+        }
+
+        .filter-tags {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-tag .remove {
+            cursor: pointer;
+            color: #666;
+            font-weight: bold;
         }
 
         .search-input {
@@ -155,40 +200,52 @@
         }
 
         .results-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            flex: 1;
+            overflow-y: auto;
             display: none;
-            margin-bottom: 30px;
         }
 
         .results-header {
-            padding: 20px 30px;
+            padding: 15px 25px;
+            background: #fafafa;
             border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .results-header h2 {
-            font-size: 18px;
-            color: #1a1a1a;
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .results-list {
-            max-height: 400px;
+            flex: 1;
             overflow-y: auto;
         }
 
         .result-item {
-            padding: 18px 30px;
+            padding: 16px 25px;
             border-bottom: 1px solid #f0f0f0;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-left: 3px solid transparent;
         }
 
         .result-item:hover {
             background: #f8f9fa;
+            border-left-color: #0066cc;
+        }
+
+        .result-item.selected {
+            background: #e3f2fd;
+            border-left-color: #0066cc;
         }
 
         .result-item:last-child {
@@ -196,9 +253,10 @@
         }
 
         .result-info h3 {
-            font-size: 16px;
+            font-size: 15px;
             color: #1a1a1a;
             margin-bottom: 4px;
+            font-weight: 600;
         }
 
         .result-info p {
@@ -207,36 +265,143 @@
         }
 
         .result-badge {
-            padding: 6px 12px;
-            background: #e3f2fd;
-            color: #0066cc;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 5px 10px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 4px;
+            font-size: 11px;
             font-weight: 600;
         }
 
         .details-container {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            display: none;
-        }
-
-        .details-header {
-            padding: 20px 30px;
-            border-bottom: 1px solid #e0e0e0;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .details-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #e0e0e0;
+            background: #fafafa;
+            padding: 0 25px;
+        }
+
+        .tab {
+            padding: 14px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+            display: flex;
             align-items: center;
+            gap: 8px;
         }
 
-        .details-header h2 {
-            font-size: 20px;
-            color: #1a1a1a;
+        .tab:hover {
+            color: #0066cc;
         }
 
-        .details-content {
-            padding: 30px;
+        .tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+            background: white;
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        .details-actions {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 12px 20px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .action-button:hover {
+            background: #f8f9fa;
+            border-color: #0066cc;
+        }
+
+        .action-button.primary {
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+        }
+
+        .action-button.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .action-button.secondary {
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
+            color: white;
+            border: none;
+        }
+
+        .action-button.secondary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: #999;
         }
 
         .section-title {
@@ -360,54 +525,88 @@
     </style>
 </head>
 <body>
+    <!-- Header Global -->
     <div class="header">
         <div class="header-content">
             <h1>🏥 MediData - Panel Principal</h1>
-            <p>Búsqueda y edición de datos de pacientes</p>
+            <p>Selecciona un registro en la tabla para gestionar los datos del paciente</p>
         </div>
     </div>
 
-    <div class="search-container">
-        <div class="search-box">
-            <input
-                type="text"
-                class="search-input"
-                id="searchInput"
-                placeholder="Buscar por cédula, celular o apellido..."
-                autocomplete="off">
-            <button class="btn" id="searchBtn">🔍 Buscar</button>
-        </div>
-    </div>
+    <!-- Layout de dos columnas -->
+    <div class="main-layout">
+        <!-- Panel Izquierdo: Búsqueda y Resultados -->
+        <div class="left-panel">
+            <div class="search-container">
+                <div class="search-box">
+                    <input
+                        type="text"
+                        class="search-input"
+                        id="searchInput"
+                        placeholder="Buscar por cédula, celular o apellido..."
+                        autocomplete="off">
+                    <button class="btn" id="searchBtn">🔍 Buscar</button>
+                </div>
+            </div>
 
-    <div class="message" id="message"></div>
 
-    <div class="results-container" id="resultsContainer">
-        <div class="results-header">
-            <h2>Resultados de búsqueda</h2>
-        </div>
-        <div class="results-list" id="resultsList"></div>
-    </div>
+            <div class="message" id="message"></div>
 
-    <div class="loader" id="loader">
-        <div class="spinner"></div>
-        <p>Cargando datos...</p>
-    </div>
+            <!-- Loader -->
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p>Cargando datos...</p>
+            </div>
 
-    <div class="details-container" id="detailsContainer">
-        <div class="details-header">
-            <h2>Datos del Paciente</h2>
-            <div class="header-buttons">
-                <a href="/static/solicitar-certificado.html" target="_blank" class="btn-solicitar">
-                    📄 Solicitar Certificado
-                </a>
-                <button class="btn-descargar" id="btnDescargarCertificado" disabled>
-                    📥 Descargar Certificado
-                </button>
-                <button class="btn btn-secondary" id="backBtn">← Volver a resultados</button>
+            <!-- Resultados -->
+            <div class="results-container" id="resultsContainer">
+                <div class="results-header">
+                    <h2>Resultados de Búsqueda</h2>
+                </div>
+                <div class="results-list" id="resultsList">
+                    <!-- Se llena dinámicamente -->
+                </div>
             </div>
         </div>
-        <div class="details-content" id="detailsContent">
-            <!-- Contenido dinámico -->
+
+        <!-- Panel Derecho: Detalles del Paciente -->
+        <div class="right-panel">
+            <div class="details-container" id="detailsContainer">
+                <!-- Estado vacío inicial -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon">👤</div>
+                    <h3>No se ha seleccionado ningún paciente</h3>
+                    <p>Selecciona un paciente de la lista para ver sus detalles</p>
+                </div>
+
+                <!-- Contenido cuando se selecciona un paciente -->
+                <div id="patientDetails" style="display: none; height: 100%; display: flex; flex-direction: column;">
+                    <!-- Tabs tipo Salesforce -->
+                    <div class="details-tabs">
+                        <div class="tab active" data-tab="account">
+                            👤 Datos del Paciente
+                        </div>
+                        <div class="tab" data-tab="manage">
+                            🎯 Gestión de Examen
+                        </div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="details-actions">
+                        <a href="/static/solicitar-certificado.html" target="_blank" class="action-button primary" style="text-decoration: none;">
+                            📄 Solicitar Certificado
+                        </a>
+                        <button class="action-button secondary" id="btnDescargarCertificado" disabled>
+                            📥 Descargar Certificado
+                        </button>
+                    </div>
+
+                    <!-- Contenido del tab activo -->
+                    <div class="tab-content" id="tabContent">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -428,14 +627,16 @@
         const resultsContainer = document.getElementById('resultsContainer');
         const resultsList = document.getElementById('resultsList');
         const detailsContainer = document.getElementById('detailsContainer');
-        const detailsContent = document.getElementById('detailsContent');
-        const backBtn = document.getElementById('backBtn');
+        const emptyState = document.getElementById('emptyState');
+        const patientDetails = document.getElementById('patientDetails');
+        const tabContent = document.getElementById('tabContent');
         const loader = document.getElementById('loader');
         const messageDiv = document.getElementById('message');
         const btnDescargarCertificado = document.getElementById('btnDescargarCertificado');
 
         let currentPatientData = null;
         let currentPatientId = null;
+        let currentTab = 'account';
 
         // Buscar al presionar Enter
         searchInput.addEventListener('keypress', (e) => {
@@ -445,11 +646,13 @@
         });
 
         searchBtn.addEventListener('click', buscarPacientes);
-        backBtn.addEventListener('click', () => {
-            detailsContainer.style.display = 'none';
-            resultsContainer.style.display = 'block';
-            currentPatientId = null;
-            btnDescargarCertificado.disabled = true;
+
+        // Manejo de tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                switchTab(tabName);
+            });
         });
 
         btnDescargarCertificado.addEventListener('click', () => {
@@ -458,6 +661,24 @@
                 window.open(url, '_blank');
             }
         });
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Actualizar tabs activos
+            document.querySelectorAll('.tab').forEach(t => {
+                if (t.getAttribute('data-tab') === tabName) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+
+            // Renderizar contenido del tab
+            if (currentPatientData) {
+                renderTabContent(tabName, currentPatientData);
+            }
+        }
 
         async function buscarPacientes() {
             const termino = searchInput.value.trim();
@@ -469,7 +690,6 @@
 
             loader.style.display = 'block';
             resultsContainer.style.display = 'none';
-            detailsContainer.style.display = 'none';
             messageDiv.style.display = 'none';
 
             try {
@@ -496,24 +716,29 @@
                 const nombre = `${paciente.primerNombre || ''} ${paciente.segundoNombre || ''} ${paciente.primerApellido || ''} ${paciente.segundoApellido || ''}`.trim();
                 const item = document.createElement('div');
                 item.className = 'result-item';
+                item.setAttribute('data-patient-id', paciente._id);
                 item.innerHTML = `
                     <div class="result-info">
                         <h3>${nombre || 'Sin nombre'}</h3>
-                        <p>CC: ${paciente.numeroId || 'N/A'} | Celular: ${paciente.celular || 'N/A'} | Empresa: ${paciente.empresa || 'N/A'}</p>
+                        <p>CC: ${paciente.numeroId || 'N/A'} | Celular: ${paciente.celular || 'N/A'}</p>
                     </div>
                     <div class="result-badge">${paciente.tipoExamen || 'N/A'}</div>
                 `;
-                item.addEventListener('click', () => cargarDetallesPaciente(paciente._id));
+                item.addEventListener('click', () => {
+                    // Remover selección previa
+                    document.querySelectorAll('.result-item').forEach(i => i.classList.remove('selected'));
+                    // Seleccionar este item
+                    item.classList.add('selected');
+                    // Cargar detalles
+                    cargarDetallesPaciente(paciente._id);
+                });
                 resultsList.appendChild(item);
             });
 
-            resultsContainer.style.display = 'block';
+            resultsContainer.style.display = 'flex';
         }
 
         async function cargarDetallesPaciente(historiaId) {
-            loader.style.display = 'block';
-            resultsContainer.style.display = 'none';
-
             try {
                 const response = await fetch(`${API_BASE_URL}/${ENDPOINTS.paciente}?historiaId=${historiaId}`);
                 const data = await response.json();
@@ -529,69 +754,103 @@
             } catch (error) {
                 console.error('Error cargando detalles:', error);
                 showMessage('Error al cargar los detalles del paciente', 'error');
-            } finally {
-                loader.style.display = 'none';
             }
         }
 
         function mostrarDetalles(data) {
+            // Ocultar estado vacío y mostrar detalles
+            emptyState.style.display = 'none';
+            patientDetails.style.display = 'flex';
+
+            // Renderizar el tab actual
+            renderTabContent(currentTab, data);
+        }
+
+        function renderTabContent(tabName, data) {
             const historia = data.historiaClinica;
             const formulario = data.formulario;
 
             let html = '<form id="patientForm">';
 
-            // Sección Historia Clínica
-            html += '<div class="section-title">📋 Historia Clínica</div>';
-            html += '<div class="form-grid">';
-            html += crearCampo('Primer Nombre', 'primerNombre', historia.primerNombre || '', 'historia');
-            html += crearCampo('Segundo Nombre', 'segundoNombre', historia.segundoNombre || '', 'historia');
-            html += crearCampo('Primer Apellido', 'primerApellido', historia.primerApellido || '', 'historia');
-            html += crearCampo('Segundo Apellido', 'segundoApellido', historia.segundoApellido || '', 'historia');
-            html += crearCampo('Número ID', 'numeroId', historia.numeroId || '', 'historia');
-            html += crearCampo('Celular', 'celular', historia.celular || '', 'historia');
-            html += crearCampo('Empresa', 'empresa', historia.empresa || '', 'historia');
-            html += crearCampo('Código Empresa', 'codEmpresa', historia.codEmpresa || '', 'historia');
-            html += crearCampo('Cargo', 'cargo', historia.cargo || '', 'historia');
-            html += crearCampo('Tipo Examen', 'tipoExamen', historia.tipoExamen || '', 'historia');
-            html += crearCampo('Ciudad', 'ciudad', historia.ciudad || '', 'historia');
-            html += crearCampo('Email', 'email', historia.email || '', 'historia');
-            html += crearCampo('Género', 'genero', historia.genero || '', 'historia');
-            html += crearCampo('Edad', 'edad', historia.edad || '', 'historia');
-            html += crearCampo('Estado Civil', 'estadoCivil', historia.estadoCivil || '', 'historia');
-            html += crearCampo('Médico', 'medico', historia.medico || '', 'historia');
-            html += crearCampo('Estado Pago', 'pvEstado', historia.pvEstado || '', 'historia');
-            html += crearCampo('Atendido', 'atendido', historia.atendido || '', 'historia');
-            html += '</div>';
-
-            // Sección Formulario (si existe)
-            if (formulario) {
-                html += '<div class="section-title">📝 Formulario</div>';
+            if (tabName === 'account') {
+                // Tab de información básica
+                html += '<div class="section-title">📋 Información Personal</div>';
                 html += '<div class="form-grid">';
-                html += crearCampo('Profesión', 'profesionUOficio', formulario.profesionUOficio || '', 'formulario');
-                html += crearCampo('Fecha Nacimiento', 'fechaNacimiento', formulario.fechaNacimiento || '', 'formulario');
-                html += crearCampo('Ciudad Residencia', 'ciudadDeResidencia', formulario.ciudadDeResidencia || '', 'formulario');
-                html += crearCampo('Dirección', 'direccion', formulario.direccion || '', 'formulario');
-                html += crearCampo('Hijos', 'hijos', formulario.hijos || '', 'formulario');
-                html += crearCampo('Peso', 'peso', formulario.peso || '', 'formulario');
-                html += crearCampo('Talla', 'talla', formulario.talla || '', 'formulario');
+                html += crearCampo('Primer Nombre', 'primerNombre', historia.primerNombre || '', 'historia');
+                html += crearCampo('Segundo Nombre', 'segundoNombre', historia.segundoNombre || '', 'historia');
+                html += crearCampo('Primer Apellido', 'primerApellido', historia.primerApellido || '', 'historia');
+                html += crearCampo('Segundo Apellido', 'segundoApellido', historia.segundoApellido || '', 'historia');
+                html += crearCampo('Número ID', 'numeroId', historia.numeroId || '', 'historia');
+                html += crearCampo('Email', 'email', historia.email || '', 'historia');
+                html += crearCampo('Celular', 'celular', historia.celular || '', 'historia');
+                html += crearCampo('Género', 'genero', historia.genero || '', 'historia');
+                html += crearCampo('Edad', 'edad', historia.edad || '', 'historia');
+                html += crearCampo('Estado Civil', 'estadoCivil', historia.estadoCivil || '', 'historia');
                 html += '</div>';
+
+                // Información laboral
+                html += '<div class="section-title">💼 Información Laboral</div>';
+                html += '<div class="form-grid">';
+                html += crearCampo('Empresa', 'empresa', historia.empresa || '', 'historia');
+                html += crearCampo('Código Empresa', 'codEmpresa', historia.codEmpresa || '', 'historia');
+                html += crearCampo('Cargo', 'cargo', historia.cargo || '', 'historia');
+                html += crearCampo('Ciudad', 'ciudad', historia.ciudad || '', 'historia');
+                html += '</div>';
+
+                // Información adicional del formulario
+                if (formulario) {
+                    html += '<div class="section-title">📝 Información Adicional</div>';
+                    html += '<div class="form-grid">';
+                    html += crearCampo('Profesión', 'profesionUOficio', formulario.profesionUOficio || '', 'formulario');
+                    html += crearCampo('Fecha Nacimiento', 'fechaNacimiento', formulario.fechaNacimiento || '', 'formulario');
+                    html += crearCampo('Ciudad Residencia', 'ciudadDeResidencia', formulario.ciudadDeResidencia || '', 'formulario');
+                    html += crearCampo('Dirección', 'direccion', formulario.direccion || '', 'formulario');
+                    html += crearCampo('Hijos', 'hijos', formulario.hijos || '', 'formulario');
+                    html += crearCampo('Peso', 'peso', formulario.peso || '', 'formulario');
+                    html += crearCampo('Talla', 'talla', formulario.talla || '', 'formulario');
+                    html += '</div>';
+                }
+            } else if (tabName === 'manage') {
+                // Tab de gestión de exámenes
+                html += '<div class="section-title">🎯 Gestión de Exámenes</div>';
+                html += '<div class="form-grid">';
+                html += crearCampo('Tipo Examen', 'tipoExamen', historia.tipoExamen || '', 'historia');
+                html += crearCampo('Médico', 'medico', historia.medico || '', 'historia');
+                html += crearCampo('Estado Pago', 'pvEstado', historia.pvEstado || '', 'historia');
+                html += crearCampo('Atendido', 'atendido', historia.atendido || '', 'historia');
+                html += '</div>';
+
+                // Agregar información de seguimiento
+                html += '<div class="section-title">📊 Status</div>';
+                html += `
+                    <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Estado del Pago</div>
+                                <div style="font-size: 16px; font-weight: 600; color: ${historia.pvEstado === 'PAGADO' ? '#28a745' : '#dc3545'};">
+                                    ${historia.pvEstado || 'PENDIENTE'}
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Estado de Atención</div>
+                                <div style="font-size: 16px; font-weight: 600; color: ${historia.atendido === 'SI' ? '#28a745' : '#ffc107'};">
+                                    ${historia.atendido || 'PENDIENTE'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
             html += '<div class="form-actions">';
-            html += '<button type="button" class="btn btn-secondary" id="cancelBtn">Cancelar</button>';
             html += '<button type="submit" class="btn">💾 Guardar Cambios</button>';
             html += '</div>';
             html += '</form>';
 
-            detailsContent.innerHTML = html;
-            detailsContainer.style.display = 'block';
+            tabContent.innerHTML = html;
 
             // Event listeners
             document.getElementById('patientForm').addEventListener('submit', guardarCambios);
-            document.getElementById('cancelBtn').addEventListener('click', () => {
-                detailsContainer.style.display = 'none';
-                resultsContainer.style.display = 'block';
-            });
         }
 
         function crearCampo(label, name, value, tipo) {
