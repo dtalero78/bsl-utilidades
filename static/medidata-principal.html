@@ -365,14 +365,6 @@
             <h1>🏥 MediData - Panel Principal</h1>
             <p>Búsqueda y edición de datos de pacientes</p>
         </div>
-        <div class="header-buttons">
-            <a href="/static/solicitar-certificado.html" target="_blank" class="btn-solicitar">
-                📄 Solicitar Certificado
-            </a>
-            <button class="btn-descargar" id="btnDescargarCertificado" disabled>
-                📥 Descargar Certificado
-            </button>
-        </div>
     </div>
 
     <div class="search-container">
@@ -404,7 +396,15 @@
     <div class="details-container" id="detailsContainer">
         <div class="details-header">
             <h2>Datos del Paciente</h2>
-            <button class="btn btn-secondary" id="backBtn">← Volver a resultados</button>
+            <div class="header-buttons">
+                <a href="/static/solicitar-certificado.html" target="_blank" class="btn-solicitar">
+                    📄 Solicitar Certificado
+                </a>
+                <button class="btn-descargar" id="btnDescargarCertificado" disabled>
+                    📥 Descargar Certificado
+                </button>
+                <button class="btn btn-secondary" id="backBtn">← Volver a resultados</button>
+            </div>
         </div>
         <div class="details-content" id="detailsContent">
             <!-- Contenido dinámico -->
