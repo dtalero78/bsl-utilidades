@@ -306,6 +306,62 @@
             }
         }
 
+        // Verificar si hay un ID en la URL y enviar automáticamente
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Si hay un _id en la URL, enviar automáticamente
+        const historiaId = getUrlParameter('id');
+        if (historiaId) {
+            // Ejecutar automáticamente al cargar la página
+            window.addEventListener('load', () => {
+                enviarCertificadoPorId(historiaId);
+            });
+        }
+
+        // Función para enviar certificado usando el _id de la historia clínica
+        async function enviarCertificadoPorId(historiaId) {
+            // Ocultar el formulario y mostrar loader
+            form.style.display = 'none';
+            submitBtn.disabled = true;
+            loader.style.display = 'block';
+            messageDiv.style.display = 'none';
+            startPhraseAnimation();
+
+            try {
+                const response = await fetch('/enviar-certificado-whatsapp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        historiaId: historiaId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('✓ ¡Certificado enviado exitosamente! Revisa tu WhatsApp en unos momentos.', 'success');
+                } else {
+                    showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
+                    // Mostrar el formulario nuevamente en caso de error
+                    form.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión. Por favor verifica tu internet e intenta nuevamente.', 'error');
+                // Mostrar el formulario nuevamente en caso de error
+                form.style.display = 'block';
+            } finally {
+                stopPhraseAnimation();
+                submitBtn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 

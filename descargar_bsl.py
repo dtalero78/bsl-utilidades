@@ -2656,7 +2656,10 @@ def preview_certificado_html(wix_id):
 @app.route("/enviar-certificado-whatsapp", methods=["POST", "OPTIONS"])
 def enviar_certificado_whatsapp():
     """
-    Endpoint que busca un certificado por número de cédula y lo envía por WhatsApp
+    Endpoint que busca un certificado por número de cédula o por _id de HistoriaClinica y lo envía por WhatsApp
+    Parámetros aceptados:
+    - numeroId: buscar por número de cédula
+    - historiaId: buscar directamente por _id de HistoriaClinica
     """
     if request.method == "OPTIONS":
         response_headers = {
@@ -2669,29 +2672,36 @@ def enviar_certificado_whatsapp():
     try:
         data = request.get_json()
         numero_id = data.get('numeroId')
+        historia_id = data.get('historiaId')
 
-        if not numero_id:
+        if not numero_id and not historia_id:
             return jsonify({
                 "success": False,
-                "message": "Falta el parámetro requerido: numeroId"
+                "message": "Falta el parámetro requerido: numeroId o historiaId"
             }), 400
 
         print(f"📱 Solicitud de certificado por WhatsApp")
-        print(f"   Cédula: {numero_id}")
 
-        # Buscar el certificado en Wix por número de cédula usando el nuevo endpoint
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
-        wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
+
+        # Si viene historiaId, buscar directamente por _id
+        if historia_id:
+            print(f"   Historia ID: {historia_id}")
+            wix_url = f"{wix_base_url}/medidataPaciente?historiaId={historia_id}"
+        else:
+            print(f"   Cédula: {numero_id}")
+            wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
 
         print(f"🔍 Consultando Wix: {wix_url}")
 
         wix_response = requests.get(wix_url, timeout=10)
 
         if wix_response.status_code == 404:
-            print(f"❌ No se encontró certificado para cédula: {numero_id}")
+            mensaje_error = "No se encontró certificado para este registro" if historia_id else f"No se encontró certificado para cédula: {numero_id}"
+            print(f"❌ {mensaje_error}")
             return jsonify({
                 "success": False,
-                "message": "No se encontró un certificado con ese número de cédula. Verifica el número ingresado."
+                "message": mensaje_error + ". Verifica los datos ingresados."
             }), 404
 
         if wix_response.status_code != 200:
@@ -2705,14 +2715,19 @@ def enviar_certificado_whatsapp():
         wix_data = wix_response.json()
         print(f"✅ Respuesta de Wix: {wix_data}")
 
-        # La respuesta tiene formato: { "_id": "...", "data": {...} }
-        datos_wix = wix_data.get('data')
-        wix_id = wix_data.get('_id')
+        # Si vino por historiaId, la respuesta es diferente (tiene historiaClinica y formulario)
+        if historia_id:
+            datos_wix = wix_data.get('historiaClinica', {})
+            wix_id = historia_id
+        else:
+            # La respuesta tiene formato: { "_id": "...", "data": {...} }
+            datos_wix = wix_data.get('data')
+            wix_id = wix_data.get('_id')
 
         if not datos_wix or not wix_id:
             return jsonify({
                 "success": False,
-                "message": "No se encontró un certificado con ese número de cédula"
+                "message": "No se encontró un certificado con esos datos"
             }), 404
 
         # Obtener celular del registro de HistoriaClinica
@@ -2759,13 +2774,14 @@ def enviar_certificado_whatsapp():
             "content-type": "application/json"
         }
 
-        # Obtener nombre del paciente
+        # Obtener nombre del paciente y cédula
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
+        cedula = numero_id if numero_id else datos_wix.get('numeroId', 'N/A')
 
         whatsapp_payload = {
             "to": celular,
             "media": certificado_url,
-            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {numero_id}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
+            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
         }
 
         whatsapp_response = requests.post(
