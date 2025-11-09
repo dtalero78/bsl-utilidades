@@ -2709,8 +2709,12 @@ def enviar_certificado_whatsapp():
 
         print(f"📄 Generando certificado: {pdf_url}")
 
+        # Cache-busting para evitar PDFs antiguos
+        import time
+        cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
+
         # Generar el PDF (hacer request al endpoint)
-        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}", timeout=60)
+        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}", timeout=60)
 
         if pdf_response.status_code != 200:
             return jsonify({
@@ -2719,8 +2723,8 @@ def enviar_certificado_whatsapp():
             }), 500
 
         # Guardar PDF temporalmente y subirlo a un lugar accesible
-        # Para simplificar, vamos a usar la URL del preview como link
-        certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}"
+        # Para simplificar, vamos a usar la URL del preview como link CON CACHE-BUSTING
+        certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}"
 
         # Enviar por WhatsApp
         print(f"📤 Enviando certificado por WhatsApp a {celular}")
