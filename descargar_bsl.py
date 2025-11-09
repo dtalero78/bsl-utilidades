@@ -1978,8 +1978,10 @@ def api_generar_certificado_pdf(wix_id):
 
         print("📄 Generando PDF con iLovePDF desde URL del preview...")
 
-        # Construir URL del preview HTML
-        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}"
+        # Construir URL del preview HTML con cache-busting
+        import time
+        cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
         print(f"🔗 URL del preview: {preview_url}")
 
         # Generar PDF usando iLovePDF
