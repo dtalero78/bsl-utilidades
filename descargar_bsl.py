@@ -392,16 +392,29 @@ def determinar_mostrar_sin_soporte(datos_wix):
     # PRIORIDAD 1: Verificar el estado de pago primero
     # Si NO está pagado (null, undefined, vacío, o cualquier valor != "Pagado"), mostrar aviso
     pv_estado = datos_wix.get('pvEstado', '')
+    cod_empresa = datos_wix.get('codEmpresa', '')
+
+    print(f"🔍 DEBUG determinar_mostrar_sin_soporte:")
+    print(f"   pvEstado: '{pv_estado}' (tipo: {type(pv_estado).__name__})")
+    print(f"   codEmpresa: '{cod_empresa}'")
+    print(f"   pvEstado != 'Pagado': {pv_estado != 'Pagado'}")
+
     if pv_estado != "Pagado":
         # Solo ocultar el aviso si es empresa especial o código numérico
-        if es_empresa_especial(datos_wix.get('codEmpresa', '')):
+        es_especial = es_empresa_especial(cod_empresa)
+        print(f"   es_empresa_especial('{cod_empresa}'): {es_especial}")
+
+        if es_especial:
+            print(f"   ✅ NO mostrar aviso (empresa especial)")
             return False, ""
 
         # Mostrar aviso rojo (incluso si es Periódico, PostIncapacidad, etc.)
+        print(f"   ⚠️ MOSTRAR AVISO ROJO (pvEstado no es 'Pagado' y empresa no es especial)")
         texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
         return True, texto
 
     # Si está pagado, mostrar concepto normal
+    print(f"   ✅ NO mostrar aviso (pvEstado es 'Pagado')")
     return False, ""
 
 # ================================================
