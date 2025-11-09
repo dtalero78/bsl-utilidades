@@ -1724,11 +1724,13 @@ def api_generar_certificado_pdf(wix_id):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
                                 # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
                                 # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID
+                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID con parámetros de optimización
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
                                     image_id = parts[0]  # Solo tomar el ID de la imagen
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
+                                    # Agregar parámetros de Wix para redimensionar a 180x220 (2x el tamaño de display para retina)
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_180,h_220,al_c,q_80/{filename}"
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                             else:
@@ -1848,9 +1850,9 @@ def api_generar_certificado_pdf(wix_id):
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
             "JUAN 134": "FIRMA-JUAN134.jpeg",
-            "CESAR": "FIRMA-CESAR.png",
-            "MARY": "FIRMA-MARY.png",
-            "PRESENCIAL": "FIRMA-PRESENCIAL.png"
+            "CESAR": "FIRMA-CESAR.jpeg",
+            "MARY": "FIRMA-MARY.jpeg",
+            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
         }
 
         # Datos de cada médico
@@ -1908,11 +1910,13 @@ def api_generar_certificado_pdf(wix_id):
         if firma_paciente_wix:
             print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
             if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible (mantener como URL)
+                # Convertir URL de Wix a URL estática accesible con optimización
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
-                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'signature.png'
+                    # Redimensionar a 400x200 (tamaño adecuado para firmas) con calidad 85
+                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_400,h_200,al_c,q_85/{filename}"
                     print(f"✅ Firma paciente convertida: {firma_paciente_url}")
             else:
                 firma_paciente_url = firma_paciente_wix
@@ -1921,8 +1925,8 @@ def api_generar_certificado_pdf(wix_id):
             print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
 
         # Firma del optómetra (siempre la misma)
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
-        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.png")
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
+        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.jpeg")
 
         # Preparar payload para el endpoint de generación
         payload_certificado = {
@@ -2377,11 +2381,13 @@ def preview_certificado_html(wix_id):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
                                 # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
                                 # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID
+                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID con parámetros de optimización
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
                                     image_id = parts[0]  # Solo tomar el ID de la imagen
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
+                                    # Agregar parámetros de Wix para redimensionar a 180x220 (2x el tamaño de display para retina)
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_180,h_220,al_c,q_80/{filename}"
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                             else:
@@ -2500,9 +2506,9 @@ def preview_certificado_html(wix_id):
         firma_medico_map = {
             "SIXTA": "FIRMA-SIXTA.png",
             "JUAN 134": "FIRMA-JUAN134.jpeg",
-            "CESAR": "FIRMA-CESAR.png",
-            "MARY": "FIRMA-MARY.png",
-            "PRESENCIAL": "FIRMA-PRESENCIAL.png"
+            "CESAR": "FIRMA-CESAR.jpeg",
+            "MARY": "FIRMA-MARY.jpeg",
+            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
         }
 
         # Datos de cada médico
@@ -2560,11 +2566,13 @@ def preview_certificado_html(wix_id):
         if firma_paciente_wix:
             print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
             if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible (mantener como URL)
+                # Convertir URL de Wix a URL estática accesible con optimización
                 parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
                 if len(parts) > 0:
                     image_id = parts[0]
-                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}"
+                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'signature.png'
+                    # Redimensionar a 400x200 (tamaño adecuado para firmas) con calidad 85
+                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_400,h_200,al_c,q_85/{filename}"
                     print(f"✅ Firma paciente convertida: {firma_paciente_url}")
             else:
                 firma_paciente_url = firma_paciente_wix
@@ -2573,8 +2581,8 @@ def preview_certificado_html(wix_id):
             print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
 
         # Firma del optómetra (siempre la misma)
-        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.png"
-        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.png")
+        firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
+        print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.jpeg")
 
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
