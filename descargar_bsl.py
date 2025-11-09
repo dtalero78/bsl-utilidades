@@ -1439,63 +1439,30 @@ def api_generar_certificado_pdf(wix_id):
             if response.status_code == 200:
                 wix_response = response.json()
                 datos_wix = wix_response.get("data", {})
+
+                if not datos_wix:
+                    print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
+                    return jsonify({
+                        "success": False,
+                        "error": "No se encontraron datos del paciente en el sistema"
+                    }), 404
+
                 print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
                 print(f"📋 Paciente: {datos_wix.get('primerNombre', '')} {datos_wix.get('primerApellido', '')}")
             else:
-                # Si falla, usar datos de ejemplo
-                print(f"⚠️  Error consultando Wix ({response.status_code}), usando datos de ejemplo")
-                datos_wix = {
-                    "_id": wix_id,
-                    "numeroId": "1018483453",
-                    "primerNombre": "DANIELA",
-                    "segundoNombre": "",
-                    "primerApellido": "CETARES",
-                    "segundoApellido": "ZARATE",
-                    "cargo": "Experto Manejo de Información",
-                    "empresa": "PARTICULAR",
-                    "codEmpresa": "PARTICULAR",
-                    "pvEstado": "Pagado",
-                    "tipoExamen": "Ingreso",
-                    "fechaConsulta": datetime.now(),
-                    "mdConceptoFinal": "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES",
-                    "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
-                    "medico": "JUAN 134",
-                    "edad": "29",
-                    "genero": "FEMENINO",
-                    "fechaNacimiento": "16 de febrero de 1996",
-                    "estadoCivil": "Soltero",
-                    "hijos": "0",
-                    "email": "ldcetares16@gmail.com",
-                    "profesionUOficio": ""
-                }
+                print(f"❌ Error consultando Wix: {response.status_code}")
+                return jsonify({
+                    "success": False,
+                    "error": f"Error al obtener datos del paciente (código {response.status_code})"
+                }), 500
+
         except requests.exceptions.RequestException as e:
-            # Si hay error de conexión, usar datos de ejemplo
-            print(f"⚠️  Error de conexión con Wix: {e}")
-            print(f"⚠️  Usando datos de ejemplo")
-            datos_wix = {
-                "_id": wix_id,
-                "numeroId": "1018483453",
-                "primerNombre": "DANIELA",
-                "segundoNombre": "",
-                "primerApellido": "CETARES",
-                "segundoApellido": "ZARATE",
-                "cargo": "Experto Manejo de Información",
-                "empresa": "PARTICULAR",
-                "codEmpresa": "PARTICULAR",
-                "pvEstado": "Pagado",
-                "tipoExamen": "Ingreso",
-                "fechaConsulta": datetime.now(),
-                "mdConceptoFinal": "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES",
-                "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
-                "medico": "JUAN 134",
-                "edad": "29",
-                "genero": "FEMENINO",
-                "fechaNacimiento": "16 de febrero de 1996",
-                "estadoCivil": "Soltero",
-                "hijos": "0",
-                "email": "ldcetares16@gmail.com",
-                "profesionUOficio": ""
-            }
+            print(f"❌ Error de conexión con Wix: {e}")
+            traceback.print_exc()
+            return jsonify({
+                "success": False,
+                "error": "Error de conexión con el sistema de datos. Intenta nuevamente."
+            }), 500
 
         # Transformar datos de Wix al formato del endpoint de certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
@@ -2098,58 +2065,20 @@ def preview_certificado_html(wix_id):
             if response.status_code == 200:
                 wix_response = response.json()
                 datos_wix = wix_response.get("data", {})
+
+                if not datos_wix:
+                    print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
+                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
+
                 print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
             else:
-                print(f"⚠️  Error consultando Wix ({response.status_code}), usando datos de ejemplo")
-                datos_wix = {
-                    "_id": wix_id,
-                    "numeroId": "1018483453",
-                    "primerNombre": "DANIELA",
-                    "segundoNombre": "",
-                    "primerApellido": "CETARES",
-                    "segundoApellido": "ZARATE",
-                    "cargo": "Experto Manejo de Información",
-                    "empresa": "PARTICULAR",
-                    "codEmpresa": "PARTICULAR",
-                    "pvEstado": "Pagado",
-                    "tipoExamen": "Ingreso",
-                    "fechaConsulta": datetime.now(),
-                    "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
-                    "medico": "JUAN 134",
-                    "edad": "29",
-                    "genero": "FEMENINO",
-                    "fechaNacimiento": "16 de febrero de 1996",
-                    "estadoCivil": "Soltero",
-                    "hijos": "0",
-                    "email": "ldcetares16@gmail.com",
-                    "profesionUOficio": ""
-                }
+                print(f"❌ Error consultando Wix: {response.status_code}")
+                return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+
         except Exception as e:
-            print(f"⚠️  Error de conexión a Wix: {str(e)}")
-            print(f"⚠️  Usando datos de ejemplo")
-            datos_wix = {
-                "_id": wix_id,
-                "numeroId": "1018483453",
-                "primerNombre": "DANIELA",
-                "segundoNombre": "",
-                "primerApellido": "CETARES",
-                "segundoApellido": "ZARATE",
-                "cargo": "Experto Manejo de Información",
-                "empresa": "PARTICULAR",
-                "codEmpresa": "PARTICULAR",
-                "pvEstado": "Pagado",
-                "tipoExamen": "Ingreso",
-                "fechaConsulta": datetime.now(),
-                "examenes": ["Examen Médico Osteomuscular", "Audiometría", "Optometría"],
-                "medico": "JUAN 134",
-                "edad": "29",
-                "genero": "FEMENINO",
-                "fechaNacimiento": "16 de febrero de 1996",
-                "estadoCivil": "Soltero",
-                "hijos": "0",
-                "email": "ldcetares16@gmail.com",
-                "profesionUOficio": ""
-            }
+            print(f"❌ Error de conexión a Wix: {str(e)}")
+            traceback.print_exc()
+            return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
 
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
