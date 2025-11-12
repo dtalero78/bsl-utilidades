@@ -351,6 +351,19 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
 # FUNCIONES DE PUPPETEER PARA PDF
 # ================================================
 
+def check_node_available():
+    """
+    Verifica si Node.js está disponible en el sistema
+
+    Returns:
+        bool: True si Node.js está disponible, False si no
+    """
+    try:
+        result = subprocess.run(['node', '--version'], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
 def puppeteer_html_to_pdf(html_content, output_filename="certificado"):
     """
     Convierte HTML a PDF usando Puppeteer (Node.js)
@@ -394,9 +407,23 @@ const fs = require('fs');
     // Leer el HTML del archivo temporal
     const html = fs.readFileSync('{temp_html_path}', 'utf8');
 
-    // Configurar contenido
+    // Configurar contenido y esperar a que se cargue completamente
     await page.setContent(html, {{
-        waitUntil: 'networkidle0'
+        waitUntil: ['load', 'networkidle0']
+    }});
+
+    // Esperar adicional para asegurar que las imágenes se carguen
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Verificar que las imágenes se hayan cargado
+    await page.evaluate(() => {{
+        return Promise.all(
+            Array.from(document.images)
+                .filter(img => !img.complete)
+                .map(img => new Promise((resolve) => {{
+                    img.onload = img.onerror = resolve;
+                }}))
+        );
     }});
 
     // Generar PDF
@@ -2357,19 +2384,25 @@ def api_generar_certificado_pdf(wix_id):
         # Generar PDF usando el engine seleccionado
         try:
             if engine == 'puppeteer':
-                print("🎭 Generando PDF con Puppeteer...")
-                # Necesitamos obtener el HTML renderizado en lugar de la URL
-                # Vamos a usar el endpoint de preview para obtener el HTML
-                html_response = requests.get(preview_url, timeout=30)
-                if html_response.status_code != 200:
-                    raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
+                # Verificar si Node.js está disponible
+                if not check_node_available():
+                    print("⚠️ Node.js no está disponible, usando iLovePDF como fallback")
+                    engine = 'ilovepdf'  # Cambiar a iLovePDF automáticamente
+                else:
+                    print("🎭 Generando PDF con Puppeteer...")
+                    # Necesitamos obtener el HTML renderizado en lugar de la URL
+                    # Vamos a usar el endpoint de preview para obtener el HTML
+                    html_response = requests.get(preview_url, timeout=30)
+                    if html_response.status_code != 200:
+                        raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
 
-                html_content = html_response.text
-                pdf_content = puppeteer_html_to_pdf(
-                    html_content=html_content,
-                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
-                )
-            else:
+                    html_content = html_response.text
+                    pdf_content = puppeteer_html_to_pdf(
+                        html_content=html_content,
+                        output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+                    )
+
+            if engine == 'ilovepdf':
                 print("📄 Generando PDF con iLovePDF...")
                 pdf_content = ilovepdf_html_to_pdf_from_url(
                     html_url=preview_url,
