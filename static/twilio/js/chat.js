@@ -51,23 +51,76 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================================
 
 function inicializarSonidoNotificacion() {
-    // Crear sonido de notificación simple
+    // Intentar cargar sonido de notificación de WhatsApp
     try {
-        notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+Dyg==');
-        notificationSound.volume = 0.3;
+        // Usar sonido de notificación de WhatsApp desde CDN
+        notificationSound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
+        notificationSound.volume = 0.5;
+        notificationSound.preload = 'auto';
+
+        // Si falla la carga, usar Web Audio API para crear un beep
+        notificationSound.addEventListener('error', function() {
+            console.log('Carga de audio falló, usando Web Audio API');
+            notificationSound = crearSonidoWebAudio();
+        });
+
+        console.log('Sonido de notificación inicializado');
     } catch (e) {
-        console.warn('No se pudo inicializar el sonido de notificación');
+        console.warn('No se pudo inicializar el sonido de notificación:', e);
+        notificationSound = crearSonidoWebAudio();
+    }
+}
+
+function crearSonidoWebAudio() {
+    // Crear un beep usando Web Audio API como fallback
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        return {
+            play: function() {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+
+                return Promise.resolve();
+            }
+        };
+    } catch (e) {
+        console.warn('Web Audio API no disponible:', e);
+        return null;
     }
 }
 
 function reproducirSonidoNotificacion() {
-    if (notificationSound && document.hidden) {
-        // Solo reproducir si la ventana no está visible
-        try {
-            notificationSound.play().catch(e => console.log('No se pudo reproducir sonido'));
-        } catch (e) {
-            console.log('No se pudo reproducir sonido');
+    if (!notificationSound) return;
+
+    try {
+        // Reproducir sonido siempre (no solo cuando la ventana está oculta)
+        // Resetear el audio para poder reproducirlo múltiples veces
+        if (notificationSound.currentTime !== undefined) {
+            notificationSound.currentTime = 0;
         }
+
+        notificationSound.play().catch(e => {
+            console.log('No se pudo reproducir sonido:', e);
+            // Si falla, intentar con Web Audio API
+            const fallbackSound = crearSonidoWebAudio();
+            if (fallbackSound) {
+                fallbackSound.play();
+            }
+        });
+    } catch (e) {
+        console.log('Error al reproducir sonido:', e);
     }
 }
 
