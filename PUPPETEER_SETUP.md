@@ -7,9 +7,11 @@ Este proyecto incluye soporte para generar PDFs usando Puppeteer como alternativ
 ### Archivos Necesarios
 
 1. **`package.json`** - Define dependencias de Node.js (Puppeteer)
-2. **`build.sh`** - Script de build que instala Python + Node.js dependencies
-3. **`.puppeteerrc.cjs`** - Configuración de Puppeteer
-4. **`.do/app.yaml`** - Configuración de Digital Ocean App Platform
+2. **`package-lock.json`** - Lockfile de dependencias (requerido por Digital Ocean)
+3. **`build.sh`** - Script de build que instala Python + Node.js dependencies
+4. **`Aptfile`** - Define dependencias del sistema (librerías de Chromium)
+5. **`.puppeteerrc.cjs`** - Configuración de Puppeteer
+6. **`.do/app.yaml`** - Configuración de Digital Ocean App Platform
 
 ## 🚀 Deployment en Digital Ocean
 
@@ -19,6 +21,7 @@ Digital Ocean App Platform detectará automáticamente:
 - **Python** como runtime principal
 - **Node.js** para Puppeteer (via `package.json`)
 - **Build script** (`build.sh`) para instalar ambos
+- **Dependencias del sistema** (via `Aptfile`) para Chromium
 
 ### Configuración Manual (si es necesario)
 
@@ -45,15 +48,15 @@ Si el auto-deploy falla, configura manualmente en Digital Ocean:
 
 ## 🔧 Dependencias del Sistema
 
-El script `build.sh` intenta instalar automáticamente las dependencias de Chromium:
+Las dependencias de Chromium se instalan automáticamente via `Aptfile`:
 - libnss3, libatk1.0-0, libatk-bridge2.0-0
 - libcups2, libdrm2, libxkbcommon0
 - libxcomposite1, libxdamage1, libxfixes3
 - libxrandr2, libgbm1, libasound2
 - libpango-1.0-0, libcairo2, libatspi2.0-0
-- ca-certificates, fonts-liberation
+- ca-certificates, fonts-liberation, libxshmfence1
 
-**Si falla la instalación automática**, contacta a Digital Ocean Support para instalarlas manualmente.
+Digital Ocean lee automáticamente el archivo `Aptfile` y ejecuta `apt-get install` antes del build.
 
 ## 📍 Endpoints con Puppeteer
 
