@@ -420,28 +420,62 @@ const puppeteer = require('puppeteer');
 
     console.log('✅ Página cargada, esperando renderizado completo...');
 
-    // Esperar a que todas las imágenes se carguen
-    await page.evaluate(() => {{
+    // Esperar a que todas las imágenes se carguen con timeout más largo
+    const imageLoadResult = await page.evaluate(() => {{
         return Promise.all(
-            Array.from(document.images).map(img => {{
-                if (img.complete) return Promise.resolve();
-                return new Promise((resolve, reject) => {{
-                    img.addEventListener('load', resolve);
-                    img.addEventListener('error', () => {{
-                        console.log('⚠️ Error cargando imagen:', img.src);
-                        resolve(); // Continuar incluso si falla
-                    }});
-                    // Timeout por imagen
-                    setTimeout(resolve, 5000);
+            Array.from(document.images).map((img, index) => {{
+                return new Promise((resolve) => {{
+                    // Si ya está cargada, verificar dimensiones
+                    if (img.complete && img.naturalHeight !== 0) {{
+                        console.log(`Imagen ${{index}} ya cargada: ${{img.src.substring(0, 60)}}... (${{img.naturalWidth}}x${{img.naturalHeight}})`);
+                        resolve({{ loaded: true, src: img.src }});
+                        return;
+                    }}
+
+                    // Si no está cargada, esperar eventos
+                    let resolved = false;
+
+                    const onLoad = () => {{
+                        if (!resolved) {{
+                            resolved = true;
+                            console.log(`Imagen ${{index}} cargada: ${{img.src.substring(0, 60)}}... (${{img.naturalWidth}}x${{img.naturalHeight}})`);
+                            resolve({{ loaded: true, src: img.src }});
+                        }}
+                    }};
+
+                    const onError = () => {{
+                        if (!resolved) {{
+                            resolved = true;
+                            console.log(`⚠️ Error cargando imagen ${{index}}: ${{img.src}}`);
+                            resolve({{ loaded: false, src: img.src }});
+                        }}
+                    }};
+
+                    img.addEventListener('load', onLoad);
+                    img.addEventListener('error', onError);
+
+                    // Timeout más largo para imágenes de Wix
+                    setTimeout(() => {{
+                        if (!resolved) {{
+                            resolved = true;
+                            if (img.complete && img.naturalHeight !== 0) {{
+                                console.log(`Imagen ${{index}} cargada por timeout: ${{img.src.substring(0, 60)}}... (${{img.naturalWidth}}x${{img.naturalHeight}})`);
+                                resolve({{ loaded: true, src: img.src }});
+                            }} else {{
+                                console.log(`⚠️ Timeout imagen ${{index}}: ${{img.src.substring(0, 60)}}...`);
+                                resolve({{ loaded: false, src: img.src }});
+                            }}
+                        }}
+                    }}, 10000);  // 10 segundos por imagen
                 }});
             }})
         );
     }});
 
-    console.log('🖼️  Imágenes procesadas');
+    console.log('🖼️  Imágenes procesadas:', JSON.stringify(imageLoadResult));
 
     // Esperar un poco más para asegurar renderizado completo
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Generar PDF
     console.log('📄 Generando PDF...');
@@ -477,12 +511,12 @@ const puppeteer = require('puppeteer');
         env = os.environ.copy()
         env['NODE_PATH'] = node_modules_path
 
-        # Ejecutar Node.js con el script
+        # Ejecutar Node.js con el script (timeout aumentado para espera de imágenes)
         result = subprocess.run(
             ['node', temp_script_path],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=90,  # 90 segundos para dar tiempo a que carguen las imágenes de Wix
             env=env
         )
 
