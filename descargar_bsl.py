@@ -3106,6 +3106,17 @@ def twilio_static(filename):
     """Servir archivos estáticos CSS/JS para Twilio"""
     return send_from_directory('static/twilio', filename)
 
+# Endpoint de prueba
+@app.route('/test-twilio')
+def test_twilio():
+    """Endpoint de prueba para verificar que el código se cargó"""
+    return jsonify({
+        'status': 'ok',
+        'message': 'Twilio integration code loaded successfully',
+        'twilio_available': TWILIO_AVAILABLE,
+        'routes_registered': True
+    })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
