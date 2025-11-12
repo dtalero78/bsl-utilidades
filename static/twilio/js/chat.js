@@ -8,6 +8,8 @@ let conversaciones = {};
 let conversacionActual = null;
 let autoRefreshInterval = null;
 let isLoadingMessages = false;
+let lastMessageCount = 0;
+let notificationSound = null;
 
 // API Configuration
 const API_BASE = window.API_BASE || window.location.origin;
@@ -18,16 +20,21 @@ const API_BASE = window.API_BASE || window.location.origin;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Twilio-BSL Chat initialized');
+
+    // Inicializar sonido de notificación
+    inicializarSonidoNotificacion();
+
+    // Cargar conversaciones
     cargarConversaciones();
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh cada 5 segundos (como WhatsApp)
     autoRefreshInterval = setInterval(() => {
         if (conversacionActual) {
-            actualizarConversacionActual();
+            actualizarConversacionActualSilencioso();
         } else {
-            cargarConversaciones();
+            cargarConversacionesSilencioso();
         }
-    }, 30000);
+    }, 5000); // 5 segundos = actualización casi en tiempo real
 
     // Auto-expand textarea
     const messageInput = document.getElementById('messageInput');
@@ -38,6 +45,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ============================================================================
+// NOTIFICATION SOUND
+// ============================================================================
+
+function inicializarSonidoNotificacion() {
+    // Crear sonido de notificación simple
+    try {
+        notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVq3o7qlXFglCn+Dyg==');
+        notificationSound.volume = 0.3;
+    } catch (e) {
+        console.warn('No se pudo inicializar el sonido de notificación');
+    }
+}
+
+function reproducirSonidoNotificacion() {
+    if (notificationSound && document.hidden) {
+        // Solo reproducir si la ventana no está visible
+        try {
+            notificationSound.play().catch(e => console.log('No se pudo reproducir sonido'));
+        } catch (e) {
+            console.log('No se pudo reproducir sonido');
+        }
+    }
+}
 
 // ============================================================================
 // CONVERSATIONS LOADING
@@ -130,6 +162,11 @@ async function abrirConversacion(numero) {
         if (data.success) {
             renderizarChat(numero, data);
             mostrarInputArea();
+
+            // Inicializar contador de mensajes para detectar nuevos
+            const allMessages = mergeMessages(data.twilio_messages || [], data.wix_data?.mensajes || []);
+            lastMessageCount = allMessages.length;
+            console.log(`Conversación cargada: ${lastMessageCount} mensajes`);
         } else {
             console.error('Error loading conversation:', data.error);
             mostrarError('Error al cargar conversación');
@@ -309,6 +346,90 @@ function handleKeyPress(event) {
 function actualizarConversacionActual() {
     if (conversacionActual) {
         abrirConversacion(conversacionActual);
+    }
+}
+
+async function actualizarConversacionActualSilencioso() {
+    if (!conversacionActual || isLoadingMessages) return;
+
+    try {
+        isLoadingMessages = true;
+        const response = await fetch(`${API_BASE}/api/conversacion/${conversacionActual}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            const currentScrollHeight = messagesContainer.scrollHeight;
+            const currentScrollTop = messagesContainer.scrollTop;
+            const isAtBottom = (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) < 100;
+
+            // Merge and render messages
+            const allMessages = mergeMessages(data.twilio_messages || [], data.wix_data?.mensajes || []);
+
+            // Verificar si hay mensajes nuevos
+            if (allMessages.length > lastMessageCount) {
+                console.log(`📨 Nuevo mensaje detectado (${allMessages.length - lastMessageCount} nuevo(s))`);
+                reproducirSonidoNotificacion();
+
+                // Mostrar notificación del navegador
+                mostrarNotificacionNavegador('Nuevo mensaje', allMessages[allMessages.length - 1].body);
+            }
+
+            lastMessageCount = allMessages.length;
+
+            // Renderizar mensajes
+            let messagesHtml = '';
+            allMessages.forEach(msg => {
+                messagesHtml += renderizarMensaje(msg);
+            });
+
+            messagesContainer.innerHTML = messagesHtml;
+
+            // Mantener scroll position a menos que esté al fondo
+            if (isAtBottom) {
+                scrollToBottom();
+            } else {
+                messagesContainer.scrollTop = currentScrollTop;
+            }
+        }
+    } catch (error) {
+        console.error('Error en actualización silenciosa:', error);
+    } finally {
+        isLoadingMessages = false;
+    }
+}
+
+async function cargarConversacionesSilencioso() {
+    try {
+        const response = await fetch(`${API_BASE}/api/conversaciones`);
+        const data = await response.json();
+
+        if (data.success) {
+            conversaciones = data.conversaciones;
+            renderizarConversaciones();
+        }
+    } catch (error) {
+        console.error('Error cargando conversaciones:', error);
+    }
+}
+
+function mostrarNotificacionNavegador(titulo, mensaje) {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+        new Notification(titulo, {
+            body: mensaje.substring(0, 100),
+            icon: '/static/images/whatsapp-icon.png',
+            tag: 'twilio-bsl-notification'
+        });
+    } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification(titulo, {
+                    body: mensaje.substring(0, 100)
+                });
+            }
+        });
     }
 }
 
