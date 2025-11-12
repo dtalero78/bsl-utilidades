@@ -397,6 +397,16 @@ def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
         def download_and_encode_image(url):
             """Descarga una imagen y la convierte a base64"""
             try:
+                # Convertir URIs de Wix a URLs públicas
+                if url.startswith('wix:image://v1/'):
+                    parts = url.replace('wix:image://v1/', '').split('/')
+                    if len(parts) > 0:
+                        image_id = parts[0]
+                        filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
+                        # Convertir a URL pública de Wix
+                        url = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_400,h_400,al_c,q_85/{filename}"
+                        print(f"  🔄 Convertido URI Wix a: {url[:80]}...")
+
                 print(f"  📥 Descargando: {url[:80]}...")
                 img_response = requests.get(url, timeout=10)
                 if img_response.status_code == 200:
@@ -419,8 +429,8 @@ def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
             full_tag = match.group(0)
             img_url = match.group(1)
 
-            # Solo procesar URLs externas (http/https), no data URIs
-            if img_url.startswith('http://') or img_url.startswith('https://'):
+            # Procesar URLs externas (http/https) y URIs de Wix, pero no data URIs
+            if img_url.startswith(('http://', 'https://', 'wix:image://')):
                 base64_url = download_and_encode_image(img_url)
                 return full_tag.replace(img_url, base64_url)
             else:
