@@ -420,6 +420,21 @@ const puppeteer = require('puppeteer');
 
     console.log('✅ Página cargada, esperando renderizado completo...');
 
+    // 🔍 LOGGING EXPLÍCITO: Mostrar TODAS las URLs de imágenes en la página
+    await page.evaluate(() => {{
+        const images = Array.from(document.images);
+        console.log('');
+        console.log('🔍 ========== IMÁGENES ENCONTRADAS EN LA PÁGINA ==========');
+        console.log(`🔍 Total de imágenes: ${{images.length}}`);
+        images.forEach((img, index) => {{
+            console.log(`🔍 Imagen ${{index}}: ${{img.src}}`);
+            console.log(`   → Alt: "${{img.alt}}"`);
+            console.log(`   → Complete: ${{img.complete}}, Width: ${{img.naturalWidth}}, Height: ${{img.naturalHeight}}`);
+        }});
+        console.log('🔍 =====================================================');
+        console.log('');
+    }});
+
     // Esperar a que todas las imágenes se carguen con timeout más largo
     const imageLoadResult = await page.evaluate(() => {{
         return Promise.all(
@@ -2160,10 +2175,14 @@ def api_generar_certificado_pdf(wix_id):
                                     image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
                                     # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
                                     datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
+                                    print(f"🔍 URL FOTO CONVERTIDA: {datos_wix['foto_paciente']}")
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
+                                    print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
                             else:
                                 datos_wix['foto_paciente'] = foto_wix
+                                print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
@@ -2793,10 +2812,14 @@ def preview_certificado_html(wix_id):
                                     image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
                                     # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
                                     datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
+                                    print(f"🔍 URL FOTO CONVERTIDA: {datos_wix['foto_paciente']}")
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
+                                    print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
                             else:
                                 datos_wix['foto_paciente'] = foto_wix
+                                print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
