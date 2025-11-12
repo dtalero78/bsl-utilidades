@@ -10,7 +10,7 @@ let autoRefreshInterval = null;
 let isLoadingMessages = false;
 
 // API Configuration
-const API_BASE = window.location.origin;
+const API_BASE = window.API_BASE || window.location.origin;
 
 // ============================================================================
 // INITIALIZATION

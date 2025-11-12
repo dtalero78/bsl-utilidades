@@ -2824,5 +2824,280 @@ def proxy_medidata(endpoint):
         return response, 500
 
 
+# ============================================================================
+# TWILIO-BSL WHATSAPP INTEGRATION
+# ============================================================================
+
+# Configuración Twilio
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+573153369631')
+WIX_BASE_URL = os.getenv('WIX_BASE_URL', 'https://www.bsl.com.co/_functions')
+
+# Inicializar cliente Twilio
+twilio_client = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+    try:
+        from twilio.rest import Client
+        from twilio.twiml.messaging_response import MessagingResponse
+        twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        logger.info("Cliente Twilio inicializado correctamente")
+    except ImportError:
+        logger.warning("SDK de Twilio no instalado. Ejecutar: pip install twilio")
+    except Exception as e:
+        logger.warning(f"No se pudo inicializar Twilio: {str(e)}")
+
+# Funciones de integración Wix CHATBOT
+def obtener_conversacion_por_celular(celular):
+    """Obtiene conversación desde Wix CHATBOT"""
+    try:
+        celular_clean = celular.replace('whatsapp:', '').replace('+', '').strip()
+        url = f"{WIX_BASE_URL}/obtenerConversacion"
+        response = requests.get(url, params={'userId': celular_clean}, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logger.error(f"Error obteniendo conversación: {str(e)}")
+        return None
+
+def guardar_mensaje_en_wix(userId, mensaje_data):
+    """Guarda mensaje en Wix CHATBOT"""
+    try:
+        url = f"{WIX_BASE_URL}/guardarConversacion"
+        payload = {
+            "userId": userId,
+            "nombre": mensaje_data.get('nombre', 'Usuario'),
+            "mensajes": [mensaje_data.get('mensaje', {})],
+            "threadId": mensaje_data.get('threadId', ''),
+            "ultimoMensajeBot": mensaje_data.get('ultimoMensajeBot', '')
+        }
+        response = requests.post(url, json=payload, timeout=10)
+        return response.status_code == 200
+    except Exception as e:
+        logger.error(f"Error guardando en Wix: {str(e)}")
+        return False
+
+def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
+    """Envía mensaje WhatsApp via Twilio"""
+    try:
+        if not twilio_client:
+            logger.error("Cliente Twilio no inicializado")
+            return None
+
+        if not to_number.startswith('whatsapp:'):
+            to_number = f'whatsapp:{to_number}'
+
+        message_params = {
+            'from_': TWILIO_WHATSAPP_NUMBER,
+            'to': to_number,
+            'body': message_body
+        }
+
+        if media_url:
+            message_params['media_url'] = [media_url]
+
+        message = twilio_client.messages.create(**message_params)
+        logger.info(f"Mensaje enviado. SID: {message.sid}")
+
+        # Guardar en Wix
+        userId = to_number.replace('whatsapp:', '').replace('+', '')
+        mensaje_data = {
+            'mensaje': {
+                'from': 'sistema',
+                'mensaje': message_body,
+                'timestamp': datetime.now().isoformat()
+            }
+        }
+        guardar_mensaje_en_wix(userId, mensaje_data)
+
+        return message.sid
+    except Exception as e:
+        logger.error(f"Error enviando WhatsApp: {str(e)}")
+        return None
+
+# Rutas Twilio-BSL
+@app.route('/twilio-chat')
+def twilio_chat_interface():
+    """Interfaz principal del chat WhatsApp"""
+    return render_template('twilio/chat.html')
+
+@app.route('/twilio-chat/health')
+def twilio_health():
+    """Health check del servicio Twilio"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'twilio-bsl',
+        'timestamp': datetime.now().isoformat(),
+        'twilio_configured': twilio_client is not None
+    })
+
+@app.route('/twilio-chat/api/conversaciones')
+def twilio_get_conversaciones():
+    """Obtiene todas las conversaciones"""
+    try:
+        if not twilio_client:
+            return jsonify({
+                'success': False,
+                'error': 'Twilio no configurado',
+                'conversaciones': {},
+                'total': 0
+            })
+
+        # Obtener mensajes de Twilio
+        messages = twilio_client.messages.list(from_=TWILIO_WHATSAPP_NUMBER, limit=50)
+        incoming = twilio_client.messages.list(to=TWILIO_WHATSAPP_NUMBER, limit=50)
+        all_messages = list(messages) + list(incoming)
+        all_messages.sort(key=lambda x: x.date_sent, reverse=True)
+
+        # Agrupar por conversación
+        conversaciones = {}
+        for msg in all_messages[:100]:
+            numero = msg.to if msg.from_ == TWILIO_WHATSAPP_NUMBER else msg.from_
+            numero_clean = numero.replace('whatsapp:', '')
+
+            if numero_clean not in conversaciones:
+                conversaciones[numero_clean] = []
+
+            conversaciones[numero_clean].append({
+                'sid': msg.sid,
+                'from': msg.from_,
+                'to': msg.to,
+                'body': msg.body,
+                'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
+                'status': msg.status,
+                'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound'
+            })
+
+        # Enriquecer con datos de Wix
+        for numero in conversaciones.keys():
+            wix_data = obtener_conversacion_por_celular(numero)
+            if wix_data:
+                conversaciones[numero] = {
+                    'twilio_messages': conversaciones[numero],
+                    'wix_data': wix_data,
+                    'numero': numero,
+                    'nombre': wix_data.get('nombre', 'Usuario'),
+                    'stopBot': wix_data.get('stopBot', False),
+                    'observaciones': wix_data.get('observaciones', '')
+                }
+
+        return jsonify({
+            'success': True,
+            'conversaciones': conversaciones,
+            'total': len(conversaciones)
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo conversaciones: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/twilio-chat/api/conversacion/<numero>')
+def twilio_get_conversacion(numero):
+    """Obtiene conversación específica"""
+    try:
+        wix_data = obtener_conversacion_por_celular(numero)
+
+        if twilio_client:
+            numero_whatsapp = f'whatsapp:+{numero}' if not numero.startswith('whatsapp:') else numero
+            messages = twilio_client.messages.list(limit=50)
+
+            conversacion_messages = [
+                {
+                    'sid': msg.sid,
+                    'from': msg.from_,
+                    'to': msg.to,
+                    'body': msg.body,
+                    'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
+                    'status': msg.status,
+                    'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound'
+                }
+                for msg in messages
+                if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp
+            ]
+            conversacion_messages.sort(key=lambda x: x['date_sent'])
+        else:
+            conversacion_messages = []
+
+        return jsonify({
+            'success': True,
+            'numero': numero,
+            'wix_data': wix_data,
+            'twilio_messages': conversacion_messages
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo conversación: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
+def twilio_enviar_mensaje():
+    """Envía mensaje WhatsApp"""
+    try:
+        data = request.json
+        to_number = data.get('to')
+        message_body = data.get('message')
+        media_url = data.get('media_url')
+
+        if not to_number or not message_body:
+            return jsonify({
+                'success': False,
+                'error': 'Faltan campos requeridos: to, message'
+            }), 400
+
+        message_sid = enviar_mensaje_whatsapp(to_number, message_body, media_url)
+
+        if message_sid:
+            return jsonify({
+                'success': True,
+                'message_sid': message_sid,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Error al enviar mensaje'
+            }), 500
+    except Exception as e:
+        logger.error(f"Error en enviar_mensaje: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/twilio-chat/webhook/twilio', methods=['POST'])
+def twilio_webhook():
+    """Webhook para mensajes entrantes de Twilio"""
+    try:
+        from_number = request.form.get('From')
+        to_number = request.form.get('To')
+        body = request.form.get('Body')
+        message_sid = request.form.get('MessageSid')
+
+        logger.info(f"Mensaje entrante de {from_number}: {body}")
+
+        # Guardar en Wix
+        userId = from_number.replace('whatsapp:', '').replace('+', '')
+        mensaje_data = {
+            'mensaje': {
+                'from': 'usuario',
+                'mensaje': body,
+                'timestamp': datetime.now().isoformat()
+            }
+        }
+        guardar_mensaje_en_wix(userId, mensaje_data)
+
+        # Respuesta TwiML vacía
+        if 'MessagingResponse' in globals():
+            resp = MessagingResponse()
+            return str(resp), 200
+        else:
+            return '', 200
+    except Exception as e:
+        logger.error(f"Error en webhook Twilio: {str(e)}")
+        return '', 500
+
+# Servir archivos estáticos de Twilio
+@app.route('/twilio-chat/static/<path:filename>')
+def twilio_static(filename):
+    """Servir archivos estáticos CSS/JS para Twilio"""
+    return send_from_directory('static/twilio', filename)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
