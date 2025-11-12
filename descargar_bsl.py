@@ -2892,7 +2892,7 @@ def guardar_mensaje_en_wix(userId, mensaje_data):
         return False
 
 def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
-    """Envía mensaje WhatsApp via Twilio"""
+    """Envía mensaje WhatsApp via Twilio - SOLO Twilio, sin Wix"""
     try:
         if not twilio_client:
             logger.error("Cliente Twilio no inicializado")
@@ -2911,22 +2911,17 @@ def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
             message_params['media_url'] = [media_url]
 
         message = twilio_client.messages.create(**message_params)
-        logger.info(f"Mensaje enviado. SID: {message.sid}")
+        logger.info(f"✅ Mensaje enviado via Twilio. SID: {message.sid}")
+        logger.info(f"   De: {TWILIO_WHATSAPP_NUMBER}")
+        logger.info(f"   Para: {to_number}")
+        logger.info(f"   Contenido: {message_body[:50]}...")
 
-        # Guardar en Wix
-        userId = to_number.replace('whatsapp:', '').replace('+', '')
-        mensaje_data = {
-            'mensaje': {
-                'from': 'sistema',
-                'mensaje': message_body,
-                'timestamp': datetime.now().isoformat()
-            }
-        }
-        guardar_mensaje_en_wix(userId, mensaje_data)
-
+        # NO guardamos en Wix - solo Twilio
         return message.sid
     except Exception as e:
-        logger.error(f"Error enviando WhatsApp: {str(e)}")
+        logger.error(f"❌ Error enviando WhatsApp: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 # Rutas Twilio-BSL
@@ -2947,7 +2942,7 @@ def twilio_health():
 
 @app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
-    """Obtiene todas las conversaciones"""
+    """Obtiene todas las conversaciones - SOLO desde Twilio"""
     try:
         if not twilio_client:
             return jsonify({
@@ -2958,87 +2953,135 @@ def twilio_get_conversaciones():
             })
 
         # Obtener mensajes de Twilio
-        messages = twilio_client.messages.list(from_=TWILIO_WHATSAPP_NUMBER, limit=50)
-        incoming = twilio_client.messages.list(to=TWILIO_WHATSAPP_NUMBER, limit=50)
+        logger.info("Obteniendo mensajes de Twilio...")
+        messages = twilio_client.messages.list(from_=TWILIO_WHATSAPP_NUMBER, limit=100)
+        incoming = twilio_client.messages.list(to=TWILIO_WHATSAPP_NUMBER, limit=100)
         all_messages = list(messages) + list(incoming)
         all_messages.sort(key=lambda x: x.date_sent, reverse=True)
 
+        logger.info(f"Total de mensajes obtenidos: {len(all_messages)}")
+
         # Agrupar por conversación
         conversaciones = {}
-        for msg in all_messages[:100]:
+        for msg in all_messages:
+            # Determinar el número del contacto
             numero = msg.to if msg.from_ == TWILIO_WHATSAPP_NUMBER else msg.from_
-            numero_clean = numero.replace('whatsapp:', '')
+            numero_clean = numero.replace('whatsapp:', '').replace('+', '')
 
             if numero_clean not in conversaciones:
-                conversaciones[numero_clean] = []
+                conversaciones[numero_clean] = {
+                    'numero': numero_clean,
+                    'nombre': f"Usuario {numero_clean[-4:]}",  # Últimos 4 dígitos
+                    'messages': [],
+                    'last_message_time': None,
+                    'last_message_preview': '',
+                    'unread_count': 0
+                }
 
-            conversaciones[numero_clean].append({
+            # Agregar mensaje a la conversación
+            message_data = {
                 'sid': msg.sid,
                 'from': msg.from_,
                 'to': msg.to,
                 'body': msg.body,
                 'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
                 'status': msg.status,
-                'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound'
-            })
+                'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
+                'media_count': msg.num_media if hasattr(msg, 'num_media') else 0
+            }
 
-        # Enriquecer con datos de Wix
-        for numero in conversaciones.keys():
-            wix_data = obtener_conversacion_por_celular(numero)
-            if wix_data:
-                conversaciones[numero] = {
-                    'twilio_messages': conversaciones[numero],
-                    'wix_data': wix_data,
-                    'numero': numero,
-                    'nombre': wix_data.get('nombre', 'Usuario'),
-                    'stopBot': wix_data.get('stopBot', False),
-                    'observaciones': wix_data.get('observaciones', '')
-                }
+            conversaciones[numero_clean]['messages'].append(message_data)
+
+            # Actualizar último mensaje y preview
+            if not conversaciones[numero_clean]['last_message_time'] or \
+               msg.date_sent > conversaciones[numero_clean]['last_message_time']:
+                conversaciones[numero_clean]['last_message_time'] = msg.date_sent
+                conversaciones[numero_clean]['last_message_preview'] = msg.body[:50] if msg.body else '(media)'
+
+        # Ordenar mensajes dentro de cada conversación
+        for numero, data in conversaciones.items():
+            data['messages'].sort(key=lambda x: x['date_sent'])
+
+        # Convertir a formato esperado por el frontend
+        conversaciones_formateadas = {}
+        for numero, data in conversaciones.items():
+            conversaciones_formateadas[numero] = {
+                'twilio_messages': data['messages'],
+                'numero': numero,
+                'nombre': data['nombre'],
+                'last_message': data['last_message_preview'],
+                'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None
+            }
+
+        logger.info(f"Conversaciones agrupadas: {len(conversaciones_formateadas)}")
 
         return jsonify({
             'success': True,
-            'conversaciones': conversaciones,
-            'total': len(conversaciones)
+            'conversaciones': conversaciones_formateadas,
+            'total': len(conversaciones_formateadas),
+            'source': 'twilio_only'
         })
     except Exception as e:
         logger.error(f"Error obteniendo conversaciones: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/twilio-chat/api/conversacion/<numero>')
 def twilio_get_conversacion(numero):
-    """Obtiene conversación específica"""
+    """Obtiene conversación específica - SOLO desde Twilio"""
     try:
-        wix_data = obtener_conversacion_por_celular(numero)
+        if not twilio_client:
+            return jsonify({
+                'success': False,
+                'error': 'Twilio no configurado'
+            }), 500
 
-        if twilio_client:
-            numero_whatsapp = f'whatsapp:+{numero}' if not numero.startswith('whatsapp:') else numero
-            messages = twilio_client.messages.list(limit=50)
+        logger.info(f"Obteniendo conversación para número: {numero}")
 
-            conversacion_messages = [
-                {
+        # Normalizar número
+        if not numero.startswith('whatsapp:'):
+            if numero.startswith('+'):
+                numero_whatsapp = f'whatsapp:{numero}'
+            else:
+                numero_whatsapp = f'whatsapp:+{numero}'
+        else:
+            numero_whatsapp = numero
+
+        # Obtener TODOS los mensajes y filtrar por número
+        logger.info(f"Buscando mensajes para: {numero_whatsapp}")
+        all_messages = twilio_client.messages.list(limit=200)
+
+        conversacion_messages = []
+        for msg in all_messages:
+            if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp:
+                conversacion_messages.append({
                     'sid': msg.sid,
                     'from': msg.from_,
                     'to': msg.to,
                     'body': msg.body,
                     'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
                     'status': msg.status,
-                    'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound'
-                }
-                for msg in messages
-                if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp
-            ]
-            conversacion_messages.sort(key=lambda x: x['date_sent'])
-        else:
-            conversacion_messages = []
+                    'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
+                    'media_count': msg.num_media if hasattr(msg, 'num_media') else 0
+                })
+
+        # Ordenar cronológicamente
+        conversacion_messages.sort(key=lambda x: x['date_sent'])
+
+        logger.info(f"Mensajes encontrados: {len(conversacion_messages)}")
 
         return jsonify({
             'success': True,
             'numero': numero,
-            'wix_data': wix_data,
-            'twilio_messages': conversacion_messages
+            'twilio_messages': conversacion_messages,
+            'total_messages': len(conversacion_messages),
+            'source': 'twilio_only'
         })
     except Exception as e:
         logger.error(f"Error obteniendo conversación: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
@@ -3075,34 +3118,36 @@ def twilio_enviar_mensaje():
 
 @app.route('/twilio-chat/webhook/twilio', methods=['POST'])
 def twilio_webhook():
-    """Webhook para mensajes entrantes de Twilio"""
+    """Webhook para mensajes entrantes de Twilio - SOLO logging"""
     try:
         from_number = request.form.get('From')
         to_number = request.form.get('To')
         body = request.form.get('Body')
         message_sid = request.form.get('MessageSid')
+        num_media = request.form.get('NumMedia', '0')
 
-        logger.info(f"Mensaje entrante de {from_number}: {body}")
+        logger.info("="*60)
+        logger.info("📨 MENSAJE ENTRANTE DE TWILIO")
+        logger.info(f"   SID: {message_sid}")
+        logger.info(f"   De: {from_number}")
+        logger.info(f"   Para: {to_number}")
+        logger.info(f"   Mensaje: {body}")
+        logger.info(f"   Media: {num_media} archivo(s)")
+        logger.info("="*60)
 
-        # Guardar en Wix
-        userId = from_number.replace('whatsapp:', '').replace('+', '')
-        mensaje_data = {
-            'mensaje': {
-                'from': 'usuario',
-                'mensaje': body,
-                'timestamp': datetime.now().isoformat()
-            }
-        }
-        guardar_mensaje_en_wix(userId, mensaje_data)
+        # NO guardamos en Wix - Twilio ya lo guardó automáticamente
+        # El mensaje estará disponible cuando se consulte la API de Twilio
 
-        # Respuesta TwiML vacía
-        if 'MessagingResponse' in globals():
+        # Respuesta TwiML vacía (sin auto-reply)
+        if TWILIO_AVAILABLE and MessagingResponse:
             resp = MessagingResponse()
             return str(resp), 200
         else:
             return '', 200
     except Exception as e:
-        logger.error(f"Error en webhook Twilio: {str(e)}")
+        logger.error(f"❌ Error en webhook Twilio: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return '', 500
 
 # Servir archivos estáticos de Twilio

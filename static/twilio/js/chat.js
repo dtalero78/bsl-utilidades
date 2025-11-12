@@ -183,7 +183,8 @@ function renderizarChat(numero, data) {
     scrollToBottom();
 }
 
-function mergeMessages(twilioMessages, wixMessages) {
+function mergeMessages(twilioMessages, wixMessages = []) {
+    // SOLO Twilio - sin Wix
     const merged = [];
 
     // Add Twilio messages
@@ -195,17 +196,6 @@ function mergeMessages(twilioMessages, wixMessages) {
             body: msg.body,
             timestamp: msg.date_sent,
             status: msg.status
-        });
-    });
-
-    // Add Wix messages
-    wixMessages.forEach(msg => {
-        merged.push({
-            type: 'wix',
-            direction: msg.from === 'usuario' ? 'inbound' : 'outbound',
-            body: msg.mensaje,
-            timestamp: msg.timestamp,
-            status: 'delivered'
         });
     });
 
