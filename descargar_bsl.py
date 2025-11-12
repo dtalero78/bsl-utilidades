@@ -489,8 +489,25 @@ const puppeteer = require('puppeteer');
 
     console.log('🖼️  Imágenes procesadas:', JSON.stringify(imageLoadResult));
 
-    // Esperar un poco más para asegurar renderizado completo
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Forzar repaint del navegador para asegurar que las imágenes se rendericen
+    await page.evaluate(() => {{
+        // Forzar reflow/repaint
+        document.body.style.display = 'none';
+        document.body.offsetHeight;  // Trigger reflow
+        document.body.style.display = '';
+
+        // Forzar que las imágenes se pinten
+        document.images.forEach(img => {{
+            img.style.visibility = 'hidden';
+            img.offsetHeight;  // Trigger reflow
+            img.style.visibility = 'visible';
+        }});
+    }});
+
+    console.log('✅ Repaint forzado completado');
+
+    // Esperar aún más tiempo para asegurar renderizado completo (aumentado a 5 segundos)
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // Generar PDF
     console.log('📄 Generando PDF...');
