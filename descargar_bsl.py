@@ -12,6 +12,9 @@ import tempfile
 import csv
 import io
 import logging
+import subprocess
+import json as json_module
+import time
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +42,8 @@ CORS(app, resources={
     r"/descargar-pdf-drive/*": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "OPTIONS"]},
     r"/descargar-pdf-empresas": {"origins": ["https://www.bsl.com.co", "https://www.lgs.com.co", "https://www.lgsplataforma.com"], "methods": ["GET", "POST", "OPTIONS"]},
     r"/generar-certificado-medico": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Permitir cualquier origen para Wix
+    r"/generar-certificado-medico-puppeteer": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Endpoint con Puppeteer
+    r"/generar-certificado-desde-wix-puppeteer/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Wix con Puppeteer
     r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
     r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir archivos HTML temporales para iLovePDF
 })
@@ -340,6 +345,129 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
         print(f"❌ Error en iLovePDF HTML→PDF: {e}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"❌ Respuesta del servidor: {e.response.text}")
+        raise
+
+# ================================================
+# FUNCIONES DE PUPPETEER PARA PDF
+# ================================================
+
+def puppeteer_html_to_pdf(html_content, output_filename="certificado"):
+    """
+    Convierte HTML a PDF usando Puppeteer (Node.js)
+
+    Args:
+        html_content: Contenido HTML como string
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+    """
+    try:
+        print("🎭 Iniciando conversión HTML→PDF con Puppeteer...")
+
+        # Crear archivo temporal para el HTML
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
+            temp_html.write(html_content)
+            temp_html_path = temp_html.name
+
+        # Crear archivo temporal para el PDF de salida
+        temp_pdf = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+        temp_pdf_path = temp_pdf.name
+        temp_pdf.close()
+
+        print(f"📝 HTML temporal: {temp_html_path}")
+        print(f"📄 PDF de salida: {temp_pdf_path}")
+
+        # Script de Node.js para ejecutar Puppeteer
+        puppeteer_script = f"""
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+
+(async () => {{
+    const browser = await puppeteer.launch({{
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }});
+
+    const page = await browser.newPage();
+
+    // Leer el HTML del archivo temporal
+    const html = fs.readFileSync('{temp_html_path}', 'utf8');
+
+    // Configurar contenido
+    await page.setContent(html, {{
+        waitUntil: 'networkidle0'
+    }});
+
+    // Generar PDF
+    await page.pdf({{
+        path: '{temp_pdf_path}',
+        format: 'Letter',
+        printBackground: true,
+        margin: {{
+            top: '0.5cm',
+            right: '0.5cm',
+            bottom: '0.5cm',
+            left: '0.5cm'
+        }}
+    }});
+
+    await browser.close();
+    console.log('PDF generado exitosamente');
+}})();
+"""
+
+        # Guardar script temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_script:
+            temp_script.write(puppeteer_script)
+            temp_script_path = temp_script.name
+
+        print(f"🚀 Ejecutando Puppeteer...")
+
+        # Obtener directorio actual del proyecto
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        node_modules_path = os.path.join(project_dir, 'node_modules')
+
+        # Configurar variables de entorno para que Node encuentre los módulos
+        env = os.environ.copy()
+        env['NODE_PATH'] = node_modules_path
+
+        # Ejecutar Node.js con el script
+        result = subprocess.run(
+            ['node', temp_script_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env
+        )
+
+        if result.returncode != 0:
+            print(f"❌ Error en Puppeteer: {result.stderr}")
+            raise Exception(f"Puppeteer falló: {result.stderr}")
+
+        print(f"✅ Puppeteer stdout: {result.stdout}")
+
+        # Leer el PDF generado
+        with open(temp_pdf_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+
+        print(f"✅ PDF generado exitosamente ({len(pdf_content)} bytes)")
+
+        # Limpiar archivos temporales
+        try:
+            os.unlink(temp_html_path)
+            os.unlink(temp_pdf_path)
+            os.unlink(temp_script_path)
+        except Exception as cleanup_error:
+            print(f"⚠️ Error limpiando archivos temporales: {cleanup_error}")
+
+        return pdf_content
+
+    except subprocess.TimeoutExpired:
+        print("❌ Timeout ejecutando Puppeteer")
+        raise Exception("Timeout en la conversión con Puppeteer")
+    except Exception as e:
+        print(f"❌ Error en puppeteer_html_to_pdf: {e}")
         raise
 
 # ================================================
@@ -1152,6 +1280,206 @@ def generar_certificado_medico():
 
         return error_response, 500
 
+@app.route("/generar-certificado-medico-puppeteer", methods=["OPTIONS"])
+def options_certificado_puppeteer():
+    response_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    }
+    return ("", 204, response_headers)
+
+@app.route("/generar-certificado-medico-puppeteer", methods=["POST"])
+def generar_certificado_medico_puppeteer():
+    try:
+        print("📋 Iniciando generación de certificado médico con Puppeteer...")
+
+        # Obtener datos del request
+        data = request.get_json()
+        print(f"📝 Datos recibidos: {data}")
+
+        # Generar código de seguridad único
+        codigo_seguridad = str(uuid.uuid4())
+
+        # Preparar datos con valores por defecto
+        fecha_actual = datetime.now()
+
+        # Logo BSL embebido como base64 (recreado basado en el logo real)
+        logo_bsl_base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABkCAYAAAA8AQ3AAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAKKUlEQVR4nO2dW6hdRRiAf21ttbW2trZaW1tb29ra2tra2traaq2trdbaWluttba2ttbWWmtrrbW1tdbW2lqttbXW1lpra62ttbXWWmtrrbVaX2f/M2tmzzl7n5kzc2bWzNrfB4czOXuvNbP+b2b+mfnPrFkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwDDYXFJXSf1a0vWS7pT0qqT3JX0l6TtJP0r6VdKfkv6W9I+kfyX9J+k/Sf9L+k/Sf5L+l/SfpP8k/Sfpf0n/SfpX0r+S/pH0t6S/JP0p6Q9Jv0v6TdKvkn6R9LOknyR9L+k7Sd9K+kbS15K+kvSlpC8kfS7pM0mfSvpE0seSPpL0oaQPJL0v6T1J70p6R9Lbkt6S9KakNyS9Luk1Sa9KekXSy5JekvSipBckPS/pOUnPSnpG0tOSnpL0pKQnJD0u6TFJj0p6RNJDCF3mQkmXSFoh6UpJV0u6TtINkm6UdJOkmy0ctLkq2f8ISbdZODjbwsGJkm6UdKOkayVdIWmFpCZcJOmirDfP7GaSrpW0UtI1kq6XdIOkGyXdJOlmSbdIulXSbZJul3SHpDsl3SXp7qB6+iOoj1xEDRXfTtJOknaWtIukXSXtJmk3STW8H3Ofuus+7+D58Kh89vfrvXse4nV9fOI6hxN5W1xLt5L0PEk/STpb0l6S7pN0p6Rn0+uH7SWdIekHSa9L2jHrTRsC60k6TdJvkj6XdGDWm2c8I+lhSe+l12YfSXtIOknSMZKOlnSUpCMlHS7pMEmHSjpE0sGSDrLw7u8gW1U4wML7RwdZOHh4WFnZOCpxP/w+73hAWXBdkj7rW0mXStqOPlJrW0naWdJekvaVdICkgyQdbOHd+UMsHKwjLbz7Y4dPlHSCpOMlHSvpGElHS7oq6zdbA7tIOl3SHyTDatDHkq6RdLikmyV9J+l5SVtmvYFmgHda7ZX1PbwJW7YtJZ0s6SczKLtJulfSi5LelbSCAmMcI+lJM9C/kvSKpHslfZO+vtZzJF0o6XZJ76cH5z1J90m6RNLN6ftrTnr9sJOkUxn6aM6Fkj6U9Jqk7bPetJGwlYUpoXSSZH2k13aWdI6k9y0c7L+YnpakLz35Hx1vXvKsma6VdKSku8w8vZqeEz1RP5rB/YiAuZukkyW9LeluSedKOi6dnzVE+/w9SRdJ+iCdU3aVhSNwPT14/5rp+9PySZz/+8nC0YzXz3ruZH2uqPzJNf9fY3+dKOl7M+E3Stwo6TZJd1k4WN+1cGDfJumPgPdIONgkbWfhoJHXLh8b24OZM+9YF1JJn7V/JV0l6WpJ11o4yNdZONDXWzhIrps4n/0sqJ/6tC6uI18zJT7l/ydJR0q6WdIzkl6x8HzZO3a+5Jy4WNKD6bXBW5JOknRoer7sOJy8fti+fKTpBwtHnDaS9Lykv8xt0m8t7PdyUelrh4V1s1Z8kfOFrUEaKu9LukLSLhQgyzaRtIOk0yX9buHI0CsWvt/XJoW0sMryZTtnfr3u9XAfWtgn3rNwTL1m4aB+bfoOcBulzy85nyd9N3lNUHo+5x2hfW/vt3Dgl/dT0y3cV78tvWAyj1ctvJNdn56fNyZ+1pUd3HnfC3zfwndq/7Z/RlJJ+bRX+ixy29z3PgrdA08s+e59wfmjr/wy7pzWJE6ksNWsj8wsFTNF8mdJz5n5+j19vfADC98vfNvCwf2OhXfH37L/P8v8xsI3k79L+2x6bdD3+vJ3KdNrmrc9PBdovoWDH+kl6Xk1v1Nbn3ktNb8Vvmvh2P2HPXz9YKakH9Nfw+9YOIY+Sn+evSa9Pjh/4nu4P6THrJ8tHIN+snDM/srCMf2L9FjxS3rs+dXCsepX8/tv02Pdb9Zj2+8WjnW/W49df6Tnt3PwD+sxNaS/rMfaP7PHi79a3y+jZ5h5K9dJOl3SHhQm63aRdKqkn82MvGbhx/CydGPh77aF92v/tHBELzyn5xeb7y8cs7+ZJXnfBHfOPm8Wru72OLR9kO5P03l/7VDfBx8F+P0k7/9Z+l7uR+kx6xsLx8jv7HgP/h5JN1GcbNtR0iWS/rJwPLxt4X7/yMJx9Qe7l8n2s/XYl/a79fiX9riX9niY9hiZ9niZ9riZ9viZFvnalvZ4m/Z4nPZ4nfZ4nvZ4n/Z4oLayx3/nLX3cdLONIz8Bby9J95sB+Ts9QO63cPD/0sKR/W0LB/F/JN/J/ejhYP5Xem3ND6wcFD/ysKR/0/7XmT93TftHBEf8fCwf+vhXtB3Nf31p95jHznMLX39cLCwf+/hYN/OuN5+p7+eJ8v/xF/14gHcgOaJmkzSVeaEdqXgqzKppKOlnSftY8OPmHh3e/v0yGu762HCjGww0P2hfSFv/y8fOdNLz5zzA87aJMZ5A9t3uIQScea6XrT/r4jfJd9b/PdJwXaX9Illr+D/YGFd6c/sr5fb79zC2dY+I7OQ+k1wpFmyt7x9Pq1Xek75q+YGXvZwqmXfWzep9w9XTH7Pbq8fqfRd9LtfC6fIUnfN+5t97Zyr3O/Iz7J5n2m+1jyd8p9w8L3fj1n9AcL9zH/buGuAb8a+9f6bdN9vOyn6Xvyf03+P+y/hYV/9dqsfd9v5XM3Hj2r9a7YAEinPrz3xUch35r8gJJ9cF76Xvlj8+3dI7I+uyb4OLJz9kfzjhavXrxbeY+t4gvZJkm60MLFEf+0h3U8Zb+j9BdJ35qZ+tIMxsf2M/DfzBD8afflH/vdY/j17ff0vQe2vvDf9vv7E3/XdP+O7z2iP3u/2K9e/bqyfMC/+P57+7v5ddJz9vdMO1/+/c6kHbxT6zGRkxaVLDxP8ooGN0uWrU2Xm3nxHyFfNdNyfPrC4Yb0tYJvC+wg6aqsNwvAhttO0vGSPlX9j5H6J5u3zNg8YmZkq6w3C8CG2w7pTUmTRsZPkD9v4S6pky0cvN+xh5jWYRdJ51j4YcA67JWxHy0cN3/M+1v7Vb75h1vktzfmF39v9rO8v2WlhfM2k9+L2knSORauO6rDnhb+HmT9tJ/13XTff6d9P+OOlrxfxpeV1R8fzP5bvQP7vuUOCz+I8OMNOWGRtV0lnSrpc6v/zqF/UvCHtcdY+KM1+8WCr/M8XL7GwjUH9fnRwon1YRfWD1tYvg7vbQt/VHi+d+5N05/L2U7Sadm5Cc+a6M6z+u/g+RJe3wPojzqwPu6wQNOv3xfT//rKfvfqfwZ9CXDfrS1zLtMLOjPaflKWZT6zdaOF+9JutvCn2b5Tir7Tqg4bSjpS0r2WU4Kh7e6S7rLwe15+LstbZa8XfBvMryPwP5z1H8TuYuHEss8jfWjhFJ4v6vGn5Xz7C1+hZhJCvX8j29w62q4avZnA++zLtTfJeuNA8w2xJpz8fEO6N7iPCX5r/t1uEvpIFvP9n9a0/zHdjxa+Y2gHvkc5JfVRANPz8Tb9LKGPaGLJ46wNS4H5pxnKtPl/c8u9Bha+qqoNfwfnf5OL6w0AcNR7/wOi4MUFHQL9GgAAAABJRU5ErkJggg=="
+
+        # Datos básicos del certificado
+        datos_certificado = {
+            "codigo_seguridad": codigo_seguridad,
+            "logo_bsl_url": logo_bsl_base64,
+            "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
+            "ciudad": data.get("ciudad", "Bogotá"),
+            "vigencia": data.get("vigencia", "Tres años"),
+            "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
+
+            # Datos personales
+            "nombres_apellidos": data.get("nombres_apellidos", ""),
+            "documento_identidad": data.get("documento_identidad", ""),
+            "empresa": data.get("empresa", "PARTICULAR"),
+            "cargo": data.get("cargo", ""),
+            "genero": data.get("genero", ""),
+            "edad": data.get("edad", ""),
+            "fecha_nacimiento": data.get("fecha_nacimiento", ""),
+            "estado_civil": data.get("estado_civil", ""),
+            "hijos": data.get("hijos", "0"),
+            "profesion": data.get("profesion", ""),
+            "email": data.get("email", ""),
+            "tipo_examen": data.get("tipo_examen", "Ingreso"),
+            "foto_paciente": data.get("foto_paciente", None),
+
+            # Exámenes realizados
+            "examenes_realizados": data.get("examenes_realizados", [
+                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")},
+                {"nombre": "Audiometría", "fecha": fecha_actual.strftime("%d de %B de %Y")},
+                {"nombre": "Optometría", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+            ]),
+
+            # Concepto médico
+            "concepto_medico": data.get("concepto_medico", "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES"),
+
+            # Resultados generales
+            "resultados_generales": data.get("resultados_generales", [
+                {
+                    "examen": "Examen Médico Osteomuscular",
+                    "descripcion": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares."
+                },
+                {
+                    "examen": "Audiometría",
+                    "descripcion": "No presenta signos de pérdida auditiva o alteraciones en la audición. Los resultados se encuentran dentro de los rangos normales establecidos para la población general y no se observan indicios de daño auditivo relacionado con la exposición laboral a ruido u otros factores."
+                },
+                {
+                    "examen": "Optometría",
+                    "descripcion": "Presión intraocular (PIO): 15 mmHg en ambos ojos. Reflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos. Campo visual: Normal en ambos ojos. Visión de colores: Normal. Fondo de ojo: Normal."
+                }
+            ]),
+
+            # Recomendaciones médicas adicionales
+            "recomendaciones_medicas": data.get("recomendaciones_medicas", ""),
+
+            # Firmas
+            "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
+            "medico_registro": data.get("medico_registro", "REGISTRO MEDICO NO 14791"),
+            "medico_licencia": data.get("medico_licencia", "LICENCIA SALUD OCUPACIONAL 460"),
+            "firma_medico_url": data.get("firma_medico_url"),
+            "firma_paciente_url": data.get("firma_paciente_url"),
+
+            "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
+            "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
+            "firma_optometra_url": data.get("firma_optometra_url"),
+
+            # Exámenes detallados (página 2, opcional)
+            "examenes_detallados": data.get("examenes_detallados", []),
+
+            # Datos visuales (Optometría/Visiometría)
+            "datos_visual": data.get("datos_visual"),
+
+            # Datos de audiometría
+            "datos_audiometria": data.get("datos_audiometria"),
+
+            # Lista de exámenes para verificar tipo
+            "examenes": data.get("examenes", []),
+
+            # Logo URL
+            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+        }
+
+        # Determinar si mostrar aviso de sin soporte
+        mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
+        datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
+        datos_certificado["texto_sin_soporte"] = texto_aviso
+
+        if mostrar_aviso:
+            print(f"⚠️ Mostrando aviso de pago pendiente")
+
+        # Renderizar template HTML
+        print("🎨 Renderizando plantilla HTML...")
+        html_content = render_template("certificado_medico.html", **datos_certificado)
+
+        # Generar PDF con Puppeteer
+        print("📄 Generando PDF con Puppeteer...")
+        pdf_content = puppeteer_html_to_pdf(
+            html_content=html_content,
+            output_filename=f"certificado_{datos_certificado['documento_identidad']}"
+        )
+
+        # Guardar PDF temporalmente
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp_pdf.write(pdf_content)
+        temp_pdf.close()
+        pdf_url = f"file://{temp_pdf.name}"
+        print(f"✅ PDF generado y guardado en: {temp_pdf.name}")
+
+        # Crear objeto de resultado compatible con el código existente
+        result = {
+            "success": True,
+            "pdf": pdf_url,
+            "fileSize": len(pdf_content)
+        }
+
+        print(f"✅ PDF generado exitosamente: {pdf_url}")
+
+        # Si se especifica guardar en Drive
+        if data.get("guardar_drive", False):
+            print("💾 Guardando en Google Drive...")
+
+            # Determinar carpeta de destino
+            folder_id = data.get("folder_id") or EMPRESA_FOLDERS.get("BSL")
+
+            # Nombre del archivo
+            documento_identidad = datos_certificado.get("documento_identidad", "sin_doc")
+            nombre_archivo = data.get("nombre_archivo") or f"certificado_{documento_identidad}_{fecha_actual.strftime('%Y%m%d')}.pdf"
+
+            # Subir a Google Drive según el destino configurado
+            if DEST == "drive":
+                resultado = subir_pdf_a_drive(temp_pdf.name, nombre_archivo, folder_id)
+            elif DEST == "drive-oauth":
+                resultado = subir_pdf_a_drive_oauth(temp_pdf.name, nombre_archivo, folder_id)
+            elif DEST == "gcs":
+                resultado = subir_pdf_a_gcs(temp_pdf.name, nombre_archivo, folder_id)
+            else:
+                resultado = {"success": False, "error": f"Destino {DEST} no soportado"}
+
+            # Limpiar archivo temporal
+            os.unlink(temp_pdf.name)
+
+            if not resultado.get("success"):
+                print(f"⚠️ Error subiendo a Drive: {resultado.get('error')}")
+
+        # Preparar respuesta
+        respuesta = {
+            "success": True,
+            "pdf_url": pdf_url,
+            "codigo_seguridad": codigo_seguridad,
+            "message": "Certificado médico generado exitosamente con Puppeteer"
+        }
+
+        # Si se guardó en Drive, agregar información
+        if data.get("guardar_drive", False) and resultado.get("success"):
+            respuesta["drive_file_id"] = resultado.get("fileId")
+            respuesta["drive_web_link"] = resultado.get("webViewLink")
+
+        # Configurar headers CORS
+        response = jsonify(respuesta)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+
+    except Exception as e:
+        print(f"❌ Error generando certificado con Puppeteer: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e)
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
 @app.route("/images/<filename>")
 def serve_image(filename):
     """Servir imágenes públicamente para API2PDF"""
@@ -1427,6 +1755,30 @@ def generar_certificado_desde_wix(wix_id):
     return render_template('certificado_loader.html', wix_id=wix_id)
 
 
+@app.route("/generar-certificado-desde-wix-puppeteer/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_desde_wix_puppeteer(wix_id):
+    """
+    Endpoint que genera certificado con Puppeteer (alias conveniente)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    # Redirigir al endpoint principal con engine=puppeteer
+    guardar_drive = request.args.get('guardar_drive', 'false')
+    return redirect(f"/api/generar-certificado-pdf/{wix_id}?engine=puppeteer&guardar_drive={guardar_drive}")
+
+
 @app.route("/api/generar-certificado-pdf/<wix_id>", methods=["GET", "OPTIONS"])
 def api_generar_certificado_pdf(wix_id):
     """
@@ -1451,6 +1803,9 @@ def api_generar_certificado_pdf(wix_id):
 
         # Obtener parámetros opcionales
         guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
+        engine = request.args.get('engine', 'ilovepdf').lower()  # ilovepdf o puppeteer
+
+        print(f"🔧 Motor de conversión: {engine}")
 
         # Consultar datos desde Wix HTTP Functions
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
@@ -1999,12 +2354,27 @@ def api_generar_certificado_pdf(wix_id):
         preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
         print(f"🔗 URL del preview: {preview_url}")
 
-        # Generar PDF usando iLovePDF
+        # Generar PDF usando el engine seleccionado
         try:
-            pdf_content = ilovepdf_html_to_pdf_from_url(
-                html_url=preview_url,
-                output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
-            )
+            if engine == 'puppeteer':
+                print("🎭 Generando PDF con Puppeteer...")
+                # Necesitamos obtener el HTML renderizado en lugar de la URL
+                # Vamos a usar el endpoint de preview para obtener el HTML
+                html_response = requests.get(preview_url, timeout=30)
+                if html_response.status_code != 200:
+                    raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
+
+                html_content = html_response.text
+                pdf_content = puppeteer_html_to_pdf(
+                    html_content=html_content,
+                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+                )
+            else:
+                print("📄 Generando PDF con iLovePDF...")
+                pdf_content = ilovepdf_html_to_pdf_from_url(
+                    html_url=preview_url,
+                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+                )
 
             # Guardar PDF localmente para envío directo
             print("💾 Guardando PDF localmente...")
