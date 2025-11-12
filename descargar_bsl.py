@@ -364,12 +364,13 @@ def check_node_available():
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
 
-def puppeteer_html_to_pdf(html_content, output_filename="certificado"):
+def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
     """
-    Convierte HTML a PDF usando Puppeteer (Node.js)
+    Convierte HTML a PDF usando Puppeteer (Node.js) desde una URL pública
+    Similar a iLovePDF pero usando Puppeteer localmente
 
     Args:
-        html_content: Contenido HTML como string
+        html_url: URL pública del HTML a convertir
         output_filename: Nombre del archivo de salida (sin extensión)
 
     Returns:
@@ -377,18 +378,13 @@ def puppeteer_html_to_pdf(html_content, output_filename="certificado"):
     """
     try:
         print("🎭 Iniciando conversión HTML→PDF con Puppeteer...")
-
-        # Crear archivo temporal para el HTML
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
-            temp_html.write(html_content)
-            temp_html_path = temp_html.name
+        print(f"🔗 URL a convertir: {html_url}")
 
         # Crear archivo temporal para el PDF de salida
         temp_pdf = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
         temp_pdf_path = temp_pdf.name
         temp_pdf.close()
 
-        print(f"📝 HTML temporal: {temp_html_path}")
         print(f"📄 PDF de salida: {temp_pdf_path}")
 
         # Script de Node.js para ejecutar Puppeteer
@@ -404,29 +400,35 @@ const fs = require('fs');
 
     const page = await browser.newPage();
 
-    // Leer el HTML del archivo temporal
-    const html = fs.readFileSync('{temp_html_path}', 'utf8');
-
-    // Configurar contenido y esperar a que se cargue completamente
-    await page.setContent(html, {{
-        waitUntil: ['load', 'networkidle0']
+    // Navegar a la URL pública (igual que iLovePDF descarga la URL)
+    console.log('📥 Cargando URL: {html_url}');
+    await page.goto('{html_url}', {{
+        waitUntil: ['load', 'networkidle0'],
+        timeout: 30000
     }});
 
     // Esperar adicional para asegurar que las imágenes se carguen
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('⏳ Esperando carga completa de imágenes...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Verificar que las imágenes se hayan cargado
-    await page.evaluate(() => {{
+    // Verificar que todas las imágenes se hayan cargado
+    const imageCount = await page.evaluate(() => {{
+        const images = Array.from(document.images);
+        console.log(`Total imágenes: ${{images.length}}`);
+
         return Promise.all(
-            Array.from(document.images)
+            images
                 .filter(img => !img.complete)
                 .map(img => new Promise((resolve) => {{
                     img.onload = img.onerror = resolve;
                 }}))
-        );
+        ).then(() => images.length);
     }});
 
+    console.log(`✅ ${{imageCount}} imágenes verificadas`);
+
     // Generar PDF
+    console.log('📄 Generando PDF...');
     await page.pdf({{
         path: '{temp_pdf_path}',
         format: 'Letter',
@@ -440,7 +442,7 @@ const fs = require('fs');
     }});
 
     await browser.close();
-    console.log('PDF generado exitosamente');
+    console.log('✅ PDF generado exitosamente');
 }})();
 """
 
@@ -464,7 +466,7 @@ const fs = require('fs');
             ['node', temp_script_path],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=45,
             env=env
         )
 
@@ -482,7 +484,6 @@ const fs = require('fs');
 
         # Limpiar archivos temporales
         try:
-            os.unlink(temp_html_path)
             os.unlink(temp_pdf_path)
             os.unlink(temp_script_path)
         except Exception as cleanup_error:
@@ -494,7 +495,7 @@ const fs = require('fs');
         print("❌ Timeout ejecutando Puppeteer")
         raise Exception("Timeout en la conversión con Puppeteer")
     except Exception as e:
-        print(f"❌ Error en puppeteer_html_to_pdf: {e}")
+        print(f"❌ Error en puppeteer_html_to_pdf_from_url: {e}")
         raise
 
 # ================================================
@@ -2385,15 +2386,9 @@ def api_generar_certificado_pdf(wix_id):
         try:
             if engine == 'puppeteer':
                 print("🎭 Generando PDF con Puppeteer...")
-                # Necesitamos obtener el HTML renderizado en lugar de la URL
-                # Vamos a usar el endpoint de preview para obtener el HTML
-                html_response = requests.get(preview_url, timeout=30)
-                if html_response.status_code != 200:
-                    raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
-
-                html_content = html_response.text
-                pdf_content = puppeteer_html_to_pdf(
-                    html_content=html_content,
+                # Usar la URL pública del preview (igual que iLovePDF)
+                pdf_content = puppeteer_html_to_pdf_from_url(
+                    html_url=preview_url,
                     output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
                 )
             else:
