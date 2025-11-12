@@ -496,8 +496,8 @@ const puppeteer = require('puppeteer');
         document.body.offsetHeight;  // Trigger reflow
         document.body.style.display = '';
 
-        // Forzar que las imágenes se pinten
-        document.images.forEach(img => {{
+        // Forzar que las imágenes se pinten (convertir HTMLCollection a Array)
+        Array.from(document.images).forEach(img => {{
             img.style.visibility = 'hidden';
             img.offsetHeight;  // Trigger reflow
             img.style.visibility = 'visible';
