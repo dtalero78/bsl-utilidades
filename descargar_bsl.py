@@ -197,6 +197,81 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
     
     return api_payload
 
+# ============== FUNCIONES AUXILIARES ==============
+
+def descargar_imagen_wix_localmente(wix_url):
+    """
+    Descarga una imagen de Wix CDN y la guarda localmente en static/
+
+    Args:
+        wix_url: URL de la imagen en Wix CDN (ej: https://static.wixstatic.com/media/...)
+
+    Returns:
+        str: URL local de la imagen descargada (ej: /static/wix-img-abc123.jpg)
+        None: Si falla la descarga
+    """
+    try:
+        print(f"📥 Descargando imagen de Wix: {wix_url}")
+
+        # Realizar la descarga con headers que emulen un navegador real
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Referer': 'https://www.bsl.com.co/',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"'
+        }
+
+        response = requests.get(wix_url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        # Determinar extensión del archivo
+        content_type = response.headers.get('Content-Type', '')
+        if 'jpeg' in content_type or 'jpg' in content_type:
+            ext = 'jpg'
+        elif 'png' in content_type:
+            ext = 'png'
+        elif 'webp' in content_type:
+            ext = 'webp'
+        else:
+            # Intentar extraer de la URL
+            if wix_url.endswith('.jpg') or wix_url.endswith('.jpeg'):
+                ext = 'jpg'
+            elif wix_url.endswith('.png'):
+                ext = 'png'
+            elif wix_url.endswith('.webp'):
+                ext = 'webp'
+            else:
+                ext = 'jpg'  # Default
+
+        # Generar nombre único para el archivo
+        image_id = uuid.uuid4().hex[:12]
+        filename = f"wix-img-{image_id}.{ext}"
+
+        # Guardar en el directorio static/
+        static_dir = os.path.join(os.path.dirname(__file__), 'static')
+        local_path = os.path.join(static_dir, filename)
+
+        with open(local_path, 'wb') as f:
+            f.write(response.content)
+
+        # Retornar URL local (relativa al servidor)
+        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
+        local_url = f"{base_url}/static/{filename}"
+
+        print(f"✅ Imagen descargada y guardada localmente: {local_url}")
+        print(f"   Tamaño: {len(response.content)} bytes")
+
+        return local_url
+
+    except Exception as e:
+        print(f"❌ Error descargando imagen de Wix: {e}")
+        print(f"   URL: {wix_url}")
+        traceback.print_exc()
+        return None
+
 # ============== FUNCIONES iLovePDF ==============
 
 def ilovepdf_get_token():
@@ -2186,7 +2261,7 @@ def api_generar_certificado_pdf(wix_id):
                             elif isinstance(fecha_nac, datetime):
                                 datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
                         if datos_formulario.get('foto'):
-                            # Convertir URL de Wix a URL accesible
+                            # Convertir URL de Wix a URL accesible Y descargarla localmente
                             foto_wix = datos_formulario.get('foto')
                             if foto_wix.startswith('wix:image://v1/'):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
@@ -2196,16 +2271,37 @@ def api_generar_certificado_pdf(wix_id):
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
                                     image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
-                                    # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    # Convertir a URL de Wix CDN
+                                    wix_url = f"https://static.wixstatic.com/media/{image_id}"
                                     print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
-                                    print(f"🔍 URL FOTO CONVERTIDA: {datos_wix['foto_paciente']}")
+                                    print(f"🔍 URL FOTO WIX CDN: {wix_url}")
+
+                                    # NUEVA LÓGICA: Descargar la imagen localmente para evitar bloqueos de Wix CDN
+                                    local_url = descargar_imagen_wix_localmente(wix_url)
+                                    if local_url:
+                                        datos_wix['foto_paciente'] = local_url
+                                        print(f"✅ Usando imagen local: {local_url}")
+                                    else:
+                                        # Si falla la descarga, intentar usar URL de Wix directamente (fallback)
+                                        datos_wix['foto_paciente'] = wix_url
+                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                                     print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
                             else:
-                                datos_wix['foto_paciente'] = foto_wix
-                                print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
+                                # Si no es wix:image, verificar si es URL de Wix CDN y descargarla
+                                if 'static.wixstatic.com' in foto_wix:
+                                    print(f"🔍 URL FOTO de Wix CDN detectada: {foto_wix}")
+                                    local_url = descargar_imagen_wix_localmente(foto_wix)
+                                    if local_url:
+                                        datos_wix['foto_paciente'] = local_url
+                                        print(f"✅ Usando imagen local: {local_url}")
+                                    else:
+                                        datos_wix['foto_paciente'] = foto_wix
+                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {foto_wix}")
+                                else:
+                                    datos_wix['foto_paciente'] = foto_wix
+                                    print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
@@ -2823,7 +2919,7 @@ def preview_certificado_html(wix_id):
                             elif isinstance(fecha_nac, datetime):
                                 datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
                         if datos_formulario.get('foto'):
-                            # Convertir URL de Wix a URL accesible
+                            # Convertir URL de Wix a URL accesible Y descargarla localmente
                             foto_wix = datos_formulario.get('foto')
                             if foto_wix.startswith('wix:image://v1/'):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
@@ -2833,16 +2929,37 @@ def preview_certificado_html(wix_id):
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
                                     image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
-                                    # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
+                                    # Convertir a URL de Wix CDN
+                                    wix_url = f"https://static.wixstatic.com/media/{image_id}"
                                     print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
-                                    print(f"🔍 URL FOTO CONVERTIDA: {datos_wix['foto_paciente']}")
+                                    print(f"🔍 URL FOTO WIX CDN: {wix_url}")
+
+                                    # NUEVA LÓGICA: Descargar la imagen localmente para evitar bloqueos de Wix CDN
+                                    local_url = descargar_imagen_wix_localmente(wix_url)
+                                    if local_url:
+                                        datos_wix['foto_paciente'] = local_url
+                                        print(f"✅ Usando imagen local: {local_url}")
+                                    else:
+                                        # Si falla la descarga, intentar usar URL de Wix directamente (fallback)
+                                        datos_wix['foto_paciente'] = wix_url
+                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                                     print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
                             else:
-                                datos_wix['foto_paciente'] = foto_wix
-                                print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
+                                # Si no es wix:image, verificar si es URL de Wix CDN y descargarla
+                                if 'static.wixstatic.com' in foto_wix:
+                                    print(f"🔍 URL FOTO de Wix CDN detectada: {foto_wix}")
+                                    local_url = descargar_imagen_wix_localmente(foto_wix)
+                                    if local_url:
+                                        datos_wix['foto_paciente'] = local_url
+                                        print(f"✅ Usando imagen local: {local_url}")
+                                    else:
+                                        datos_wix['foto_paciente'] = foto_wix
+                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {foto_wix}")
+                                else:
+                                    datos_wix['foto_paciente'] = foto_wix
+                                    print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
