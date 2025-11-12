@@ -2384,25 +2384,19 @@ def api_generar_certificado_pdf(wix_id):
         # Generar PDF usando el engine seleccionado
         try:
             if engine == 'puppeteer':
-                # Verificar si Node.js está disponible
-                if not check_node_available():
-                    print("⚠️ Node.js no está disponible, usando iLovePDF como fallback")
-                    engine = 'ilovepdf'  # Cambiar a iLovePDF automáticamente
-                else:
-                    print("🎭 Generando PDF con Puppeteer...")
-                    # Necesitamos obtener el HTML renderizado en lugar de la URL
-                    # Vamos a usar el endpoint de preview para obtener el HTML
-                    html_response = requests.get(preview_url, timeout=30)
-                    if html_response.status_code != 200:
-                        raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
+                print("🎭 Generando PDF con Puppeteer...")
+                # Necesitamos obtener el HTML renderizado en lugar de la URL
+                # Vamos a usar el endpoint de preview para obtener el HTML
+                html_response = requests.get(preview_url, timeout=30)
+                if html_response.status_code != 200:
+                    raise Exception(f"Error obteniendo HTML del preview: {html_response.status_code}")
 
-                    html_content = html_response.text
-                    pdf_content = puppeteer_html_to_pdf(
-                        html_content=html_content,
-                        output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
-                    )
-
-            if engine == 'ilovepdf':
+                html_content = html_response.text
+                pdf_content = puppeteer_html_to_pdf(
+                    html_content=html_content,
+                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+                )
+            else:
                 print("📄 Generando PDF con iLovePDF...")
                 pdf_content = ilovepdf_html_to_pdf_from_url(
                     html_url=preview_url,
