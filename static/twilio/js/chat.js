@@ -73,10 +73,14 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarConversaciones();
 
     // Auto-refresh cada 5 segundos (como WhatsApp)
+    console.log('⏰ Iniciando auto-refresh cada 5 segundos...');
     autoRefreshInterval = setInterval(() => {
+        console.log(`⏰ Auto-refresh ejecutándose... conversacionActual=${conversacionActual}`);
         if (conversacionActual) {
+            console.log('🔄 Actualizando conversación actual...');
             actualizarConversacionActualSilencioso();
         } else {
+            console.log('📋 Actualizando lista de conversaciones...');
             cargarConversacionesSilencioso();
         }
     }, 5000); // 5 segundos = actualización casi en tiempo real
@@ -466,12 +470,19 @@ function actualizarConversacionActual() {
 }
 
 async function actualizarConversacionActualSilencioso() {
-    if (!conversacionActual || isLoadingMessages) return;
+    console.log(`🔧 actualizarConversacionActualSilencioso llamada. conversacionActual=${conversacionActual}, isLoadingMessages=${isLoadingMessages}`);
+
+    if (!conversacionActual || isLoadingMessages) {
+        console.log('⚠️ No se actualizará: conversacionActual vacía o ya cargando');
+        return;
+    }
 
     try {
         isLoadingMessages = true;
+        console.log(`📡 Fetching conversación ${conversacionActual}...`);
         const response = await fetch(`${API_BASE}/api/conversacion/${conversacionActual}`);
         const data = await response.json();
+        console.log(`📡 Respuesta recibida:`, data.success ? 'success' : 'error');
 
         if (data.success) {
             const messagesContainer = document.getElementById('messagesContainer');
