@@ -482,13 +482,29 @@ async function actualizarConversacionActualSilencioso() {
             // Merge and render messages
             const allMessages = mergeMessages(data.twilio_messages || [], data.wix_data?.mensajes || []);
 
-            // Verificar si hay mensajes nuevos
-            if (allMessages.length > lastMessageCount) {
-                console.log(`📨 Nuevo mensaje detectado (${allMessages.length - lastMessageCount} nuevo(s))`);
-                reproducirSonidoNotificacion();
+            console.log(`🔍 Verificando mensajes: lastCount=${lastMessageCount}, currentCount=${allMessages.length}`);
 
-                // Mostrar notificación del navegador
-                mostrarNotificacionNavegador('Nuevo mensaje', allMessages[allMessages.length - 1].body);
+            // Verificar si hay mensajes nuevos ENTRANTES (no salientes)
+            if (allMessages.length > lastMessageCount) {
+                const newMessagesCount = allMessages.length - lastMessageCount;
+                console.log(`📨 ${newMessagesCount} mensaje(s) nuevo(s) detectado(s)`);
+
+                // Verificar si el último mensaje es ENTRANTE (inbound)
+                const lastMessage = allMessages[allMessages.length - 1];
+                console.log(`📩 Último mensaje:`, {
+                    direction: lastMessage.direction,
+                    body: lastMessage.body ? lastMessage.body.substring(0, 50) : 'N/A'
+                });
+
+                if (lastMessage.direction === 'inbound') {
+                    console.log(`🔔 Es un mensaje ENTRANTE - Reproduciendo sonido...`);
+                    reproducirSonidoNotificacion();
+
+                    // Mostrar notificación del navegador
+                    mostrarNotificacionNavegador('Nuevo mensaje', lastMessage.body);
+                } else {
+                    console.log(`📤 Es un mensaje SALIENTE - No reproducir sonido`);
+                }
             }
 
             lastMessageCount = allMessages.length;
