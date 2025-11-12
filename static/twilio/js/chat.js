@@ -47,13 +47,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 audioBanner.style.display = 'none';
             }
 
-            // Intentar reproducir un sonido silencioso para "despertar" el audio
+            // Reproducir el sonido de notificación como prueba
             if (notificationSound && notificationSound.play) {
-                notificationSound.volume = 0;
+                console.log('🎵 Reproduciendo sonido de prueba...');
                 notificationSound.play().then(() => {
-                    notificationSound.volume = 0.5;
-                    console.log('🎵 Audio context desbloqueado');
-                }).catch(() => {});
+                    console.log('🎵 Audio context desbloqueado - sonido de prueba exitoso');
+                }).catch((e) => {
+                    console.error('❌ Error al reproducir sonido de prueba:', e);
+                });
             }
         }
     };
@@ -95,49 +96,66 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================================
 
 function inicializarSonidoNotificacion() {
-    // Intentar cargar sonido de notificación de WhatsApp
+    // Usar Web Audio API directamente (más confiable que CDN)
     try {
-        // Usar sonido de notificación de WhatsApp desde CDN
-        notificationSound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
-        notificationSound.volume = 0.5;
-        notificationSound.preload = 'auto';
-
-        // Si falla la carga, usar Web Audio API para crear un beep
-        notificationSound.addEventListener('error', function() {
-            console.log('Carga de audio falló, usando Web Audio API');
-            notificationSound = crearSonidoWebAudio();
-        });
-
-        console.log('Sonido de notificación inicializado');
+        notificationSound = crearSonidoWebAudio();
+        console.log('Sonido de notificación inicializado con Web Audio API');
     } catch (e) {
         console.warn('No se pudo inicializar el sonido de notificación:', e);
-        notificationSound = crearSonidoWebAudio();
     }
 }
 
 function crearSonidoWebAudio() {
-    // Crear un beep usando Web Audio API como fallback
+    // Crear un sonido de notificación tipo WhatsApp con Web Audio API
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         return {
             play: function() {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                return new Promise((resolve, reject) => {
+                    try {
+                        // Primer tono (más agudo)
+                        const osc1 = audioContext.createOscillator();
+                        const gain1 = audioContext.createGain();
 
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                        osc1.connect(gain1);
+                        gain1.connect(audioContext.destination);
 
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
+                        osc1.frequency.value = 800; // Fa
+                        osc1.type = 'sine';
 
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                        gain1.gain.setValueAtTime(0, audioContext.currentTime);
+                        gain1.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.02);
+                        gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
 
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
+                        osc1.start(audioContext.currentTime);
+                        osc1.stop(audioContext.currentTime + 0.15);
 
-                return Promise.resolve();
-            }
+                        // Segundo tono (más grave) - como WhatsApp
+                        const osc2 = audioContext.createOscillator();
+                        const gain2 = audioContext.createGain();
+
+                        osc2.connect(gain2);
+                        gain2.connect(audioContext.destination);
+
+                        osc2.frequency.value = 600; // Re
+                        osc2.type = 'sine';
+
+                        gain2.gain.setValueAtTime(0, audioContext.currentTime + 0.1);
+                        gain2.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.12);
+                        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                        osc2.start(audioContext.currentTime + 0.1);
+                        osc2.stop(audioContext.currentTime + 0.3);
+
+                        // Resolver después de que termine el sonido
+                        setTimeout(() => resolve(), 350);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            },
+            currentTime: undefined, // Para compatibilidad con Audio()
+            volume: 0.5 // Para compatibilidad
         };
     } catch (e) {
         console.warn('Web Audio API no disponible:', e);
@@ -157,34 +175,15 @@ function reproducirSonidoNotificacion() {
     }
 
     try {
-        console.log('🔔 Intentando reproducir sonido de notificación...');
+        console.log('🔔 Reproduciendo sonido de notificación...');
 
-        // Resetear el audio para poder reproducirlo múltiples veces
-        if (notificationSound.currentTime !== undefined) {
-            notificationSound.currentTime = 0;
-        }
-
-        const playPromise = notificationSound.play();
-
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                console.log('✅ Sonido reproducido exitosamente');
-            }).catch(e => {
-                console.log('❌ No se pudo reproducir sonido desde CDN:', e.message);
-                // Si falla, intentar con Web Audio API
-                const fallbackSound = crearSonidoWebAudio();
-                if (fallbackSound) {
-                    console.log('🔄 Intentando con Web Audio API...');
-                    fallbackSound.play().then(() => {
-                        console.log('✅ Fallback sound reproducido');
-                    }).catch(err => {
-                        console.log('❌ Fallback también falló:', err);
-                    });
-                }
-            });
-        }
+        notificationSound.play().then(() => {
+            console.log('✅ Sonido reproducido exitosamente');
+        }).catch(e => {
+            console.error('❌ Error al reproducir sonido:', e);
+        });
     } catch (e) {
-        console.log('❌ Error al reproducir sonido:', e);
+        console.error('❌ Error al reproducir sonido:', e);
     }
 }
 
