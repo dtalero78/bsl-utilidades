@@ -26,3 +26,4 @@ credentials*.json
 # Archivos generados
 *.pdf
 node_modules/
+.cache/

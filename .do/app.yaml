@@ -1,0 +1,27 @@
+name: bsl-utilidades
+region: nyc
+
+services:
+  - name: web
+    github:
+      branch: main
+      deploy_on_push: true
+
+    # Build configuration
+    build_command: ./build.sh
+
+    # Run command
+    run_command: python descargar_bsl.py
+
+    # Environment
+    environment_slug: python
+
+    # HTTP port
+    http_port: 8080
+
+    # Instance configuration
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+    # Environment variables (these should be set in the UI or via CLI)
+    envs: []
