@@ -2120,13 +2120,12 @@ def api_generar_certificado_pdf(wix_id):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
                                 # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
                                 # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID con parámetros de optimización
+                                # Convertir a URL simple de Wix sin parámetros complejos
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
-                                    image_id = parts[0]  # Solo tomar el ID de la imagen
-                                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
-                                    # Agregar parámetros de Wix para redimensionar a 180x220 (2x el tamaño de display para retina)
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_180,h_220,al_c,q_80/{filename}"
+                                    image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
+                                    # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                             else:
@@ -2754,13 +2753,12 @@ def preview_certificado_html(wix_id):
                                 # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
                                 # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
                                 # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a: https://static.wixstatic.com/media/IMAGE_ID con parámetros de optimización
+                                # Convertir a URL simple de Wix sin parámetros complejos
                                 parts = foto_wix.replace('wix:image://v1/', '').split('/')
                                 if len(parts) > 0:
-                                    image_id = parts[0]  # Solo tomar el ID de la imagen
-                                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
-                                    # Agregar parámetros de Wix para redimensionar a 180x220 (2x el tamaño de display para retina)
-                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_180,h_220,al_c,q_80/{filename}"
+                                    image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
+                                    # Usar URL simple sin filename para evitar problemas con espacios/caracteres especiales
+                                    datos_wix['foto_paciente'] = f"https://static.wixstatic.com/media/{image_id}"
                                 else:
                                     datos_wix['foto_paciente'] = foto_wix
                             else:
