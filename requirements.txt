@@ -9,3 +9,4 @@ google-auth-oauthlib
 google-cloud-storage
 jinja2
 Pillow
+twilio

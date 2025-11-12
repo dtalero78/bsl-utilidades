@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilio-BSL WhatsApp Chat</title>
+    <link rel="stylesheet" href="/static/twilio/css/chat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Sidebar with conversations list -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fab fa-whatsapp"></i> BSL WhatsApp</h2>
+                <div class="header-actions">
+                    <button class="btn-refresh" onclick="cargarConversaciones()" title="Actualizar">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar conversación..." oninput="filtrarConversaciones()">
+            </div>
+
+            <div class="conversations-list" id="conversationsList">
+                <!-- Conversations will be loaded here -->
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Cargando conversaciones...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main chat area -->
+        <div class="chat-area">
+            <!-- Chat header -->
+            <div class="chat-header" id="chatHeader">
+                <div class="chat-header-placeholder">
+                    <i class="fab fa-whatsapp"></i>
+                    <h3>Selecciona una conversación</h3>
+                </div>
+            </div>
+
+            <!-- Messages area -->
+            <div class="messages-container" id="messagesContainer">
+                <div class="messages-placeholder">
+                    <i class="fab fa-whatsapp"></i>
+                    <h2>WhatsApp BSL</h2>
+                    <p>Gestiona todas las conversaciones de WhatsApp desde aquí</p>
+                    <p class="placeholder-number">+57 315 336 9631</p>
+                </div>
+            </div>
+
+            <!-- Message input area -->
+            <div class="message-input-area" id="messageInputArea" style="display: none;">
+                <div class="input-wrapper">
+                    <button class="btn-attach" title="Adjuntar archivo">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <textarea
+                        id="messageInput"
+                        placeholder="Escribe un mensaje..."
+                        rows="1"
+                        onkeypress="handleKeyPress(event)"></textarea>
+                    <button class="btn-send" onclick="enviarMensaje()" title="Enviar">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact info panel (optional) -->
+        <div class="contact-info" id="contactInfo" style="display: none;">
+            <div class="contact-info-header">
+                <h3>Información del contacto</h3>
+                <button onclick="toggleContactInfo()" class="btn-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="contact-details" id="contactDetails">
+                <!-- Contact details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for viewing images/media -->
+    <div class="modal" id="mediaModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeMediaModal()">&times;</span>
+            <img id="modalImage" src="" alt="Media">
+        </div>
+    </div>
+
+    <script src="/static/twilio/js/chat.js"></script>
+</body>
+</html>

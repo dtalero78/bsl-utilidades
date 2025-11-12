@@ -31,6 +31,8 @@ import {
   obtenerDatosCompletosParaFormulario,
   obtenerHistoriaClinica
 } from 'backend/integracionPanelMedico';
+import { handleWhatsAppButtonClick, generateSuccessPage, generateErrorPage } from 'backend/twilioWhatsApp';
+
 
 import { callOpenAI } from 'backend/open-ai';
 import { consultarCita } from 'backend/consultaHistoriaClinicaBot';
@@ -514,31 +516,6 @@ export async function post_guardarConversacion(request) {
             console.log(`✅ Nueva conversación creada en WHP para userId: ${userId}`);
         }
 
-        // --- REENVIAR A OPENAI DESDE WIX DESPUÉS DE GUARDAR ---
-        // Si tienes threadId y hay mensajes nuevos:
-        if (threadId && nuevosFiltrados.length > 0) {
-            // Por cada mensaje nuevo, llama a tu backend Flask
-            for (const msg of nuevosFiltrados) {
-                try {
-                    await fetch("https://agentes-bot-bsl-vf9hm.ondigitalocean.app//reenviar_a_openai", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                role: msg.from, // Puede ser "usuario", "sistema", "admin", "wix"
-                                mensaje: msg.mensaje,
-                                thread_id: threadId
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(res => console.log("Mensaje reenviado a OpenAI:", res))
-                        .catch(err => console.error("❌ Error reenviando a OpenAI:", err));
-                } catch (e) {
-                    console.error("❌ Error en fetch a Flask para OpenAI:", e);
-                }
-            }
-        }
-        // ------------------------------------------------------
-
         return {
             status: 200,
             headers: { "Content-Type": "application/json" },
@@ -655,8 +632,11 @@ export async function post_marcarPagado(request) {
         item.pvEstado = observaciones;
 
         const actualizado = await wixData.update("HistoriaClinica", item);
+//ESTA LÍNEA VA A CAMBIAR DESDE EL BOT.V3 POR SI LLEGA A FALLAR EL MEDIDATA PANEL
+        //return ok({ body: { success: true } });
+                return ok({ body: { success: true, _id: item._id } });
 
-        return ok({ body: { success: true } });
+        
 
     } catch (e) {
         console.error("❌ Error en guardarObservacion:", e);
@@ -2533,3 +2513,65 @@ export async function post_medidataActualizarFormulario(request) {
 // NOTA: Wix maneja automáticamente las peticiones OPTIONS y los headers CORS
 // No es necesario definir funciones options_ manualmente
 // Los endpoints GET y POST ya incluyen access-control-allow-origin: *
+/**
+ * API endpoint para procesar clics en botones de WhatsApp
+ * Retorna JSON para ser consumido desde una página frontend
+ * URL: https://www.bsl.com.co/_functions/handleWhatsAppButton?phone=3008021701
+ */
+export async function get_handleWhatsAppButton(request) {
+    console.log("[API handleWhatsAppButton] Iniciando endpoint...");
+
+    try {
+        const query = request.query || {};
+        let phoneNumber = query.phone || query.celular || query.number;
+
+        console.log(`[API handleWhatsAppButton] Query params:`, JSON.stringify(query));
+        console.log(`[API handleWhatsAppButton] Número extraído: ${phoneNumber}`);
+
+        if (!phoneNumber) {
+            console.log(`[API handleWhatsAppButton] ❌ No se proporcionó número`);
+            return ok({
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
+                },
+                body: {
+                    success: false,
+                    message: "Parámetro 'phone' faltante"
+                }
+            });
+        }
+
+        phoneNumber = phoneNumber.replace(/\D/g, '').replace(/^57/, '');
+        console.log(`[API handleWhatsAppButton] Número limpio: ${phoneNumber}`);
+
+        console.log(`[API handleWhatsAppButton] Llamando handleWhatsAppButtonClick...`);
+        const result = await handleWhatsAppButtonClick(phoneNumber);
+
+        console.log(`[API handleWhatsAppButton] Resultado:`, JSON.stringify(result));
+
+        return ok({
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: result
+        });
+
+    } catch (err) {
+        console.error(`❌ Error en handleWhatsAppButton:`, err);
+        console.error(`Stack trace:`, err.stack);
+        console.error(`Error message:`, err.message);
+
+        return ok({
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: {
+                success: false,
+                message: `Error: ${err.message || 'Error desconocido'}`
+            }
+        });
+    }
+}
