@@ -11,6 +11,9 @@ let isLoadingMessages = false;
 let lastMessageCount = 0;
 let notificationSound = null;
 let audioPermitido = false; // Flag para saber si el usuario ya interactuó
+let unreadMessages = 0; // Contador de mensajes no leídos
+let originalTitle = 'Twilio-BSL WhatsApp Chat'; // Título original
+let titleBlinkInterval = null; // Intervalo para parpadeo del título
 
 // API Configuration
 const API_BASE = window.API_BASE || window.location.origin;
@@ -93,7 +96,63 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.height = this.scrollHeight + 'px';
         });
     }
+
+    // Page Visibility API - Detectar cuando el usuario vuelve a la pestaña
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            console.log('👁️ Usuario regresó a la pestaña - Actualizando inmediatamente...');
+
+            // Detener parpadeo del título
+            stopTitleBlink();
+
+            // Resetear contador de no leídos
+            unreadMessages = 0;
+
+            // Actualizar inmediatamente
+            if (conversacionActual) {
+                actualizarConversacionActualSilencioso();
+            } else {
+                cargarConversacionesSilencioso();
+            }
+        } else {
+            console.log('👁️ Usuario salió de la pestaña - Continuando en segundo plano...');
+        }
+    });
+
+    // Solicitar permisos de notificación del navegador
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            console.log('🔔 Permiso de notificaciones:', permission);
+        });
+    }
 });
+
+// ============================================================================
+// TITLE NOTIFICATION (like WhatsApp Web)
+// ============================================================================
+
+function startTitleBlink(messagePreview) {
+    // Si ya está parpadeando, no iniciar otro
+    if (titleBlinkInterval) return;
+
+    let showingNew = true;
+    titleBlinkInterval = setInterval(() => {
+        if (showingNew) {
+            document.title = `(${unreadMessages}) Nuevo mensaje - ${messagePreview.substring(0, 30)}`;
+        } else {
+            document.title = originalTitle;
+        }
+        showingNew = !showingNew;
+    }, 1000); // Parpadear cada segundo
+}
+
+function stopTitleBlink() {
+    if (titleBlinkInterval) {
+        clearInterval(titleBlinkInterval);
+        titleBlinkInterval = null;
+    }
+    document.title = originalTitle;
+}
 
 // ============================================================================
 // NOTIFICATION SOUND
@@ -509,9 +568,20 @@ async function actualizarConversacionActualSilencioso() {
 
                 if (lastMessage.direction === 'inbound') {
                     console.log(`🔔 Es un mensaje ENTRANTE - Reproduciendo sonido...`);
+
+                    // Incrementar contador de no leídos
+                    unreadMessages++;
+
+                    // Reproducir sonido (siempre, incluso en background)
                     reproducirSonidoNotificacion();
 
-                    // Mostrar notificación del navegador
+                    // Si el usuario NO está en la pestaña, iniciar parpadeo del título
+                    if (document.hidden) {
+                        console.log('📋 Usuario en otra pestaña - Iniciando parpadeo del título');
+                        startTitleBlink(lastMessage.body);
+                    }
+
+                    // Mostrar notificación del navegador (especialmente útil cuando estás en otra pestaña)
                     mostrarNotificacionNavegador('Nuevo mensaje', lastMessage.body);
                 } else {
                     console.log(`📤 Es un mensaje SALIENTE - No reproducir sonido`);
