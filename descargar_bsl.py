@@ -12,6 +12,16 @@ import tempfile
 import csv
 import io
 
+# Intentar importar Twilio (opcional)
+try:
+    from twilio.rest import Client as TwilioClient
+    from twilio.twiml.messaging_response import MessagingResponse
+    TWILIO_AVAILABLE = True
+except ImportError:
+    TWILIO_AVAILABLE = False
+    TwilioClient = None
+    MessagingResponse = None
+
 load_dotenv(override=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -2836,16 +2846,14 @@ WIX_BASE_URL = os.getenv('WIX_BASE_URL', 'https://www.bsl.com.co/_functions')
 
 # Inicializar cliente Twilio
 twilio_client = None
-if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+if TWILIO_AVAILABLE and TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
     try:
-        from twilio.rest import Client
-        from twilio.twiml.messaging_response import MessagingResponse
-        twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         logger.info("Cliente Twilio inicializado correctamente")
-    except ImportError:
-        logger.warning("SDK de Twilio no instalado. Ejecutar: pip install twilio")
     except Exception as e:
         logger.warning(f"No se pudo inicializar Twilio: {str(e)}")
+elif not TWILIO_AVAILABLE:
+    logger.warning("SDK de Twilio no instalado. Instalar con: pip install twilio")
 
 # Funciones de integración Wix CHATBOT
 def obtener_conversacion_por_celular(celular):
