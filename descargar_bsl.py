@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 import tempfile
 import csv
 import io
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Intentar importar Twilio (opcional)
 try:
