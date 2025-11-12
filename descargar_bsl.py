@@ -367,7 +367,7 @@ def check_node_available():
 def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
     """
     Convierte HTML a PDF usando Puppeteer (Node.js) desde una URL pública
-    Similar a iLovePDF pero usando Puppeteer localmente
+    Descarga el HTML, convierte todas las imágenes externas a base64, y genera el PDF
 
     Args:
         html_url: URL pública del HTML a convertir
@@ -380,6 +380,61 @@ def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
         print("🎭 Iniciando conversión HTML→PDF con Puppeteer...")
         print(f"🔗 URL a convertir: {html_url}")
 
+        # PASO 1: Descargar el HTML desde la URL
+        print("📥 Descargando HTML desde URL...")
+        html_response = requests.get(html_url, timeout=30)
+        if html_response.status_code != 200:
+            raise Exception(f"Error descargando HTML: HTTP {html_response.status_code}")
+
+        html_content = html_response.text
+        print(f"✅ HTML descargado ({len(html_content)} caracteres)")
+
+        # PASO 2: Convertir todas las imágenes externas a base64
+        print("🖼️  Convirtiendo imágenes externas a base64...")
+        import re
+        import base64
+
+        def download_and_encode_image(url):
+            """Descarga una imagen y la convierte a base64"""
+            try:
+                print(f"  📥 Descargando: {url[:80]}...")
+                img_response = requests.get(url, timeout=10)
+                if img_response.status_code == 200:
+                    content_type = img_response.headers.get('Content-Type', 'image/jpeg')
+                    base64_data = base64.b64encode(img_response.content).decode('utf-8')
+                    data_uri = f"data:{content_type};base64,{base64_data}"
+                    print(f"  ✅ Convertida a base64 ({len(base64_data)} bytes)")
+                    return data_uri
+                else:
+                    print(f"  ⚠️  HTTP {img_response.status_code}, manteniendo URL original")
+                    return url
+            except Exception as e:
+                print(f"  ⚠️  Error: {e}, manteniendo URL original")
+                return url
+
+        # Encontrar y reemplazar todas las imágenes externas
+        img_pattern = re.compile(r'<img\s+[^>]*src="([^"]+)"[^>]*>', re.IGNORECASE)
+
+        def replace_image_src(match):
+            full_tag = match.group(0)
+            img_url = match.group(1)
+
+            # Solo procesar URLs externas (http/https), no data URIs
+            if img_url.startswith('http://') or img_url.startswith('https://'):
+                base64_url = download_and_encode_image(img_url)
+                return full_tag.replace(img_url, base64_url)
+            else:
+                # Ya es base64 o ruta relativa
+                return full_tag
+
+        html_with_base64 = img_pattern.sub(replace_image_src, html_content)
+        print(f"✅ Imágenes convertidas a base64")
+
+        # PASO 3: Guardar HTML modificado en archivo temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
+            temp_html.write(html_with_base64)
+            temp_html_path = temp_html.name
+
         # Crear archivo temporal para el PDF de salida
         temp_pdf = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
         temp_pdf_path = temp_pdf.name
@@ -387,7 +442,7 @@ def puppeteer_html_to_pdf_from_url(html_url, output_filename="certificado"):
 
         print(f"📄 PDF de salida: {temp_pdf_path}")
 
-        # Script de Node.js para ejecutar Puppeteer
+        # PASO 4: Script de Node.js para ejecutar Puppeteer
         puppeteer_script = f"""
 const puppeteer = require('puppeteer');
 const fs = require('fs');
@@ -400,32 +455,18 @@ const fs = require('fs');
 
     const page = await browser.newPage();
 
-    // Navegar a la URL pública (igual que iLovePDF descarga la URL)
-    console.log('📥 Cargando URL: {html_url}');
-    await page.goto('{html_url}', {{
+    // Leer HTML con imágenes ya convertidas a base64
+    console.log('📖 Leyendo HTML con imágenes embebidas...');
+    const html = fs.readFileSync('{temp_html_path}', 'utf8');
+
+    // Establecer contenido HTML
+    await page.setContent(html, {{
         waitUntil: ['load', 'networkidle0'],
         timeout: 30000
     }});
 
-    // Esperar adicional para asegurar que las imágenes se carguen
-    console.log('⏳ Esperando carga completa de imágenes...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Verificar que todas las imágenes se hayan cargado
-    const imageCount = await page.evaluate(() => {{
-        const images = Array.from(document.images);
-        console.log(`Total imágenes: ${{images.length}}`);
-
-        return Promise.all(
-            images
-                .filter(img => !img.complete)
-                .map(img => new Promise((resolve) => {{
-                    img.onload = img.onerror = resolve;
-                }}))
-        ).then(() => images.length);
-    }});
-
-    console.log(`✅ ${{imageCount}} imágenes verificadas`);
+    // Esperar un poco más para asegurar renderizado completo
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Generar PDF
     console.log('📄 Generando PDF...');
@@ -484,6 +525,7 @@ const fs = require('fs');
 
         # Limpiar archivos temporales
         try:
+            os.unlink(temp_html_path)
             os.unlink(temp_pdf_path)
             os.unlink(temp_script_path)
         except Exception as cleanup_error:
