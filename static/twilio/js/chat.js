@@ -516,23 +516,22 @@ async function actualizarConversacionActualSilencioso() {
                 } else {
                     console.log(`📤 Es un mensaje SALIENTE - No reproducir sonido`);
                 }
-            }
 
-            lastMessageCount = allMessages.length;
+                // Solo agregar los mensajes NUEVOS (no re-renderizar todo)
+                console.log(`➕ Agregando solo ${newMessagesCount} mensaje(s) nuevo(s) al DOM`);
+                for (let i = lastMessageCount; i < allMessages.length; i++) {
+                    messagesContainer.innerHTML += renderizarMensaje(allMessages[i]);
+                }
 
-            // Renderizar mensajes
-            let messagesHtml = '';
-            allMessages.forEach(msg => {
-                messagesHtml += renderizarMensaje(msg);
-            });
+                lastMessageCount = allMessages.length;
 
-            messagesContainer.innerHTML = messagesHtml;
-
-            // Mantener scroll position a menos que esté al fondo
-            if (isAtBottom) {
-                scrollToBottom();
+                // Auto-scroll si estaba al fondo
+                if (isAtBottom) {
+                    scrollToBottom();
+                }
             } else {
-                messagesContainer.scrollTop = currentScrollTop;
+                console.log(`✓ No hay mensajes nuevos (${allMessages.length})`);
+                // No hacer nada, no re-renderizar
             }
         }
     } catch (error) {
