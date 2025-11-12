@@ -10,6 +10,7 @@ let autoRefreshInterval = null;
 let isLoadingMessages = false;
 let lastMessageCount = 0;
 let notificationSound = null;
+let audioPermitido = false; // Flag para saber si el usuario ya interactuó
 
 // API Configuration
 const API_BASE = window.API_BASE || window.location.origin;
@@ -23,6 +24,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar sonido de notificación
     inicializarSonidoNotificacion();
+
+    // Mostrar banner de permisos de audio
+    const audioBanner = document.getElementById('audioBanner');
+    if (audioBanner) {
+        // Mostrar banner después de 2 segundos
+        setTimeout(() => {
+            if (!audioPermitido) {
+                audioBanner.style.display = 'block';
+            }
+        }, 2000);
+    }
+
+    // Habilitar audio después de la primera interacción del usuario
+    const habilitarAudio = () => {
+        if (!audioPermitido) {
+            audioPermitido = true;
+            console.log('✅ Audio habilitado después de interacción del usuario');
+
+            // Ocultar banner
+            if (audioBanner) {
+                audioBanner.style.display = 'none';
+            }
+
+            // Intentar reproducir un sonido silencioso para "despertar" el audio
+            if (notificationSound && notificationSound.play) {
+                notificationSound.volume = 0;
+                notificationSound.play().then(() => {
+                    notificationSound.volume = 0.5;
+                    console.log('🎵 Audio context desbloqueado');
+                }).catch(() => {});
+            }
+        }
+    };
+
+    // Escuchar múltiples eventos de interacción
+    document.addEventListener('click', habilitarAudio, { once: false });
+    document.addEventListener('keydown', habilitarAudio, { once: false });
+    document.addEventListener('touchstart', habilitarAudio, { once: false });
+
+    // Banner clickeable para habilitar audio
+    if (audioBanner) {
+        audioBanner.addEventListener('click', habilitarAudio);
+    }
 
     // Cargar conversaciones
     cargarConversaciones();
@@ -102,25 +146,45 @@ function crearSonidoWebAudio() {
 }
 
 function reproducirSonidoNotificacion() {
-    if (!notificationSound) return;
+    if (!notificationSound) {
+        console.warn('⚠️ notificationSound no está inicializado');
+        return;
+    }
+
+    if (!audioPermitido) {
+        console.warn('⚠️ Audio no permitido aún. El usuario debe interactuar primero con la página.');
+        return;
+    }
 
     try {
-        // Reproducir sonido siempre (no solo cuando la ventana está oculta)
+        console.log('🔔 Intentando reproducir sonido de notificación...');
+
         // Resetear el audio para poder reproducirlo múltiples veces
         if (notificationSound.currentTime !== undefined) {
             notificationSound.currentTime = 0;
         }
 
-        notificationSound.play().catch(e => {
-            console.log('No se pudo reproducir sonido:', e);
-            // Si falla, intentar con Web Audio API
-            const fallbackSound = crearSonidoWebAudio();
-            if (fallbackSound) {
-                fallbackSound.play();
-            }
-        });
+        const playPromise = notificationSound.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                console.log('✅ Sonido reproducido exitosamente');
+            }).catch(e => {
+                console.log('❌ No se pudo reproducir sonido desde CDN:', e.message);
+                // Si falla, intentar con Web Audio API
+                const fallbackSound = crearSonidoWebAudio();
+                if (fallbackSound) {
+                    console.log('🔄 Intentando con Web Audio API...');
+                    fallbackSound.play().then(() => {
+                        console.log('✅ Fallback sound reproducido');
+                    }).catch(err => {
+                        console.log('❌ Fallback también falló:', err);
+                    });
+                }
+            });
+        }
     } catch (e) {
-        console.log('Error al reproducir sonido:', e);
+        console.log('❌ Error al reproducir sonido:', e);
     }
 }
 
