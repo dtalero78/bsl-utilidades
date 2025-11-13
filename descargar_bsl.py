@@ -217,6 +217,7 @@ def descargar_imagen_wix_con_puppeteer(wix_url):
         project_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Crear script de Puppeteer para descargar la imagen
+        # Estrategia: Crear una página HTML que cargue la imagen y capturarla desde ahí
         puppeteer_script = f"""
 const puppeteer = require('{project_dir}/node_modules/puppeteer');
 const fs = require('fs');
@@ -236,41 +237,56 @@ const fs = require('fs');
 
     let imageBuffer = null;
     let contentType = 'image/jpeg';
+    let capturedUrl = null;
 
-    // Interceptar la respuesta de la imagen
+    // Interceptar TODAS las respuestas de imágenes
     page.on('response', async (response) => {{
         const url = response.url();
-        if (url === '{wix_url}') {{
+        const ct = response.headers()['content-type'] || '';
+
+        // Capturar cualquier respuesta de imagen que venga de Wix
+        if (ct.startsWith('image/') && url.includes('wixstatic.com')) {{
             try {{
                 imageBuffer = await response.buffer();
-                contentType = response.headers()['content-type'] || 'image/jpeg';
-                console.log('✅ Imagen capturada:', imageBuffer.length, 'bytes');
+                contentType = ct;
+                capturedUrl = url;
+                console.log('✅ Imagen capturada:', imageBuffer.length, 'bytes', 'de', url);
             }} catch (err) {{
                 console.error('Error capturando imagen:', err);
             }}
         }}
     }});
 
-    // Cargar la imagen
+    // Crear una página HTML simple que cargue la imagen
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head><title>Load Image</title></head>
+        <body>
+            <img src="{wix_url}" crossorigin="anonymous" style="max-width:100%">
+        </body>
+        </html>
+    `;
+
+    // Cargar el HTML
     try {{
-        await page.goto('{wix_url}', {{
-            waitUntil: 'networkidle0',
-            timeout: 30000
-        }});
+        await page.setContent(htmlContent, {{ waitUntil: 'networkidle0', timeout: 30000 }});
+        // Esperar un poco más para asegurar que la imagen se cargue
+        await page.waitForTimeout(2000);
     }} catch (err) {{
-        console.error('Error cargando imagen:', err);
+        console.error('Error cargando página:', err);
     }}
 
     await browser.close();
 
     // Guardar en archivo temporal
-    if (imageBuffer) {{
+    if (imageBuffer && imageBuffer.length > 100) {{
         const tempFile = '/tmp/wix-image-' + Date.now() + '.bin';
         fs.writeFileSync(tempFile, imageBuffer);
         fs.writeFileSync(tempFile + '.type', contentType);
         console.log(tempFile);
     }} else {{
-        console.error('No se pudo capturar la imagen');
+        console.error('No se pudo capturar la imagen o tamaño inválido');
         process.exit(1);
     }}
 }})();
