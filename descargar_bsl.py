@@ -284,7 +284,7 @@ const fs = require('fs');
         await page.setContent(html, {{ waitUntil: 'domcontentloaded' }});
 
         // Esperar un poco para que la imagen empiece a cargar
-        await page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Esperar a que la imagen se cargue completamente (con más tiempo)
         await page.waitForFunction(
