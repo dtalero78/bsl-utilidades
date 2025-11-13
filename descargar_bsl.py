@@ -2169,6 +2169,160 @@ def procesar_csv():
 
         return error_response, 500
 
+# --- Endpoint: TEST PUPPETEER DESCARGA SIMPLE ---
+@app.route("/test-puppeteer-imagen/<wix_id>", methods=["GET", "OPTIONS"])
+def test_puppeteer_imagen(wix_id):
+    """
+    Endpoint de prueba SOLO para verificar que Puppeteer descarga correctamente la imagen
+
+    Args:
+        wix_id: ID del registro en Wix
+
+    Returns:
+        JSON con información detallada del proceso de descarga con Puppeteer
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"\n{'='*60}")
+        print(f"🎭 TEST PUPPETEER: Descarga de imagen Wix")
+        print(f"📋 Wix ID: {wix_id}")
+        print(f"{'='*60}\n")
+
+        resultado = {
+            "success": False,
+            "wix_id": wix_id,
+            "pasos": [],
+            "foto_url_wix": None,
+            "bytes_descargados": 0,
+            "content_type": None,
+            "errores": []
+        }
+
+        # PASO 1: Obtener URL de foto
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+
+        print("📡 PASO 1: Obteniendo URL de foto desde Wix...")
+        resultado["pasos"].append("1. Obteniendo URL de foto desde Wix...")
+
+        try:
+            # Consultar historia clínica
+            response = requests.get(f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}", timeout=10)
+            if response.status_code != 200:
+                raise Exception(f"Error consultando historia clínica: {response.status_code}")
+
+            datos_wix = response.json().get("data", {})
+            wix_id_historia = datos_wix.get('_id')
+
+            # Consultar formulario
+            formulario_response = requests.get(
+                f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id_historia}",
+                timeout=10
+            )
+
+            if formulario_response.status_code != 200:
+                raise Exception(f"Error consultando formulario: {formulario_response.status_code}")
+
+            formulario_data = formulario_response.json()
+            datos_formulario = formulario_data.get('item', {})
+            foto_url_original = datos_formulario.get('foto')
+
+            if not foto_url_original:
+                raise Exception("No se encontró campo 'foto' en formulario")
+
+            # Convertir URL
+            if foto_url_original.startswith('wix:image://v1/'):
+                parts = foto_url_original.replace('wix:image://v1/', '').split('/')
+                if len(parts) > 0:
+                    image_id = parts[0]
+                    foto_url_wix_cdn = f"https://static.wixstatic.com/media/{image_id}"
+            else:
+                foto_url_wix_cdn = foto_url_original
+
+            resultado["foto_url_wix"] = foto_url_wix_cdn
+            resultado["pasos"].append(f"   ✅ URL obtenida: {foto_url_wix_cdn[:80]}...")
+            print(f"   ✅ URL: {foto_url_wix_cdn}")
+
+        except Exception as e:
+            error_msg = f"Error obteniendo URL: {str(e)}"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            print(f"   ❌ {error_msg}")
+            return jsonify(resultado), 500
+
+        # PASO 2: Descargar con Puppeteer
+        print("\n🎭 PASO 2: Descargando imagen con Puppeteer...")
+        resultado["pasos"].append("2. Descargando con Puppeteer (nueva estrategia HTML)...")
+
+        try:
+            image_bytes, content_type = descargar_imagen_wix_con_puppeteer(foto_url_wix_cdn)
+
+            if image_bytes and len(image_bytes) > 1000:
+                resultado["success"] = True
+                resultado["bytes_descargados"] = len(image_bytes)
+                resultado["content_type"] = content_type
+                resultado["pasos"].append(f"   ✅ Imagen descargada: {len(image_bytes):,} bytes")
+                resultado["pasos"].append(f"   ✅ Tipo: {content_type}")
+                print(f"   ✅ Descargado: {len(image_bytes):,} bytes ({content_type})")
+
+                # Info adicional
+                kb_size = len(image_bytes) / 1024
+                mb_size = kb_size / 1024
+                if mb_size >= 1:
+                    resultado["pasos"].append(f"   📊 Tamaño: {mb_size:.2f} MB")
+                else:
+                    resultado["pasos"].append(f"   📊 Tamaño: {kb_size:.2f} KB")
+            else:
+                bytes_count = len(image_bytes) if image_bytes else 0
+                error_msg = f"Imagen inválida o muy pequeña ({bytes_count} bytes)"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                resultado["bytes_descargados"] = bytes_count
+                print(f"   ❌ {error_msg}")
+
+        except Exception as e:
+            error_msg = f"Error en Puppeteer: {str(e)}"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            print(f"   ❌ {error_msg}")
+            traceback.print_exc()
+
+        # Resumen
+        print(f"\n{'='*60}")
+        if resultado["success"]:
+            print(f"✅ TEST EXITOSO")
+            print(f"📸 URL: {resultado['foto_url_wix'][:80]}...")
+            print(f"📊 Bytes: {resultado['bytes_descargados']:,}")
+            print(f"🏷️  Tipo: {resultado['content_type']}")
+        else:
+            print(f"❌ TEST FALLIDO")
+            print(f"Errores: {resultado['errores']}")
+        print(f"{'='*60}\n")
+
+        response = jsonify(resultado)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response, 200 if resultado["success"] else 500
+
+    except Exception as e:
+        print(f"\n❌ ERROR CRÍTICO: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "wix_id": wix_id,
+            "error": f"Error crítico: {str(e)}",
+            "pasos": ["Error crítico antes de completar el test"]
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+        return error_response, 500
+
+
 # --- Endpoint: GUARDAR FOTO DESDE WIX A DO SPACES (TEST) ---
 @app.route("/guardar-foto-desde-wix-do/<wix_id>", methods=["GET", "OPTIONS"])
 def guardar_foto_desde_wix_do(wix_id):
