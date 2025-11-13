@@ -200,6 +200,77 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
 
 # ============== FUNCIONES AUXILIARES ==============
 
+def obtener_foto_desde_postgres(wix_id):
+    """
+    Obtiene la foto del paciente desde PostgreSQL usando el wix_id.
+
+    Args:
+        wix_id: ID de Wix del registro de HistoriaClinica
+
+    Returns:
+        str: Data URI base64 de la foto si existe, None si no existe o hay error
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  POSTGRES_PASSWORD no configurada, no se consultará PostgreSQL")
+            return None
+
+        # Conectar a PostgreSQL
+        print(f"🔌 [PostgreSQL] Conectando para buscar foto con wix_id: {wix_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        # Buscar la foto por wix_id
+        cur.execute("""
+            SELECT foto, primer_nombre, primer_apellido
+            FROM formularios
+            WHERE wix_id = %s
+            LIMIT 1;
+        """, (wix_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
+            return None
+
+        foto, primer_nombre, primer_apellido = row
+
+        if not foto:
+            print(f"ℹ️  [PostgreSQL] Registro encontrado pero sin foto: {primer_nombre} {primer_apellido}")
+            return None
+
+        # Verificar que sea un data URI válido
+        if not foto.startswith("data:image/"):
+            print(f"⚠️  [PostgreSQL] Foto no es un data URI válido (no comienza con 'data:image/')")
+            return None
+
+        foto_size_kb = len(foto) / 1024
+        print(f"✅ [PostgreSQL] Foto encontrada para {primer_nombre} {primer_apellido}")
+        print(f"📸 [PostgreSQL] Foto size: {foto_size_kb:.1f} KB")
+
+        return foto
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado, no se puede consultar PostgreSQL")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar foto: {e}")
+        return None
+
+
 def descargar_imagen_wix_con_puppeteer(wix_url):
     """
     Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
@@ -1535,7 +1606,7 @@ def generar_certificado_medico():
             "profesion": data.get("profesion", ""),
             "email": data.get("email", ""),
             "tipo_examen": data.get("tipo_examen", "Ingreso"),
-            "foto_paciente": data.get("foto_paciente", None),
+            "foto_paciente": obtener_foto_desde_postgres(data.get("wix_id")) if data.get("wix_id") else data.get("foto_paciente", None),
 
             # Exámenes realizados
             "examenes_realizados": data.get("examenes_realizados", [
@@ -1746,7 +1817,7 @@ def generar_certificado_medico_puppeteer():
             "profesion": data.get("profesion", ""),
             "email": data.get("email", ""),
             "tipo_examen": data.get("tipo_examen", "Ingreso"),
-            "foto_paciente": data.get("foto_paciente", None),
+            "foto_paciente": obtener_foto_desde_postgres(data.get("wix_id")) if data.get("wix_id") else data.get("foto_paciente", None),
 
             # Exámenes realizados
             "examenes_realizados": data.get("examenes_realizados", [
@@ -2197,6 +2268,159 @@ def server_ip():
         return jsonify({"error": str(e)}), 500
 
 # --- Endpoint: EXPLORAR POSTGRESQL ---
+@app.route("/test-certificado-postgres/<wix_id>", methods=["GET", "OPTIONS"])
+def test_certificado_postgres(wix_id):
+    """
+    Endpoint de prueba para generar certificado usando foto de PostgreSQL
+    en lugar de Wix CDN
+    """
+    if request.method == "OPTIONS":
+        return _build_cors_preflight_response()
+
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return jsonify({
+                "success": False,
+                "error": "POSTGRES_PASSWORD no configurada"
+            }), 500
+
+        # Conectar a PostgreSQL
+        print(f"🔌 Conectando a PostgreSQL para wix_id: {wix_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        # Buscar el registro por wix_id
+        print(f"🔍 Buscando registro con wix_id: {wix_id}")
+        cur.execute("""
+            SELECT
+                id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
+                numero_id, cargo, empresa, cod_empresa, foto, wix_id
+            FROM formularios
+            WHERE wix_id = %s
+            LIMIT 1;
+        """, (wix_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return jsonify({
+                "success": False,
+                "error": f"No se encontró registro con wix_id: {wix_id}"
+            }), 404
+
+        # Extraer datos
+        (
+            db_id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
+            numero_id, cargo, empresa, cod_empresa, foto, db_wix_id
+        ) = row
+
+        print(f"✅ Registro encontrado: {primer_nombre} {primer_apellido}")
+        print(f"📸 Foto length: {len(foto) if foto else 0} caracteres")
+
+        # Preparar datos del certificado (ejemplo simple)
+        from datetime import datetime
+        fecha_actual = datetime.now()
+
+        datos_certificado = {
+            "nombres_apellidos": f"{primer_nombre or ''} {segundo_nombre or ''} {primer_apellido or ''} {segundo_apellido or ''}".strip(),
+            "documento_identidad": numero_id or "Sin documento",
+            "cargo": cargo or "No especificado",
+            "empresa": empresa or "No especificada",
+            "cod_empresa": cod_empresa or "",
+            "foto_paciente": foto,  # Data URI base64 desde PostgreSQL
+
+            # Datos mínimos requeridos para el template
+            "fecha_nacimiento": "",
+            "edad": "N/A",
+            "genero": "N/A",
+            "direccion": "",
+            "ciudad": "",
+            "telefono": "",
+            "celular": "",
+            "estado_civil": "",
+            "hijos": "0",
+            "profesion": "",
+            "email": "",
+            "tipo_examen": "Prueba PostgreSQL",
+
+            "examenes_realizados": [
+                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+            ],
+
+            "resultados_generales": [{
+                "categoria": "Prueba",
+                "resultado": "Normal",
+                "observaciones": "Certificado de prueba usando foto de PostgreSQL"
+            }],
+
+            "concepto_medico": "APTO para desempeñar el cargo (PRUEBA PostgreSQL)",
+            "recomendaciones": "Ninguna (certificado de prueba)",
+
+            "medico_nombre": "Dr. Juan Pérez",
+            "medico_firma": "/static/images/firma_medico.png",
+            "medico_registro": "RM 12345",
+
+            "codigo_seguridad": f"TEST-PG-{wix_id[:8]}",
+            "fecha_emision": fecha_actual.strftime("%d de %B de %Y"),
+            "mostrar_sin_soporte": False,
+
+            "qr_code_base64": None  # Por ahora sin QR
+        }
+
+        # Renderizar template
+        print("🎨 Renderizando template...")
+        html_content = render_template("certificado_medico.html", **datos_certificado)
+
+        # Generar PDF
+        print("📄 Generando PDF...")
+        pdf_content = ilovepdf_html_to_pdf(
+            html_content=html_content,
+            output_filename=f"test_certificado_postgres_{wix_id}"
+        )
+
+        # Guardar PDF temporalmente
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp_pdf.write(pdf_content)
+        temp_pdf.close()
+
+        print(f"✅ PDF generado: {temp_pdf.name} ({len(pdf_content)} bytes)")
+
+        return jsonify({
+            "success": True,
+            "message": "PDF generado exitosamente usando foto de PostgreSQL",
+            "pdf_path": temp_pdf.name,
+            "pdf_size_bytes": len(pdf_content),
+            "foto_size_chars": len(foto) if foto else 0,
+            "foto_preview": foto[:100] if foto else None,
+            "paciente": {
+                "nombre": datos_certificado["nombres_apellidos"],
+                "documento": numero_id,
+                "cargo": cargo,
+                "empresa": empresa
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @app.route("/explore-postgres", methods=["GET"])
 def explore_postgres():
     """Endpoint para explorar la estructura de PostgreSQL"""
@@ -3045,48 +3269,17 @@ def api_generar_certificado_pdf(wix_id):
                                     datos_wix['fechaNacimiento'] = fecha_nac
                             elif isinstance(fecha_nac, datetime):
                                 datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
-                        if datos_formulario.get('foto'):
-                            # Convertir URL de Wix a URL accesible Y descargarla localmente
-                            foto_wix = datos_formulario.get('foto')
-                            if foto_wix.startswith('wix:image://v1/'):
-                                # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
-                                # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
-                                # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a URL simple de Wix sin parámetros complejos
-                                parts = foto_wix.replace('wix:image://v1/', '').split('/')
-                                if len(parts) > 0:
-                                    image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
-                                    # Convertir a URL de Wix CDN
-                                    wix_url = f"https://static.wixstatic.com/media/{image_id}"
-                                    print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
-                                    print(f"🔍 URL FOTO WIX CDN: {wix_url}")
 
-                                    # NUEVA LÓGICA: Descargar la imagen localmente para evitar bloqueos de Wix CDN
-                                    local_url = descargar_imagen_wix_localmente(wix_url)
-                                    if local_url:
-                                        datos_wix['foto_paciente'] = local_url
-                                        print(f"✅ Usando imagen local: {local_url}")
-                                    else:
-                                        # Si falla la descarga, intentar usar URL de Wix directamente (fallback)
-                                        datos_wix['foto_paciente'] = wix_url
-                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
-                                else:
-                                    datos_wix['foto_paciente'] = foto_wix
-                                    print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
-                            else:
-                                # Si no es wix:image, verificar si es URL de Wix CDN y descargarla
-                                if 'static.wixstatic.com' in foto_wix:
-                                    print(f"🔍 URL FOTO de Wix CDN detectada: {foto_wix}")
-                                    local_url = descargar_imagen_wix_localmente(foto_wix)
-                                    if local_url:
-                                        datos_wix['foto_paciente'] = local_url
-                                        print(f"✅ Usando imagen local: {local_url}")
-                                    else:
-                                        datos_wix['foto_paciente'] = foto_wix
-                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {foto_wix}")
-                                else:
-                                    datos_wix['foto_paciente'] = foto_wix
-                                    print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
+                        # ===== PRIORIDAD: FOTO DESDE POSTGRESQL =====
+                        foto_postgres = obtener_foto_desde_postgres(wix_id_historia)
+                        if foto_postgres:
+                            datos_wix['foto_paciente'] = foto_postgres
+                            print(f"✅ Usando foto de PostgreSQL (data URI base64)")
+                        else:
+                            # No hay foto en PostgreSQL, continuar sin foto
+                            print(f"ℹ️  No hay foto disponible en PostgreSQL para wix_id: {wix_id_historia}")
+                            datos_wix['foto_paciente'] = None
+
                         print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
                     else:
                         print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
