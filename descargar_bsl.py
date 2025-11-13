@@ -258,27 +258,41 @@ const fs = require('fs');
             }}
         }});
 
-        // Crear página HTML simple que cargue la imagen
+        // Crear página HTML simple que cargue la imagen (SIN crossorigin)
         const html = `
         <!DOCTYPE html>
         <html>
         <head><title>Wix Image Loader</title></head>
         <body>
-            <img id="target" crossorigin="anonymous" />
+            <h1>Loading image...</h1>
+            <img id="target" style="max-width: 100%;" />
             <script>
+                console.log('Setting image src...');
                 document.getElementById('target').src = '{wix_url}';
+                document.getElementById('target').onload = function() {{
+                    console.log('Image loaded! Width:', this.naturalWidth, 'Height:', this.naturalHeight);
+                }};
+                document.getElementById('target').onerror = function(e) {{
+                    console.error('Image load error:', e);
+                }};
             </script>
         </body>
         </html>
         `;
 
         // Cargar HTML con la imagen
-        await page.setContent(html);
+        await page.setContent(html, {{ waitUntil: 'domcontentloaded' }});
 
-        // Esperar a que la imagen se cargue completamente
+        // Esperar un poco para que la imagen empiece a cargar
+        await page.waitForTimeout(2000);
+
+        // Esperar a que la imagen se cargue completamente (con más tiempo)
         await page.waitForFunction(
-            'document.getElementById("target").complete && document.getElementById("target").naturalWidth > 0',
-            {{ timeout: 25000 }}
+            () => {{
+                const img = document.getElementById('target');
+                return img && img.complete && img.naturalWidth > 0;
+            }},
+            {{ timeout: 30000 }}
         );
 
         console.log('✅ Imagen cargada en DOM');
