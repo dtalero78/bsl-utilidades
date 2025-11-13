@@ -181,6 +181,7 @@
 
         let currentPhraseIndex = 0;
         const phraseElement = document.getElementById('phrase');
+        let phraseInterval = null;
 
         function showNextPhrase() {
             phraseElement.style.animation = 'none';
@@ -191,11 +192,23 @@
             }, 50);
         }
 
+        function stopLoader() {
+            // Detener cambio de frases
+            if (phraseInterval) {
+                clearInterval(phraseInterval);
+            }
+
+            // Detener animaciones
+            phraseElement.style.animation = 'none';
+            document.querySelector('.spinner').style.display = 'none';
+            document.querySelector('.progress-fill').style.animation = 'none';
+        }
+
         // Mostrar primera frase inmediatamente
         showNextPhrase();
 
         // Cambiar frase cada 3 segundos
-        setInterval(showNextPhrase, 3000);
+        phraseInterval = setInterval(showNextPhrase, 3000);
 
         // Iniciar descarga en segundo plano
         const wixId = "{{ wix_id }}";
@@ -207,6 +220,9 @@
                 return response.blob();
             })
             .then(blob => {
+                // Detener loader
+                stopLoader();
+
                 // Descargar archivo
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -227,6 +243,9 @@
                 }, 3000);
             })
             .catch(error => {
+                // Detener loader
+                stopLoader();
+
                 console.error('Error:', error);
                 document.getElementById('status').innerHTML = '<span class="error"><strong>✕ Error al generar certificado</strong></span>';
                 phraseElement.textContent = 'Ha ocurrido un error en el proceso. Por favor contacta al administrador.';
