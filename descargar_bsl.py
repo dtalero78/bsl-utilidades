@@ -1,7 +1,7 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template, make_response
 from flask_cors import CORS
 from dotenv import load_dotenv
 import traceback
@@ -3956,6 +3956,161 @@ def test_twilio():
         'twilio_available': TWILIO_AVAILABLE,
         'routes_registered': True
     })
+
+# Endpoint de prueba para generar PDF con imagen de DO Spaces
+@app.route('/test-pdf-do-spaces')
+def test_pdf_do_spaces():
+    """
+    Endpoint de prueba simple: genera un PDF con la imagen del bucket de DO Spaces
+    usando Puppeteer
+    """
+    try:
+        import tempfile
+        import subprocess
+
+        # URL de la imagen en DO Spaces
+        imagen_url = "https://bsl-app-bucket.sfo3.digitaloceanspaces.com/wix-images/wix-img-d25ac21688d9.jpg"
+
+        # Crear HTML simple con la imagen
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Prueba PDF con imagen DO Spaces</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    margin: 40px;
+                    text-align: center;
+                }}
+                h1 {{
+                    color: #333;
+                    margin-bottom: 30px;
+                }}
+                img {{
+                    max-width: 500px;
+                    border: 2px solid #ddd;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                }}
+                p {{
+                    color: #666;
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🎉 Prueba de PDF con imagen de DO Spaces</h1>
+            <img src="{imagen_url}" alt="Imagen de prueba">
+            <p><strong>URL:</strong> {imagen_url}</p>
+            <p>Esta imagen fue descargada de Digital Ocean Spaces y renderizada en PDF con Puppeteer.</p>
+        </body>
+        </html>
+        """
+
+        # Guardar HTML temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as html_file:
+            html_file.write(html_content)
+            html_path = html_file.name
+
+        # Archivo PDF de salida
+        pdf_path = html_path.replace('.html', '.pdf')
+
+        # Script de Puppeteer para generar PDF
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        puppeteer_script = f"""
+const puppeteer = require('{project_dir}/node_modules/puppeteer');
+
+(async () => {{
+    const browser = await puppeteer.launch({{
+        headless: 'new',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    }});
+
+    const page = await browser.newPage();
+
+    await page.goto('file://{html_path}', {{
+        waitUntil: 'networkidle0',
+        timeout: 30000
+    }});
+
+    await page.pdf({{
+        path: '{pdf_path}',
+        format: 'Letter',
+        printBackground: true,
+        margin: {{
+            top: '20px',
+            right: '20px',
+            bottom: '20px',
+            left: '20px'
+        }}
+    }});
+
+    await browser.close();
+    console.log('PDF generado exitosamente');
+}})();
+"""
+
+        # Guardar script de Puppeteer
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as js_file:
+            js_file.write(puppeteer_script)
+            js_path = js_file.name
+
+        # Ejecutar Puppeteer
+        print(f"🎭 Ejecutando Puppeteer para generar PDF de prueba...")
+        result = subprocess.run(
+            ['node', js_path],
+            capture_output=True,
+            text=True,
+            timeout=35,
+            cwd=project_dir
+        )
+
+        if result.returncode == 0 and os.path.exists(pdf_path):
+            print(f"✅ PDF generado exitosamente: {pdf_path}")
+
+            # Leer PDF y devolverlo como respuesta
+            with open(pdf_path, 'rb') as pdf_file:
+                pdf_bytes = pdf_file.read()
+
+            # Limpiar archivos temporales
+            try:
+                os.unlink(html_path)
+                os.unlink(js_path)
+                os.unlink(pdf_path)
+            except:
+                pass
+
+            # Devolver PDF
+            response = make_response(pdf_bytes)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = 'inline; filename=test-do-spaces.pdf'
+            return response
+        else:
+            print(f"❌ Error generando PDF:")
+            print(f"   stdout: {result.stdout}")
+            print(f"   stderr: {result.stderr}")
+            return jsonify({
+                'success': False,
+                'error': 'Error generando PDF',
+                'stdout': result.stdout,
+                'stderr': result.stderr
+            }), 500
+
+    except Exception as e:
+        print(f"❌ Error en test-pdf-do-spaces: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 if __name__ == "__main__":
