@@ -1773,13 +1773,48 @@ def generar_certificado_medico_puppeteer():
         if mostrar_aviso:
             print(f"⚠️ Mostrando aviso de pago pendiente")
 
-        # Renderizar template HTML
+        # PRE-PROCESAR IMÁGENES: convertir URLs de Wix a DO Spaces ANTES de renderizar
+        print("🖼️ Pre-procesando imágenes para usar DO Spaces...")
+
+        # 1. Foto del paciente
+        if datos_certificado.get("foto_paciente"):
+            foto_url = datos_certificado["foto_paciente"]
+            if 'wix' in foto_url.lower() or 'static.wixstatic.com' in foto_url:
+                print(f"📸 Procesando foto de paciente desde Wix...")
+                foto_local = descargar_imagen_wix_localmente(foto_url)
+                if foto_local:
+                    datos_certificado["foto_paciente"] = foto_local
+                    print(f"✅ Foto paciente cacheada: {foto_local}")
+                else:
+                    print(f"⚠️ No se pudo cachear foto paciente, usando URL Wix")
+
+        # 2. Firma del médico (si no viene, usar la por defecto)
+        if not datos_certificado.get("firma_medico_url"):
+            datos_certificado["firma_medico_url"] = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-JUAN134.jpeg"
+
+        # 3. Firma del optómetra (si no viene, usar la por defecto)
+        if not datos_certificado.get("firma_optometra_url"):
+            datos_certificado["firma_optometra_url"] = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
+
+        # 4. Firma del paciente (procesar si es de Wix o data URI)
+        if datos_certificado.get("firma_paciente_url"):
+            firma_url = datos_certificado["firma_paciente_url"]
+            # Si es data URI, dejarla tal cual (ya es base64)
+            if not firma_url.startswith('data:'):
+                if 'wix' in firma_url.lower() or 'static.wixstatic.com' in firma_url:
+                    print(f"✍️ Procesando firma de paciente desde Wix...")
+                    firma_local = descargar_imagen_wix_localmente(firma_url)
+                    if firma_local:
+                        datos_certificado["firma_paciente_url"] = firma_local
+                        print(f"✅ Firma paciente cacheada: {firma_local}")
+
+        # Renderizar template HTML (ahora con imágenes ya procesadas a DO Spaces)
         print("🎨 Renderizando plantilla HTML...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
 
-        # Generar PDF con Puppeteer
-        print("📄 Generando PDF con Puppeteer...")
-        pdf_content = puppeteer_html_to_pdf(
+        # Generar PDF con Puppeteer usando file:// (método simple que funciona)
+        print("📄 Generando PDF con Puppeteer (file://)...")
+        pdf_content = generar_pdf_con_puppeteer_local(
             html_content=html_content,
             output_filename=f"certificado_{datos_certificado['documento_identidad']}"
         )
@@ -3945,6 +3980,121 @@ def twilio_webhook():
 def twilio_static(filename):
     """Servir archivos estáticos CSS/JS para Twilio"""
     return send_from_directory('static/twilio', filename)
+
+# Función para generar PDF con Puppeteer desde HTML local (file://)
+def generar_pdf_con_puppeteer_local(html_content, output_filename="certificado"):
+    """
+    Genera un PDF usando Puppeteer desde HTML guardado localmente.
+    Estrategia simple que funciona (basada en /test-pdf-do-spaces):
+    - Guarda HTML en archivo temporal
+    - Usa file:// protocol (sin dependencia de red)
+    - Script de Puppeteer simple sin User-Agent ni headers especiales
+    - Solo networkidle0 (funciona bien con imágenes de DO Spaces)
+
+    Args:
+        html_content: String con el HTML renderizado (imágenes deben ser URLs públicas de DO Spaces)
+        output_filename: Nombre base del archivo PDF (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+
+    Raises:
+        Exception: Si falla la generación del PDF
+    """
+    try:
+        print(f"🎭 Generando PDF con Puppeteer (file://)...")
+        print(f"📄 Archivo: {output_filename}.pdf")
+
+        # Guardar HTML en archivo temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as html_file:
+            html_file.write(html_content)
+            html_path = html_file.name
+
+        # Archivo PDF de salida
+        pdf_path = html_path.replace('.html', '.pdf')
+
+        # Script de Puppeteer (simple y efectivo)
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        puppeteer_script = f"""
+const puppeteer = require('{project_dir}/node_modules/puppeteer');
+
+(async () => {{
+    const browser = await puppeteer.launch({{
+        headless: 'new',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    }});
+
+    const page = await browser.newPage();
+
+    // Cargar HTML desde archivo local (file://)
+    await page.goto('file://{html_path}', {{
+        waitUntil: 'networkidle0',
+        timeout: 30000
+    }});
+
+    // Generar PDF
+    await page.pdf({{
+        path: '{pdf_path}',
+        format: 'Letter',
+        printBackground: true,
+        margin: {{
+            top: '0.5cm',
+            right: '0.5cm',
+            bottom: '0.5cm',
+            left: '0.5cm'
+        }}
+    }});
+
+    await browser.close();
+    console.log('✅ PDF generado exitosamente');
+}})();
+"""
+
+        # Guardar script de Puppeteer
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as js_file:
+            js_file.write(puppeteer_script)
+            js_path = js_file.name
+
+        # Ejecutar Puppeteer
+        print(f"🚀 Ejecutando Puppeteer...")
+        result = subprocess.run(
+            ['node', js_path],
+            capture_output=True,
+            text=True,
+            timeout=35,
+            cwd=project_dir
+        )
+
+        if result.returncode == 0 and os.path.exists(pdf_path):
+            print(f"✅ PDF generado exitosamente: {pdf_path}")
+
+            # Leer PDF
+            with open(pdf_path, 'rb') as pdf_file:
+                pdf_bytes = pdf_file.read()
+
+            # Limpiar archivos temporales
+            try:
+                os.unlink(html_path)
+                os.unlink(js_path)
+                os.unlink(pdf_path)
+            except:
+                pass
+
+            return pdf_bytes
+        else:
+            error_msg = f"Error generando PDF: stdout={result.stdout}, stderr={result.stderr}"
+            print(f"❌ {error_msg}")
+            raise Exception(error_msg)
+
+    except Exception as e:
+        print(f"❌ Error en generar_pdf_con_puppeteer_local: {str(e)}")
+        raise
+
 
 # Endpoint de prueba
 @app.route('/test-twilio')
