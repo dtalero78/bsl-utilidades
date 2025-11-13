@@ -2196,6 +2196,86 @@ def server_ip():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Endpoint: EXPLORAR POSTGRESQL ---
+@app.route("/explore-postgres", methods=["GET"])
+def explore_postgres():
+    """Endpoint para explorar la estructura de PostgreSQL"""
+    try:
+        import psycopg2
+
+        # Conectar a PostgreSQL usando variables de entorno
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return jsonify({"success": False, "error": "POSTGRES_PASSWORD no configurado"}), 500
+
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require",
+            connect_timeout=10
+        )
+
+        cur = conn.cursor()
+
+        resultado = {
+            "success": True,
+            "tablas": [],
+            "detalles": {}
+        }
+
+        # Listar todas las tablas
+        cur.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """)
+        tables = cur.fetchall()
+
+        for table in tables:
+            table_name = table[0]
+            resultado["tablas"].append(table_name)
+
+            # Obtener estructura de cada tabla
+            cur.execute(f"""
+                SELECT column_name, data_type, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_name = '{table_name}'
+                ORDER BY ordinal_position;
+            """)
+            columns = cur.fetchall()
+
+            # Contar registros
+            cur.execute(f"SELECT COUNT(*) FROM {table_name};")
+            count = cur.fetchone()[0]
+
+            resultado["detalles"][table_name] = {
+                "columnas": [
+                    {
+                        "nombre": col[0],
+                        "tipo": col[1],
+                        "max_length": col[2]
+                    }
+                    for col in columns
+                ],
+                "total_registros": count
+            }
+
+        cur.close()
+        conn.close()
+
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 # --- Endpoint: TEST PUPPETEER DESCARGA SIMPLE ---
 @app.route("/test-puppeteer-imagen/<wix_id>", methods=["GET", "OPTIONS"])
 def test_puppeteer_imagen(wix_id):
