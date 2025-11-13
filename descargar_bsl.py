@@ -2144,6 +2144,196 @@ def procesar_csv():
 
         return error_response, 500
 
+# --- Endpoint: GUARDAR FOTO DESDE WIX A DO SPACES (TEST) ---
+@app.route("/guardar-foto-desde-wix-do/<wix_id>", methods=["GET", "OPTIONS"])
+def guardar_foto_desde_wix_do(wix_id):
+    """
+    Endpoint de prueba para diagnosticar descarga de fotos de Wix a DO Spaces
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Returns:
+        JSON con información detallada del proceso de descarga
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"\n{'='*60}")
+        print(f"🧪 TEST: Guardar foto desde Wix a DO Spaces")
+        print(f"📋 Wix ID: {wix_id}")
+        print(f"{'='*60}\n")
+
+        resultado = {
+            "success": False,
+            "wix_id": wix_id,
+            "pasos": [],
+            "foto_url_wix": None,
+            "foto_url_do_spaces": None,
+            "errores": []
+        }
+
+        # PASO 1: Obtener datos desde Wix
+        resultado["pasos"].append("1. Consultando datos desde Wix HTTP Function...")
+        print("📡 PASO 1: Consultando Wix HTTP Function...")
+
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+
+        print(f"   URL: {wix_url}")
+
+        try:
+            response = requests.get(wix_url, timeout=10)
+            print(f"   Status: {response.status_code}")
+
+            if response.status_code != 200:
+                error_msg = f"Error HTTP {response.status_code} al consultar Wix"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                return jsonify(resultado), 500
+
+            wix_response = response.json()
+            datos_wix = wix_response.get("data", {})
+
+            if not datos_wix:
+                error_msg = "Wix retornó respuesta vacía"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                return jsonify(resultado), 404
+
+            resultado["pasos"].append(f"   ✅ Datos obtenidos exitosamente")
+            print(f"   ✅ Datos obtenidos: {datos_wix.get('primerNombre', '')} {datos_wix.get('primerApellido', '')}")
+
+        except Exception as e:
+            error_msg = f"Error de conexión con Wix: {str(e)}"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            return jsonify(resultado), 500
+
+        # PASO 2: Consultar formulario para obtener foto
+        resultado["pasos"].append("2. Consultando datos del formulario (incluye foto)...")
+        print("\n📝 PASO 2: Consultando datos del formulario...")
+
+        wix_id_historia = datos_wix.get('_id')
+        foto_url_original = None
+        foto_url_wix_cdn = None
+
+        try:
+            formulario_url = f"{wix_base_url}/getFormularioInicial?wixIdHistoria={wix_id_historia}"
+            print(f"   URL: {formulario_url}")
+
+            formulario_response = requests.get(formulario_url, timeout=10)
+            print(f"   Status: {formulario_response.status_code}")
+
+            if formulario_response.status_code == 200:
+                formulario_data = formulario_response.json()
+                datos_formulario = formulario_data.get('data', {})
+
+                if datos_formulario and datos_formulario.get('foto'):
+                    foto_url_original = datos_formulario.get('foto')
+                    resultado["pasos"].append(f"   ✅ Foto encontrada en formulario")
+                    print(f"   ✅ Foto original: {foto_url_original[:100]}...")
+
+                    # Convertir URL de Wix si es necesario
+                    if foto_url_original.startswith('wix:image://v1/'):
+                        parts = foto_url_original.replace('wix:image://v1/', '').split('/')
+                        if len(parts) > 0:
+                            image_id = parts[0]
+                            foto_url_wix_cdn = f"https://static.wixstatic.com/media/{image_id}"
+                            resultado["pasos"].append(f"   🔄 Convertida a Wix CDN URL")
+                            print(f"   🔄 URL CDN: {foto_url_wix_cdn}")
+                    elif 'static.wixstatic.com' in foto_url_original:
+                        foto_url_wix_cdn = foto_url_original
+                        resultado["pasos"].append(f"   ℹ️  Ya es una URL de Wix CDN")
+                        print(f"   ℹ️  Ya es URL CDN")
+                    else:
+                        foto_url_wix_cdn = foto_url_original
+                        resultado["pasos"].append(f"   ⚠️  URL no es de Wix CDN")
+                        print(f"   ⚠️  URL no es de Wix CDN")
+
+                    resultado["foto_url_wix"] = foto_url_wix_cdn
+                else:
+                    error_msg = "No se encontró foto en el formulario"
+                    resultado["errores"].append(error_msg)
+                    resultado["pasos"].append(f"   ❌ {error_msg}")
+                    return jsonify(resultado), 404
+            else:
+                error_msg = f"Error HTTP {formulario_response.status_code} al consultar formulario"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                return jsonify(resultado), 500
+
+        except Exception as e:
+            error_msg = f"Error consultando formulario: {str(e)}"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            traceback.print_exc()
+            return jsonify(resultado), 500
+
+        # PASO 3: Descargar y subir a DO Spaces
+        resultado["pasos"].append("3. Descargando imagen y subiendo a DO Spaces...")
+        print(f"\n📥 PASO 3: Descargando y subiendo a DO Spaces...")
+        print(f"   URL a descargar: {foto_url_wix_cdn}")
+
+        try:
+            # Usar la función existente
+            do_spaces_url = descargar_imagen_wix_a_do_spaces(foto_url_wix_cdn)
+
+            if do_spaces_url:
+                resultado["success"] = True
+                resultado["foto_url_do_spaces"] = do_spaces_url
+                resultado["pasos"].append(f"   ✅ Imagen subida exitosamente a DO Spaces")
+                print(f"   ✅ URL DO Spaces: {do_spaces_url}")
+            else:
+                error_msg = "La función de descarga/subida retornó None"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                print(f"   ❌ {error_msg}")
+
+        except Exception as e:
+            error_msg = f"Error en descarga/subida: {str(e)}"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            print(f"   ❌ {error_msg}")
+            traceback.print_exc()
+
+        # Resumen final
+        print(f"\n{'='*60}")
+        if resultado["success"]:
+            print(f"✅ TEST EXITOSO")
+            print(f"📸 Foto Wix: {resultado['foto_url_wix'][:80]}...")
+            print(f"☁️  Foto DO Spaces: {resultado['foto_url_do_spaces']}")
+        else:
+            print(f"❌ TEST FALLIDO")
+            print(f"Errores: {resultado['errores']}")
+        print(f"{'='*60}\n")
+
+        response = jsonify(resultado)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response, 200 if resultado["success"] else 500
+
+    except Exception as e:
+        print(f"\n❌ ERROR CRÍTICO EN TEST: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "wix_id": wix_id,
+            "error": f"Error crítico: {str(e)}",
+            "pasos": ["Error crítico antes de completar el test"]
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
+
 # --- Endpoint: GENERAR CERTIFICADO DESDE ID DE WIX ---
 @app.route("/generar-certificado-desde-wix/<wix_id>", methods=["GET", "OPTIONS"])
 def generar_certificado_desde_wix(wix_id):
