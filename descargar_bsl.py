@@ -46,7 +46,7 @@ CORS(app, resources={
     r"/generar-certificado-medico-puppeteer": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Endpoint con Puppeteer
     r"/generar-certificado-desde-wix-puppeteer/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Wix con Puppeteer
     r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
-    r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir archivos HTML temporales para iLovePDF
+    r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir archivos HTML temporales para Puppeteer
 })
 
 # Configuración de carpetas por empresa
@@ -102,8 +102,6 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
         f.write(base64.b64decode(TOKEN_B64))
 
 API2PDF_KEY = os.getenv("API2PDF_KEY")
-ILOVEPDF_PUBLIC_KEY = os.getenv("ILOVEPDF_PUBLIC_KEY")
-ILOVEPDF_SECRET_KEY = os.getenv("ILOVEPDF_SECRET_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
 
 # --- Importar funciones para almacenamiento externo ---
@@ -568,156 +566,6 @@ def descargar_imagen_wix_localmente(wix_url):
     # Fallback: usar URL de Wix directamente (Puppeteer puede cargarla)
     print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
     return wix_url
-
-# ============== FUNCIONES iLovePDF ==============
-
-def ilovepdf_get_token():
-    """Obtiene un token de autenticación de iLovePDF"""
-    try:
-        response = requests.post(
-            'https://api.ilovepdf.com/v1/auth',
-            json={'public_key': ILOVEPDF_PUBLIC_KEY}
-        )
-        response.raise_for_status()
-        token = response.json()['token']
-        print(f"✅ Token de iLovePDF obtenido")
-        return token
-    except Exception as e:
-        print(f"❌ Error obteniendo token de iLovePDF: {e}")
-        raise
-
-def ilovepdf_html_to_pdf(html_content, output_filename="certificado"):
-    """
-    Convierte contenido HTML a PDF usando iLovePDF API
-
-    Args:
-        html_content: Contenido HTML como string
-        output_filename: Nombre del archivo de salida (sin extensión)
-
-    Returns:
-        bytes: Contenido del PDF generado
-    """
-    try:
-        # Guardar HTML en archivo temporal
-        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w', encoding='utf-8')
-        temp_html.write(html_content)
-        temp_html.close()
-
-        # Hacer el archivo accesible vía endpoint temporal
-        temp_filename = os.path.basename(temp_html.name)
-
-        # Usar la URL del servidor para acceder al archivo temporal
-        # Nota: El archivo debe ser accesible públicamente para iLovePDF
-        # Usaremos el endpoint /temp-html/ que crearemos
-        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
-        html_url = f"{base_url}/temp-html/{temp_filename}"
-
-        # Guardar referencia al archivo temporal para que el endpoint pueda servirlo
-        if not hasattr(app, 'temp_html_files'):
-            app.temp_html_files = {}
-        app.temp_html_files[temp_filename] = temp_html.name
-
-        # Convertir usando la función existente
-        pdf_content = ilovepdf_html_to_pdf_from_url(html_url, output_filename)
-
-        # Limpiar archivo temporal
-        try:
-            os.unlink(temp_html.name)
-            if temp_filename in app.temp_html_files:
-                del app.temp_html_files[temp_filename]
-        except Exception as cleanup_error:
-            print(f"⚠️ Error limpiando archivo temporal: {cleanup_error}")
-
-        return pdf_content
-
-    except Exception as e:
-        print(f"❌ Error en ilovepdf_html_to_pdf: {e}")
-        raise
-
-def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
-    """
-    Convierte HTML a PDF usando iLovePDF API desde una URL pública
-
-    Args:
-        html_url: URL pública del HTML a convertir
-        output_filename: Nombre del archivo de salida (sin extensión)
-
-    Returns:
-        bytes: Contenido del PDF generado
-    """
-    try:
-        # Paso 1: Obtener token
-        token = ilovepdf_get_token()
-        headers = {'Authorization': f'Bearer {token}'}
-
-        # Paso 2: Iniciar tarea
-        print("📄 Iniciando tarea HTML→PDF en iLovePDF...")
-        start_response = requests.get(
-            'https://api.ilovepdf.com/v1/start/htmlpdf/eu',
-            headers=headers
-        )
-        start_response.raise_for_status()
-        task_data = start_response.json()
-        server = task_data['server']
-        task_id = task_data['task']
-        print(f"✅ Tarea iniciada: {task_id} en servidor {server}")
-
-        # Paso 3: Agregar URL del HTML
-        print(f"📤 Agregando URL a iLovePDF: {html_url}")
-        add_url_response = requests.post(
-            f'https://{server}/v1/upload',
-            json={
-                'task': task_id,
-                'cloud_file': html_url
-            },
-            headers=headers
-        )
-        add_url_response.raise_for_status()
-        server_filename = add_url_response.json()['server_filename']
-        print(f"✅ URL agregada: {server_filename}")
-
-        # Paso 4: Procesar
-        print("⚙️ Procesando HTML→PDF...")
-        process_payload = {
-            'task': task_id,
-            'tool': 'htmlpdf',
-            'files': [{
-                'server_filename': server_filename,
-                'filename': 'document.html'
-            }],
-            'output_filename': output_filename,
-            'single_page': False,  # CRÍTICO: Permite PDFs de múltiples páginas
-            'page_size': 'Letter',  # Tamaño de página estándar
-            'page_margin': 20,  # Márgenes en píxeles para evitar compresión
-            'view_width': 850,  # Ancho del viewport antes de conversión
-            'page_orientation': 'portrait'  # Orientación vertical
-        }
-        process_response = requests.post(
-            f'https://{server}/v1/process',
-            json=process_payload,
-            headers=headers
-        )
-        process_response.raise_for_status()
-        result = process_response.json()
-        print(f"✅ PDF generado: {result.get('download_filename')} ({result.get('filesize')} bytes)")
-
-        # Paso 5: Descargar
-        print("📥 Descargando PDF...")
-        download_response = requests.get(
-            f'https://{server}/v1/download/{task_id}',
-            headers=headers
-        )
-        download_response.raise_for_status()
-        pdf_content = download_response.content
-        print(f"✅ PDF descargado exitosamente ({len(pdf_content)} bytes)")
-
-        return pdf_content
-
-    except Exception as e:
-        print(f"❌ Error en iLovePDF HTML→PDF: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            print(f"❌ Respuesta del servidor: {e.response.text}")
-        raise
 
 # ================================================
 # FUNCIONES DE PUPPETEER PARA PDF
@@ -1676,17 +1524,36 @@ def generar_certificado_medico():
         print("🎨 Renderizando plantilla HTML...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
 
-        # Generar PDF con iLovePDF
-        print("📄 Generando PDF con iLovePDF...")
+        # Guardar HTML en archivo temporal para Puppeteer
+        print("💾 Guardando HTML temporal...")
+        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w', encoding='utf-8')
+        temp_html.write(html_content)
+        temp_html.close()
+        temp_filename = os.path.basename(temp_html.name)
 
-        if not ILOVEPDF_PUBLIC_KEY:
-            raise Exception("ILOVEPDF_PUBLIC_KEY no configurada en variables de entorno")
+        # Guardar referencia al archivo temporal para el endpoint /temp-html/
+        if not hasattr(app, 'temp_html_files'):
+            app.temp_html_files = {}
+        app.temp_html_files[temp_filename] = temp_html.name
 
-        # Usar la función de iLovePDF
-        pdf_content = ilovepdf_html_to_pdf(
-            html_content=html_content,
+        # Construir URL para Puppeteer
+        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
+        html_url = f"{base_url}/temp-html/{temp_filename}"
+
+        # Generar PDF con Puppeteer
+        print("🎭 Generando PDF con Puppeteer...")
+        pdf_content = puppeteer_html_to_pdf_from_url(
+            html_url=html_url,
             output_filename=f"certificado_{datos_certificado['documento_identidad']}"
         )
+
+        # Limpiar archivo HTML temporal
+        try:
+            os.unlink(temp_html.name)
+            if temp_filename in app.temp_html_files:
+                del app.temp_html_files[temp_filename]
+        except Exception as cleanup_error:
+            print(f"⚠️ Error limpiando archivo HTML temporal: {cleanup_error}")
 
         # Guardar PDF temporalmente
         temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
@@ -2013,7 +1880,7 @@ def serve_image(filename):
 
 @app.route("/temp-html/<filename>")
 def serve_temp_html(filename):
-    """Servir archivos HTML temporales para iLovePDF"""
+    """Servir archivos HTML temporales para Puppeteer"""
     try:
         if not hasattr(app, 'temp_html_files'):
             return "Temporary file not found", 404
@@ -2383,12 +2250,36 @@ def test_certificado_postgres(wix_id):
         print("🎨 Renderizando template...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
 
-        # Generar PDF
-        print("📄 Generando PDF...")
-        pdf_content = ilovepdf_html_to_pdf(
-            html_content=html_content,
+        # Guardar HTML en archivo temporal para Puppeteer
+        print("💾 Guardando HTML temporal...")
+        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode='w', encoding='utf-8')
+        temp_html.write(html_content)
+        temp_html.close()
+        temp_filename = os.path.basename(temp_html.name)
+
+        # Guardar referencia al archivo temporal para el endpoint /temp-html/
+        if not hasattr(app, 'temp_html_files'):
+            app.temp_html_files = {}
+        app.temp_html_files[temp_filename] = temp_html.name
+
+        # Construir URL para Puppeteer
+        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
+        html_url = f"{base_url}/temp-html/{temp_filename}"
+
+        # Generar PDF con Puppeteer
+        print("🎭 Generando PDF con Puppeteer...")
+        pdf_content = puppeteer_html_to_pdf_from_url(
+            html_url=html_url,
             output_filename=f"test_certificado_postgres_{wix_id}"
         )
+
+        # Limpiar archivo HTML temporal
+        try:
+            os.unlink(temp_html.name)
+            if temp_filename in app.temp_html_files:
+                del app.temp_html_files[temp_filename]
+        except Exception as cleanup_error:
+            print(f"⚠️ Error limpiando archivo HTML temporal: {cleanup_error}")
 
         # Guardar PDF temporalmente
         temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
@@ -2974,9 +2865,9 @@ def generar_certificado_desde_wix_puppeteer(wix_id):
         }
         return ("", 204, response_headers)
 
-    # Redirigir al endpoint principal con engine=puppeteer
+    # Redirigir al endpoint principal (ahora solo usa Puppeteer)
     guardar_drive = request.args.get('guardar_drive', 'false')
-    return redirect(f"/api/generar-certificado-pdf/{wix_id}?engine=puppeteer&guardar_drive={guardar_drive}")
+    return redirect(f"/api/generar-certificado-pdf/{wix_id}?guardar_drive={guardar_drive}")
 
 
 @app.route("/api/generar-certificado-pdf/<wix_id>", methods=["GET", "OPTIONS"])
@@ -3003,9 +2894,8 @@ def api_generar_certificado_pdf(wix_id):
 
         # Obtener parámetros opcionales
         guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
-        engine = request.args.get('engine', 'ilovepdf').lower()  # ilovepdf o puppeteer
 
-        print(f"🔧 Motor de conversión: {engine}")
+        print(f"🔧 Motor de conversión: Puppeteer")
 
         # Consultar datos desde Wix HTTP Functions
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
@@ -3536,10 +3426,10 @@ def api_generar_certificado_pdf(wix_id):
         print(f"👤 Paciente: {nombre_completo}")
         print(f"🆔 Documento: {datos_wix.get('numeroId', '')}")
 
-        # ========== GENERAR PDF CON iLovePDF ==========
-        # En lugar de llamar al endpoint interno, usar directamente iLovePDF con la URL del preview
+        # ========== GENERAR PDF CON PUPPETEER ==========
+        # Usar Puppeteer con la URL del preview
 
-        print("📄 Generando PDF con iLovePDF desde URL del preview...")
+        print("🎭 Generando PDF con Puppeteer desde URL del preview...")
 
         # Construir URL del preview HTML con cache-busting
         import time
@@ -3547,21 +3437,12 @@ def api_generar_certificado_pdf(wix_id):
         preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
         print(f"🔗 URL del preview: {preview_url}")
 
-        # Generar PDF usando el engine seleccionado
+        # Generar PDF usando Puppeteer
         try:
-            if engine == 'puppeteer':
-                print("🎭 Generando PDF con Puppeteer...")
-                # Usar la URL pública del preview (igual que iLovePDF)
-                pdf_content = puppeteer_html_to_pdf_from_url(
-                    html_url=preview_url,
-                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
-                )
-            else:
-                print("📄 Generando PDF con iLovePDF...")
-                pdf_content = ilovepdf_html_to_pdf_from_url(
-                    html_url=preview_url,
-                    output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
-                )
+            pdf_content = puppeteer_html_to_pdf_from_url(
+                html_url=preview_url,
+                output_filename=f"certificado_{datos_wix.get('numeroId', wix_id)}"
+            )
 
             # Guardar PDF localmente para envío directo
             print("💾 Guardando PDF localmente...")
@@ -3597,7 +3478,7 @@ def api_generar_certificado_pdf(wix_id):
             return response
 
         except Exception as e:
-            print(f"❌ Error generando PDF con iLovePDF: {e}")
+            print(f"❌ Error generando PDF con Puppeteer: {e}")
             traceback.print_exc()
             error_response = jsonify({
                 "success": False,
