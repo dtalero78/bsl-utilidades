@@ -217,7 +217,8 @@ def descargar_imagen_wix_con_puppeteer(wix_url):
         project_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Crear script de Puppeteer para descargar la imagen
-        # Estrategia: Navegar directamente a la imagen y capturar la respuesta
+        # NUEVA ESTRATEGIA: Crear página HTML que cargue la imagen como <img>
+        # Esto asegura que el evento 'response' capture correctamente el buffer
         puppeteer_script = f"""
 const puppeteer = require('{project_dir}/node_modules/puppeteer');
 const fs = require('fs');
@@ -239,24 +240,48 @@ const fs = require('fs');
     let contentType = 'image/jpeg';
 
     try {{
-        // Interceptar la respuesta cuando navegamos a la imagen
+        // Interceptar TODAS las respuestas de imágenes
         page.on('response', async (response) => {{
-            if (response.url() === '{wix_url}') {{
+            const url = response.url();
+            const headers = response.headers();
+            const ct = headers['content-type'] || '';
+
+            // Solo capturar si es nuestra imagen
+            if (url === '{wix_url}' && ct.startsWith('image/')) {{
                 try {{
                     imageBuffer = await response.buffer();
-                    contentType = response.headers()['content-type'] || 'image/jpeg';
-                    console.log('✅ Imagen capturada:', imageBuffer.length, 'bytes');
+                    contentType = ct;
+                    console.log('✅ Imagen capturada desde response:', imageBuffer.length, 'bytes, tipo:', contentType);
                 }} catch (err) {{
-                    console.error('Error capturando buffer:', err.message);
+                    console.error('❌ Error capturando buffer:', err.message);
                 }}
             }}
         }});
 
-        // Navegar directamente a la URL de la imagen
-        await page.goto('{wix_url}', {{
-            waitUntil: 'networkidle0',
-            timeout: 30000
-        }});
+        // Crear página HTML simple que cargue la imagen
+        const html = `
+        <!DOCTYPE html>
+        <html>
+        <head><title>Wix Image Loader</title></head>
+        <body>
+            <img id="target" crossorigin="anonymous" />
+            <script>
+                document.getElementById('target').src = '{wix_url}';
+            </script>
+        </body>
+        </html>
+        `;
+
+        // Cargar HTML con la imagen
+        await page.setContent(html);
+
+        // Esperar a que la imagen se cargue completamente
+        await page.waitForFunction(
+            'document.getElementById("target").complete && document.getElementById("target").naturalWidth > 0',
+            {{ timeout: 25000 }}
+        );
+
+        console.log('✅ Imagen cargada en DOM');
 
         await browser.close();
 
@@ -267,11 +292,11 @@ const fs = require('fs');
             fs.writeFileSync(tempFile + '.type', contentType);
             console.log(tempFile);
         }} else {{
-            console.error('No se pudo capturar la imagen o tamaño inválido');
+            console.error('❌ No se pudo capturar la imagen o tamaño inválido (', imageBuffer ? imageBuffer.length : 0, 'bytes)');
             process.exit(1);
         }}
     }} catch (err) {{
-        console.error('Error descargando imagen:', err.message);
+        console.error('❌ Error descargando imagen:', err.message);
         await browser.close();
         process.exit(1);
     }}
