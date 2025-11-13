@@ -1773,17 +1773,9 @@ def generar_certificado_medico_puppeteer():
         if not datos_certificado.get("firma_optometra_url"):
             datos_certificado["firma_optometra_url"] = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
 
-        # 4. Firma del paciente (procesar si es de Wix o data URI)
-        if datos_certificado.get("firma_paciente_url"):
-            firma_url = datos_certificado["firma_paciente_url"]
-            # Si es data URI, dejarla tal cual (ya es base64)
-            if not firma_url.startswith('data:'):
-                if 'wix' in firma_url.lower() or 'static.wixstatic.com' in firma_url:
-                    print(f"✍️ Procesando firma de paciente desde Wix...")
-                    firma_local = descargar_imagen_wix_localmente(firma_url)
-                    if firma_local:
-                        datos_certificado["firma_paciente_url"] = firma_local
-                        print(f"✅ Firma paciente cacheada: {firma_local}")
+        # 4. Firma del paciente - Ya no se descarga (QR estático en template)
+        # El QR de validación está embebido en el template como qr-validacion.jpg
+        print(f"ℹ️  Firma paciente: QR estático en template")
 
         # Renderizar template HTML (ahora con imágenes ya procesadas a DO Spaces)
         print("🎨 Renderizando plantilla HTML...")
@@ -3339,25 +3331,9 @@ def api_generar_certificado_pdf(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
-        # Firma del paciente desde FORMULARIO
-        firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
+        # Firma del paciente - Ya no se descarga de Wix (QR estático en template)
         firma_paciente_url = None
-        if firma_paciente_wix:
-            print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
-            if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible con optimización
-                parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
-                if len(parts) > 0:
-                    image_id = parts[0]
-                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'signature.png'
-                    # Redimensionar a 400x200 (tamaño adecuado para firmas) con calidad 85
-                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_400,h_200,al_c,q_85/{filename}"
-                    print(f"✅ Firma paciente convertida: {firma_paciente_url}")
-            else:
-                firma_paciente_url = firma_paciente_wix
-                print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
-        else:
-            print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
+        print(f"ℹ️  Firma paciente: usando QR estático en template (qr-validacion.jpg)")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
@@ -3987,25 +3963,9 @@ def preview_certificado_html(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
-        # Firma del paciente desde FORMULARIO
-        firma_paciente_wix = datos_formulario.get('firma') if datos_formulario else None
+        # Firma del paciente - Ya no se descarga de Wix (QR estático en template)
         firma_paciente_url = None
-        if firma_paciente_wix:
-            print(f"📝 Firma paciente (raw): {firma_paciente_wix[:100]}...")  # Log del valor raw
-            if firma_paciente_wix.startswith('wix:image://v1/'):
-                # Convertir URL de Wix a URL estática accesible con optimización
-                parts = firma_paciente_wix.replace('wix:image://v1/', '').split('/')
-                if len(parts) > 0:
-                    image_id = parts[0]
-                    filename = parts[1].split('#')[0] if len(parts) > 1 else 'signature.png'
-                    # Redimensionar a 400x200 (tamaño adecuado para firmas) con calidad 85
-                    firma_paciente_url = f"https://static.wixstatic.com/media/{image_id}/v1/fill/w_400,h_200,al_c,q_85/{filename}"
-                    print(f"✅ Firma paciente convertida: {firma_paciente_url}")
-            else:
-                firma_paciente_url = firma_paciente_wix
-                print(f"✅ Firma paciente (URL directa): {firma_paciente_url}")
-        else:
-            print(f"⚠️  No se encontró firma del paciente en FORMULARIO")
+        print(f"ℹ️  Firma paciente: usando QR estático en template (qr-validacion.jpg)")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
