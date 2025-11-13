@@ -200,13 +200,148 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
 
 # ============== FUNCIONES AUXILIARES ==============
 
+def descargar_imagen_wix_con_puppeteer(wix_url):
+    """
+    Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
+
+    Args:
+        wix_url: URL de la imagen en Wix CDN
+
+    Returns:
+        tuple: (image_bytes, content_type) o (None, None) si falla
+    """
+    try:
+        print(f"🎭 Intentando descargar con Puppeteer: {wix_url}")
+
+        # Obtener directorio del proyecto
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Crear script de Puppeteer para descargar la imagen
+        puppeteer_script = f"""
+const puppeteer = require('{project_dir}/node_modules/puppeteer');
+const fs = require('fs');
+
+(async () => {{
+    const browser = await puppeteer.launch({{
+        headless: 'new',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    }});
+
+    const page = await browser.newPage();
+
+    let imageBuffer = null;
+    let contentType = 'image/jpeg';
+
+    // Interceptar la respuesta de la imagen
+    page.on('response', async (response) => {{
+        const url = response.url();
+        if (url === '{wix_url}') {{
+            try {{
+                imageBuffer = await response.buffer();
+                contentType = response.headers()['content-type'] || 'image/jpeg';
+                console.log('✅ Imagen capturada:', imageBuffer.length, 'bytes');
+            }} catch (err) {{
+                console.error('Error capturando imagen:', err);
+            }}
+        }}
+    }});
+
+    // Cargar la imagen
+    try {{
+        await page.goto('{wix_url}', {{
+            waitUntil: 'networkidle0',
+            timeout: 30000
+        }});
+    }} catch (err) {{
+        console.error('Error cargando imagen:', err);
+    }}
+
+    await browser.close();
+
+    // Guardar en archivo temporal
+    if (imageBuffer) {{
+        const tempFile = '/tmp/wix-image-' + Date.now() + '.bin';
+        fs.writeFileSync(tempFile, imageBuffer);
+        fs.writeFileSync(tempFile + '.type', contentType);
+        console.log(tempFile);
+    }} else {{
+        console.error('No se pudo capturar la imagen');
+        process.exit(1);
+    }}
+}})();
+"""
+
+        # Guardar script en archivo temporal en el directorio actual (para acceder a node_modules)
+        script_filename = f"/tmp/puppeteer-download-{uuid.uuid4().hex[:8]}.js"
+        with open(script_filename, 'w') as f:
+            f.write(puppeteer_script)
+
+        try:
+            # Ejecutar script de Puppeteer desde el directorio del proyecto
+            project_dir = os.path.dirname(os.path.abspath(__file__))
+            result = subprocess.run(
+                ['node', script_filename],
+                capture_output=True,
+                text=True,
+                timeout=35,
+                cwd=project_dir  # Ejecutar desde el directorio del proyecto
+            )
+
+            if result.returncode == 0:
+                # Obtener ruta del archivo temporal de la salida
+                output_lines = result.stdout.strip().split('\n')
+                temp_file = output_lines[-1]  # Última línea contiene la ruta del archivo
+
+                if os.path.exists(temp_file):
+                    # Leer imagen
+                    with open(temp_file, 'rb') as f:
+                        image_bytes = f.read()
+
+                    # Leer content type
+                    content_type = 'image/jpeg'
+                    if os.path.exists(temp_file + '.type'):
+                        with open(temp_file + '.type', 'r') as f:
+                            content_type = f.read().strip()
+
+                    # Limpiar archivos temporales
+                    os.unlink(temp_file)
+                    if os.path.exists(temp_file + '.type'):
+                        os.unlink(temp_file + '.type')
+
+                    print(f"✅ Imagen descargada con Puppeteer ({len(image_bytes)} bytes)")
+                    return image_bytes, content_type
+                else:
+                    print(f"❌ Puppeteer no generó archivo temporal")
+                    return None, None
+            else:
+                print(f"❌ Error ejecutando Puppeteer:")
+                print(f"   stdout: {result.stdout}")
+                print(f"   stderr: {result.stderr}")
+                return None, None
+
+        finally:
+            # Limpiar script temporal
+            if os.path.exists(script_filename):
+                os.unlink(script_filename)
+
+    except Exception as e:
+        print(f"❌ Error en descarga con Puppeteer: {e}")
+        traceback.print_exc()
+        return None, None
+
+
 def descargar_imagen_wix_a_do_spaces(wix_url):
     """
     Descarga una imagen de Wix CDN y la sube a Digital Ocean Spaces
 
     Estrategia:
     1. Primero intenta descargar con requests usando headers de navegador
-    2. Si falla (403), retorna None y se usará el fallback (URL directa de Wix)
+    2. Si falla (403), intenta con Puppeteer (puede cargar imágenes con contexto de navegador)
     3. Si funciona, sube a DO Spaces y retorna la URL pública
 
     Args:
@@ -216,6 +351,9 @@ def descargar_imagen_wix_a_do_spaces(wix_url):
         str: URL pública de la imagen en DO Spaces
         None: Si falla la descarga o la subida (usará fallback a Wix URL)
     """
+    image_bytes = None
+    content_type = 'image/jpeg'
+
     try:
         print(f"📥 Intentando descargar imagen de Wix: {wix_url}")
 
@@ -238,10 +376,36 @@ def descargar_imagen_wix_a_do_spaces(wix_url):
         response.raise_for_status()
 
         image_bytes = response.content
-        print(f"✅ Imagen descargada ({len(image_bytes)} bytes)")
-
-        # Determinar content type y extensión
         content_type = response.headers.get('Content-Type', 'image/jpeg')
+        print(f"✅ Imagen descargada con requests ({len(image_bytes)} bytes)")
+
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            print(f"⚠️  Wix CDN bloqueó requests (403 Forbidden)")
+            print(f"   Intentando con Puppeteer...")
+
+            # Intentar con Puppeteer como fallback
+            image_bytes, content_type = descargar_imagen_wix_con_puppeteer(wix_url)
+
+            if not image_bytes:
+                print(f"❌ Puppeteer también falló. No se puede cachear la imagen.")
+                return None
+        else:
+            print(f"❌ Error HTTP descargando imagen: {e}")
+            return None
+
+    except Exception as e:
+        print(f"❌ Error descargando imagen de Wix: {e}")
+        print(f"   URL: {wix_url}")
+        traceback.print_exc()
+        return None
+
+    # Si llegamos aquí, tenemos image_bytes (ya sea de requests o Puppeteer)
+    if not image_bytes:
+        return None
+
+    try:
+        # Determinar extensión
         if 'jpeg' in content_type or 'jpg' in content_type:
             ext = 'jpg'
         elif 'png' in content_type:
@@ -266,17 +430,8 @@ def descargar_imagen_wix_a_do_spaces(wix_url):
             print(f"❌ Error subiendo imagen a DO Spaces")
             return None
 
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 403:
-            print(f"⚠️  Wix CDN bloqueó la descarga (403 Forbidden)")
-            print(f"   Esto es normal en producción. Se usará URL directa como fallback.")
-        else:
-            print(f"❌ Error HTTP descargando imagen: {e}")
-        return None
-
     except Exception as e:
-        print(f"❌ Error descargando imagen de Wix: {e}")
-        print(f"   URL: {wix_url}")
+        print(f"❌ Error subiendo a DO Spaces: {e}")
         traceback.print_exc()
         return None
 

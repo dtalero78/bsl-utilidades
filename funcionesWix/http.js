@@ -32,7 +32,7 @@ import {
   obtenerHistoriaClinica
 } from 'backend/integracionPanelMedico';
 import { handleWhatsAppButtonClick, generateSuccessPage, generateErrorPage } from 'backend/twilioWhatsApp';
-
+import { enviarPreguntasTrasRespuesta } from 'backend/automaticWhp';
 
 import { callOpenAI } from 'backend/open-ai';
 import { consultarCita } from 'backend/consultaHistoriaClinicaBot';
@@ -2572,6 +2572,93 @@ export async function get_handleWhatsAppButton(request) {
                 success: false,
                 message: `Error: ${err.message || 'Error desconocido'}`
             }
+        });
+    }
+}
+
+/**
+ * Webhook de Twilio para recibir respuestas de WhatsApp
+ * Cuando un paciente responde al template inicial, este endpoint se dispara
+ * y envía las preguntas médicas personalizadas que fueron generadas previamente
+ * URL: https://www.bsl.com.co/_functions/twilioWhatsAppWebhook
+ */
+export async function post_twilioWhatsAppWebhook(request) {
+    console.log("[Twilio Webhook] Recibiendo respuesta de WhatsApp...");
+
+    try {
+        // Obtener el cuerpo de la petición
+        const body = await request.body.text();
+        const params = new URLSearchParams(body);
+
+        // Extraer el número del remitente (formato: whatsapp:+573008021701)
+        const fromNumber = params.get('From');
+        const messageBody = params.get('Body');
+        const messageSid = params.get('MessageSid');
+        const smsStatus = params.get('SmsStatus');
+
+        console.log(`[Twilio Webhook] Mensaje recibido de: ${fromNumber}`);
+        console.log(`[Twilio Webhook] Contenido: ${messageBody}`);
+        console.log(`[Twilio Webhook] SID: ${messageSid}`);
+        console.log(`[Twilio Webhook] Estado: ${smsStatus}`);
+
+        // Ignorar mensajes que no son entrantes del usuario
+        // SmsStatus puede ser: queued, sending, sent, delivered, undelivered, failed
+        // Solo procesar cuando SmsStatus está vacío o es "received" (mensaje entrante)
+        if (smsStatus && smsStatus !== 'received') {
+            console.log(`[Twilio Webhook] Ignorando evento de estado: ${smsStatus}`);
+            return ok({
+                headers: {
+                    "Content-Type": "text/xml"
+                },
+                body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>"
+            });
+        }
+
+        // Limpiar el número para buscar en la base de datos
+        const cleanNumber = fromNumber.replace(/\D/g, '').replace(/^57/, '').replace(/^whatsapp:\+/, '');
+        console.log(`[Twilio Webhook] Número limpio: ${cleanNumber}`);
+
+        // Verificar si el paciente tiene preguntas pendientes de enviar
+        const chatbotResults = await wixData.query('CHATBOT')
+            .eq('celular', cleanNumber)
+            .eq('estadoPreguntas', 'pendiente_respuesta')
+            .find();
+
+        if (chatbotResults.items.length === 0) {
+            console.log(`[Twilio Webhook] No hay preguntas pendientes para ${cleanNumber}. Ignorando mensaje.`);
+            return ok({
+                headers: {
+                    "Content-Type": "text/xml"
+                },
+                body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>"
+            });
+        }
+
+        console.log(`[Twilio Webhook] Paciente con preguntas pendientes encontrado. Enviando preguntas...`);
+
+        // Llamar a la función que envía las preguntas médicas SOLO si están pendientes
+        const result = await enviarPreguntasTrasRespuesta(fromNumber);
+
+        console.log(`[Twilio Webhook] Resultado:`, JSON.stringify(result));
+
+        // Responder con TwiML vacío (Twilio requiere respuesta XML)
+        return ok({
+            headers: {
+                "Content-Type": "text/xml"
+            },
+            body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>"
+        });
+
+    } catch (err) {
+        console.error(`[Twilio Webhook] Error:`, err);
+        console.error(`[Twilio Webhook] Stack trace:`, err.stack);
+
+        // Incluso en caso de error, devolver respuesta XML válida para Twilio
+        return ok({
+            headers: {
+                "Content-Type": "text/xml"
+            },
+            body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>"
         });
     }
 }

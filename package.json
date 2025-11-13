@@ -14,6 +14,6 @@
   "author": "BSL",
   "license": "ISC",
   "dependencies": {
-    "puppeteer": "^22.0.0"
+    "puppeteer": "^22.15.0"
   }
 }

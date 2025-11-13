@@ -230,23 +230,49 @@ The system conditionally displays medical results based on company payment statu
 
 ### Wix Image Caching with Digital Ocean Spaces
 
-**Problem**: Wix CDN blocks direct downloads from production servers (403 Forbidden) but allows browser access.
+**Problem**: Wix CDN blocks direct downloads from production servers (403 Forbidden) but allows browser access with proper headers.
 
-**Solution**: Three-tier fallback strategy:
-1. **Primary (Development)**: Download image with `requests` + browser headers → Upload to DO Spaces → Use cached URL
-2. **Fallback (Production)**: If download fails with 403 → Use Wix URL directly (Puppeteer loads it successfully)
-3. **Long-term Cache**: DO Spaces provides persistent storage that survives deployments
+**Solution**: Multi-tier fallback strategy with Puppeteer:
+1. **Primary Method**: Download image with Python `requests` + browser headers → Upload to DO Spaces
+2. **Puppeteer Fallback**: If Python requests fails with 403 → Launch Puppeteer to download (intercepts network response) → Upload to DO Spaces
+3. **Final Fallback**: If both fail → Use Wix URL directly (Puppeteer in PDF generation can still load it)
+
+**Implementation Flow** ([descargar_bsl.py:333-431](descargar_bsl.py#L333-L431)):
+```python
+def descargar_imagen_wix_a_do_spaces(wix_url):
+    # Attempt 1: Python requests with browser headers
+    try:
+        response = requests.get(wix_url, headers=browser_headers)
+        image_bytes = response.content
+    except HTTPError 403:
+        # Attempt 2: Puppeteer fallback
+        image_bytes, content_type = descargar_imagen_wix_con_puppeteer(wix_url)
+        if not image_bytes:
+            return None  # Will use Wix URL directly
+
+    # Upload to DO Spaces
+    return subir_imagen_a_do_spaces(image_bytes, filename, content_type)
+```
 
 **Key Functions**:
-- `descargar_imagen_wix_a_do_spaces()` ([descargar_bsl.py:203-281](descargar_bsl.py#L203-L281)) - Downloads Wix image and uploads to Spaces
-- `descargar_imagen_wix_localmente()` ([descargar_bsl.py:284-333](descargar_bsl.py#L284-L333)) - Wrapper with fallback logic
+- `descargar_imagen_wix_con_puppeteer()` ([descargar_bsl.py:203-331](descargar_bsl.py#L203-L331)) - Downloads image using Puppeteer with response interception
+- `descargar_imagen_wix_a_do_spaces()` ([descargar_bsl.py:333-431](descargar_bsl.py#L333-L431)) - Primary function with fallback logic
+- `descargar_imagen_wix_localmente()` ([descargar_bsl.py:434+](descargar_bsl.py#L434)) - Wrapper providing final Wix URL fallback
 - `subir_imagen_a_do_spaces()` ([do_spaces_uploader.py](do_spaces_uploader.py)) - Uploads bytes to Digital Ocean Spaces
+
+**Puppeteer Image Download Strategy**:
+- Launches headless Chrome with browser arguments
+- Uses `page.on('response')` to intercept image network response
+- Extracts buffer and content-type from response headers
+- Saves to temporary file and returns bytes to Python
+- **Important**: Uses absolute path to `node_modules/puppeteer` for deployment compatibility
 
 **Benefits**:
 - Images cached in DO Spaces load faster than Wix CDN
-- Persistent storage across server restarts
+- Persistent storage across server restarts and deployments
 - Public URLs avoid CORS issues
-- Fallback ensures reliability even when caching fails
+- Puppeteer fallback ensures caching works even when Wix blocks Python requests
+- Three-tier strategy maximizes reliability
 
 ## CSV Processing Feature
 
