@@ -15,6 +15,7 @@ import logging
 import subprocess
 import json as json_module
 import time
+from do_spaces_uploader import subir_imagen_a_do_spaces
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -199,36 +200,48 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
 
 # ============== FUNCIONES AUXILIARES ==============
 
-def descargar_imagen_wix_localmente(wix_url):
+def descargar_imagen_wix_a_do_spaces(wix_url):
     """
-    Descarga una imagen de Wix CDN y la guarda localmente en static/
+    Descarga una imagen de Wix CDN y la sube a Digital Ocean Spaces
+
+    Estrategia:
+    1. Primero intenta descargar con requests usando headers de navegador
+    2. Si falla (403), retorna None y se usará el fallback (URL directa de Wix)
+    3. Si funciona, sube a DO Spaces y retorna la URL pública
 
     Args:
         wix_url: URL de la imagen en Wix CDN (ej: https://static.wixstatic.com/media/...)
 
     Returns:
-        str: URL local de la imagen descargada (ej: /static/wix-img-abc123.jpg)
-        None: Si falla la descarga
+        str: URL pública de la imagen en DO Spaces
+        None: Si falla la descarga o la subida (usará fallback a Wix URL)
     """
     try:
-        print(f"📥 Descargando imagen de Wix: {wix_url}")
+        print(f"📥 Intentando descargar imagen de Wix: {wix_url}")
 
-        # Realizar la descarga con headers que emulen un navegador real
+        # Headers que emulan un navegador Chrome real
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Referer': 'https://www.bsl.com.co/',
             'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
             'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"'
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'image',
+            'sec-fetch-mode': 'no-cors',
+            'sec-fetch-site': 'cross-site'
         }
 
         response = requests.get(wix_url, headers=headers, timeout=10)
         response.raise_for_status()
 
-        # Determinar extensión del archivo
-        content_type = response.headers.get('Content-Type', '')
+        image_bytes = response.content
+        print(f"✅ Imagen descargada ({len(image_bytes)} bytes)")
+
+        # Determinar content type y extensión
+        content_type = response.headers.get('Content-Type', 'image/jpeg')
         if 'jpeg' in content_type or 'jpg' in content_type:
             ext = 'jpg'
         elif 'png' in content_type:
@@ -236,41 +249,58 @@ def descargar_imagen_wix_localmente(wix_url):
         elif 'webp' in content_type:
             ext = 'webp'
         else:
-            # Intentar extraer de la URL
-            if wix_url.endswith('.jpg') or wix_url.endswith('.jpeg'):
-                ext = 'jpg'
-            elif wix_url.endswith('.png'):
-                ext = 'png'
-            elif wix_url.endswith('.webp'):
-                ext = 'webp'
-            else:
-                ext = 'jpg'  # Default
+            ext = 'jpg'  # Default
 
         # Generar nombre único para el archivo
         image_id = uuid.uuid4().hex[:12]
         filename = f"wix-img-{image_id}.{ext}"
 
-        # Guardar en el directorio static/
-        static_dir = os.path.join(os.path.dirname(__file__), 'static')
-        local_path = os.path.join(static_dir, filename)
+        # Subir a DO Spaces
+        print(f"☁️  Subiendo imagen a DO Spaces...")
+        do_spaces_url = subir_imagen_a_do_spaces(image_bytes, filename, content_type)
 
-        with open(local_path, 'wb') as f:
-            f.write(response.content)
+        if do_spaces_url:
+            print(f"✅ Imagen subida a DO Spaces: {do_spaces_url}")
+            return do_spaces_url
+        else:
+            print(f"❌ Error subiendo imagen a DO Spaces")
+            return None
 
-        # Retornar URL local (relativa al servidor)
-        base_url = os.getenv("BASE_URL", "https://bsl-utilidades-yp78a.ondigitalocean.app")
-        local_url = f"{base_url}/static/{filename}"
-
-        print(f"✅ Imagen descargada y guardada localmente: {local_url}")
-        print(f"   Tamaño: {len(response.content)} bytes")
-
-        return local_url
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            print(f"⚠️  Wix CDN bloqueó la descarga (403 Forbidden)")
+            print(f"   Esto es normal en producción. Se usará URL directa como fallback.")
+        else:
+            print(f"❌ Error HTTP descargando imagen: {e}")
+        return None
 
     except Exception as e:
         print(f"❌ Error descargando imagen de Wix: {e}")
         print(f"   URL: {wix_url}")
         traceback.print_exc()
         return None
+
+
+def descargar_imagen_wix_localmente(wix_url):
+    """
+    DEPRECATED: Función antigua que descargaba a static/
+    Ahora redirige a descargar_imagen_wix_a_do_spaces()
+
+    Args:
+        wix_url: URL de la imagen en Wix CDN
+
+    Returns:
+        str: URL pública de la imagen (DO Spaces o Wix directa como fallback)
+        None: Si falla completamente
+    """
+    # Intentar primero con DO Spaces
+    do_spaces_url = descargar_imagen_wix_a_do_spaces(wix_url)
+    if do_spaces_url:
+        return do_spaces_url
+
+    # Fallback: usar URL de Wix directamente (Puppeteer puede cargarla)
+    print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
+    return wix_url
 
 # ============== FUNCIONES iLovePDF ==============
 

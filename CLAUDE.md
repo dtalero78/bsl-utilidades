@@ -26,6 +26,7 @@ The application is built around a multi-tenant architecture supporting different
 - `drive_uploader.py` - Google Drive service account integration
 - `upload_to_drive_oauth.py` - Google Drive OAuth integration
 - `gcs_uploader.py` - Google Cloud Storage integration
+- `do_spaces_uploader.py` - Digital Ocean Spaces integration for Wix image caching
 - `templates/certificado_medico.html` - Jinja2 template for medical certificates
 - `templates/certificado_loader.html` - Loading page for certificate generation
 - `static/index.html` - Frontend for direct PDF download
@@ -79,6 +80,12 @@ Required environment variables in `.env`:
 - `GOOGLE_OAUTH_CREDENTIALS_BASE64`
 - `GOOGLE_OAUTH_TOKEN_B64`
 - `GOOGLE_OAUTH_TOKEN_FILE`
+
+**Digital Ocean Spaces (for Wix image caching):**
+- `DO_SPACES_ACCESS_KEY` - Digital Ocean Spaces access key
+- `DO_SPACES_SECRET_KEY` - Digital Ocean Spaces secret key
+- `DO_SPACES_BUCKET_NAME` - Bucket name (e.g., "bsl-app-bucket")
+- `DO_SPACES_REGION` - Region (e.g., "sfo3", "nyc3", "ams3")
 
 **Development Mode:**
 - Set `GOOGLE_CREDENTIALS_BASE64=dummy-credentials` to run without real Google credentials
@@ -208,13 +215,38 @@ The system conditionally displays medical results based on company payment statu
 
 ### Certificate Generation Flow
 1. Receive patient data via POST to `/generar-certificado-medico`
-2. Render Jinja2 template with patient data and exam results
-3. Save HTML to temporary file
-4. Call iLovePDF API to convert HTML to PDF
-5. Generate unique security code (UUID4)
-6. Create QR code with validation URL
-7. Optionally upload PDF to Google Drive
-8. Return PDF URL and security code to client
+2. **Process Wix Images** (if present):
+   - Patient photos and QR codes come from Wix CDN (`wix:image://` or `https://static.wixstatic.com/media/`)
+   - Attempt to download image with browser-like headers
+   - If successful, upload to Digital Ocean Spaces for persistent caching
+   - If download fails (403 in production), use Wix URL directly (Puppeteer can still load it)
+3. Render Jinja2 template with patient data and exam results
+4. Save HTML to temporary file
+5. Call iLovePDF API to convert HTML to PDF
+6. Generate unique security code (UUID4)
+7. Create QR code with validation URL
+8. Optionally upload PDF to Google Drive
+9. Return PDF URL and security code to client
+
+### Wix Image Caching with Digital Ocean Spaces
+
+**Problem**: Wix CDN blocks direct downloads from production servers (403 Forbidden) but allows browser access.
+
+**Solution**: Three-tier fallback strategy:
+1. **Primary (Development)**: Download image with `requests` + browser headers → Upload to DO Spaces → Use cached URL
+2. **Fallback (Production)**: If download fails with 403 → Use Wix URL directly (Puppeteer loads it successfully)
+3. **Long-term Cache**: DO Spaces provides persistent storage that survives deployments
+
+**Key Functions**:
+- `descargar_imagen_wix_a_do_spaces()` ([descargar_bsl.py:203-281](descargar_bsl.py#L203-L281)) - Downloads Wix image and uploads to Spaces
+- `descargar_imagen_wix_localmente()` ([descargar_bsl.py:284-333](descargar_bsl.py#L284-L333)) - Wrapper with fallback logic
+- `subir_imagen_a_do_spaces()` ([do_spaces_uploader.py](do_spaces_uploader.py)) - Uploads bytes to Digital Ocean Spaces
+
+**Benefits**:
+- Images cached in DO Spaces load faster than Wix CDN
+- Persistent storage across server restarts
+- Public URLs avoid CORS issues
+- Fallback ensures reliability even when caching fails
 
 ## CSV Processing Feature
 

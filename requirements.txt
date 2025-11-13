@@ -10,3 +10,4 @@ google-cloud-storage
 jinja2
 Pillow
 twilio
+boto3
