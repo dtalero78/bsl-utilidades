@@ -2332,26 +2332,82 @@ def guardar_foto_desde_wix_do(wix_id):
 
         resultado["foto_url_wix"] = foto_url_wix_cdn
 
-        # PASO 3: Descargar y subir a DO Spaces
-        resultado["pasos"].append("3. Descargando imagen y subiendo a DO Spaces...")
-        print(f"\n📥 PASO 3: Descargando y subiendo a DO Spaces...")
+        # PASO 3: Descargar y subir a DO Spaces (SIN PUPPETEER - SOLO REQUESTS)
+        resultado["pasos"].append("3. Descargando imagen con requests simple...")
+        print(f"\n📥 PASO 3: Descargando imagen con requests (sin Puppeteer)...")
         print(f"   URL a descargar: {foto_url_wix_cdn}")
 
         try:
-            # Usar la función existente
-            do_spaces_url = descargar_imagen_wix_a_do_spaces(foto_url_wix_cdn)
+            # Headers básicos de navegador
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+                'Referer': 'https://www.bsl.com.co/',
+            }
 
-            if do_spaces_url:
-                resultado["success"] = True
-                resultado["foto_url_do_spaces"] = do_spaces_url
-                resultado["pasos"].append(f"   ✅ Imagen subida exitosamente a DO Spaces")
-                print(f"   ✅ URL DO Spaces: {do_spaces_url}")
+            # Descargar imagen con requests
+            resultado["pasos"].append("   🌐 Descargando con requests + headers navegador...")
+            print(f"   🌐 Descargando con requests...")
+
+            response = requests.get(foto_url_wix_cdn, headers=headers, timeout=15)
+            print(f"   📊 Status: {response.status_code}")
+            resultado["pasos"].append(f"      Status HTTP: {response.status_code}")
+
+            if response.status_code == 200:
+                image_bytes = response.content
+                content_type = response.headers.get('Content-Type', 'image/jpeg')
+
+                print(f"   ✅ Imagen descargada: {len(image_bytes)} bytes, tipo: {content_type}")
+                resultado["pasos"].append(f"      ✅ Descargada: {len(image_bytes)} bytes ({content_type})")
+
+                # Subir a DO Spaces
+                resultado["pasos"].append("   ☁️  Subiendo a Digital Ocean Spaces...")
+                print(f"   ☁️  Subiendo a DO Spaces...")
+
+                # Generar nombre único
+                image_id = uuid.uuid4().hex[:12]
+                if 'jpeg' in content_type or 'jpg' in content_type:
+                    ext = 'jpg'
+                elif 'png' in content_type:
+                    ext = 'png'
+                elif 'webp' in content_type:
+                    ext = 'webp'
+                else:
+                    ext = 'jpg'
+
+                filename = f"wix-img-{image_id}.{ext}"
+
+                # Subir
+                do_spaces_url = subir_imagen_a_do_spaces(image_bytes, filename, content_type)
+
+                if do_spaces_url:
+                    resultado["success"] = True
+                    resultado["foto_url_do_spaces"] = do_spaces_url
+                    resultado["pasos"].append(f"      ✅ Subida exitosa a DO Spaces")
+                    print(f"   ✅ URL DO Spaces: {do_spaces_url}")
+                else:
+                    error_msg = "Error subiendo a DO Spaces (retornó None)"
+                    resultado["errores"].append(error_msg)
+                    resultado["pasos"].append(f"      ❌ {error_msg}")
+                    print(f"   ❌ {error_msg}")
+
+            elif response.status_code == 403:
+                error_msg = f"Wix CDN bloqueó la descarga (403 Forbidden)"
+                resultado["errores"].append(error_msg)
+                resultado["pasos"].append(f"   ❌ {error_msg}")
+                print(f"   ❌ {error_msg}")
+                print(f"   💡 Nota: Este endpoint NO usa Puppeteer, solo requests")
             else:
-                error_msg = "La función de descarga/subida retornó None"
+                error_msg = f"Error HTTP {response.status_code} al descargar"
                 resultado["errores"].append(error_msg)
                 resultado["pasos"].append(f"   ❌ {error_msg}")
                 print(f"   ❌ {error_msg}")
 
+        except requests.exceptions.Timeout:
+            error_msg = "Timeout descargando imagen (>15s)"
+            resultado["errores"].append(error_msg)
+            resultado["pasos"].append(f"   ❌ {error_msg}")
+            print(f"   ❌ {error_msg}")
         except Exception as e:
             error_msg = f"Error en descarga/subida: {str(e)}"
             resultado["errores"].append(error_msg)
