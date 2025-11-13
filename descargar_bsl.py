@@ -2183,6 +2183,19 @@ def procesar_csv():
 
         return error_response, 500
 
+# --- Endpoint: OBTENER IP DEL SERVIDOR ---
+@app.route("/server-ip", methods=["GET"])
+def server_ip():
+    """Endpoint para obtener la IP pública del servidor"""
+    try:
+        ip = requests.get('https://api.ipify.org', timeout=5).text
+        return jsonify({
+            "server_public_ip": ip,
+            "message": "Autoriza esta IP en Digital Ocean PostgreSQL"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- Endpoint: TEST PUPPETEER DESCARGA SIMPLE ---
 @app.route("/test-puppeteer-imagen/<wix_id>", methods=["GET", "OPTIONS"])
 def test_puppeteer_imagen(wix_id):
