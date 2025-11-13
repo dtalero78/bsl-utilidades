@@ -2216,65 +2216,96 @@ def guardar_foto_desde_wix_do(wix_id):
             resultado["pasos"].append(f"   ❌ {error_msg}")
             return jsonify(resultado), 500
 
-        # PASO 2: Consultar formulario para obtener foto
-        resultado["pasos"].append("2. Consultando datos del formulario (incluye foto)...")
-        print("\n📝 PASO 2: Consultando datos del formulario...")
+        # PASO 2: Buscar foto en múltiples lugares
+        resultado["pasos"].append("2. Buscando foto del paciente...")
+        print("\n📝 PASO 2: Buscando foto del paciente...")
 
         wix_id_historia = datos_wix.get('_id')
         foto_url_original = None
         foto_url_wix_cdn = None
 
-        try:
-            formulario_url = f"{wix_base_url}/getFormularioInicial?wixIdHistoria={wix_id_historia}"
-            print(f"   URL: {formulario_url}")
+        # INTENTO 2A: Buscar en datos principales de historia clínica
+        print("\n   2A. Revisando datos principales de historia clínica...")
+        resultado["pasos"].append("   2A. Revisando datos principales...")
 
-            formulario_response = requests.get(formulario_url, timeout=10)
-            print(f"   Status: {formulario_response.status_code}")
+        # Revisar campos posibles donde puede estar la foto
+        campos_foto = ['foto', 'fotoPaciente', 'foto_paciente', 'imagen', 'photo']
+        for campo in campos_foto:
+            if datos_wix.get(campo):
+                foto_url_original = datos_wix.get(campo)
+                resultado["pasos"].append(f"      ✅ Foto encontrada en campo '{campo}'")
+                print(f"      ✅ Foto encontrada en campo '{campo}': {foto_url_original[:100]}...")
+                break
 
-            if formulario_response.status_code == 200:
-                formulario_data = formulario_response.json()
-                datos_formulario = formulario_data.get('data', {})
+        # INTENTO 2B: Buscar en formulario (solo si no se encontró antes)
+        if not foto_url_original:
+            print("\n   2B. Consultando formulario por idGeneral...")
+            resultado["pasos"].append("   2B. Consultando formulario por idGeneral...")
 
-                if datos_formulario and datos_formulario.get('foto'):
-                    foto_url_original = datos_formulario.get('foto')
-                    resultado["pasos"].append(f"   ✅ Foto encontrada en formulario")
-                    print(f"   ✅ Foto original: {foto_url_original[:100]}...")
+            try:
+                formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id_historia}"
+                print(f"      URL: {formulario_url}")
 
-                    # Convertir URL de Wix si es necesario
-                    if foto_url_original.startswith('wix:image://v1/'):
-                        parts = foto_url_original.replace('wix:image://v1/', '').split('/')
-                        if len(parts) > 0:
-                            image_id = parts[0]
-                            foto_url_wix_cdn = f"https://static.wixstatic.com/media/{image_id}"
-                            resultado["pasos"].append(f"   🔄 Convertida a Wix CDN URL")
-                            print(f"   🔄 URL CDN: {foto_url_wix_cdn}")
-                    elif 'static.wixstatic.com' in foto_url_original:
-                        foto_url_wix_cdn = foto_url_original
-                        resultado["pasos"].append(f"   ℹ️  Ya es una URL de Wix CDN")
-                        print(f"   ℹ️  Ya es URL CDN")
+                formulario_response = requests.get(formulario_url, timeout=10)
+                print(f"      Status: {formulario_response.status_code}")
+
+                if formulario_response.status_code == 200:
+                    formulario_data = formulario_response.json()
+                    print(f"      📋 Respuesta formulario: success={formulario_data.get('success')}, tiene item={bool(formulario_data.get('item'))}")
+
+                    if formulario_data.get('success') and formulario_data.get('item'):
+                        datos_formulario = formulario_data.get('item')
+
+                        if datos_formulario.get('foto'):
+                            foto_url_original = datos_formulario.get('foto')
+                            resultado["pasos"].append(f"      ✅ Foto encontrada en formulario")
+                            print(f"      ✅ Foto en formulario: {foto_url_original[:100]}...")
+                        else:
+                            resultado["pasos"].append(f"      ℹ️  Formulario sin foto")
+                            print(f"      ℹ️  Formulario existe pero no tiene campo 'foto'")
+                            print(f"      📋 Campos disponibles: {list(datos_formulario.keys())[:20]}")
                     else:
-                        foto_url_wix_cdn = foto_url_original
-                        resultado["pasos"].append(f"   ⚠️  URL no es de Wix CDN")
-                        print(f"   ⚠️  URL no es de Wix CDN")
-
-                    resultado["foto_url_wix"] = foto_url_wix_cdn
+                        resultado["pasos"].append(f"      ℹ️  Formulario no encontrado para idGeneral={wix_id_historia}")
+                        print(f"      ℹ️  Formulario no encontrado")
                 else:
-                    error_msg = "No se encontró foto en el formulario"
-                    resultado["errores"].append(error_msg)
-                    resultado["pasos"].append(f"   ❌ {error_msg}")
-                    return jsonify(resultado), 404
-            else:
-                error_msg = f"Error HTTP {formulario_response.status_code} al consultar formulario"
-                resultado["errores"].append(error_msg)
-                resultado["pasos"].append(f"   ❌ {error_msg}")
-                return jsonify(resultado), 500
+                    resultado["pasos"].append(f"      ℹ️  Formulario no disponible (HTTP {formulario_response.status_code})")
+                    print(f"      ℹ️  Formulario no disponible")
 
-        except Exception as e:
-            error_msg = f"Error consultando formulario: {str(e)}"
+            except Exception as e:
+                resultado["pasos"].append(f"      ⚠️  Error consultando formulario: {str(e)}")
+                print(f"      ⚠️  Error consultando formulario: {e}")
+                traceback.print_exc()
+
+        # Validar si se encontró foto
+        if not foto_url_original:
+            error_msg = "No se encontró foto del paciente en ningún lugar"
             resultado["errores"].append(error_msg)
-            resultado["pasos"].append(f"   ❌ {error_msg}")
-            traceback.print_exc()
-            return jsonify(resultado), 500
+            resultado["pasos"].append(f"\n   ❌ {error_msg}")
+            print(f"\n   ❌ {error_msg}")
+            print(f"   📋 Campos disponibles en datos: {list(datos_wix.keys())[:20]}")
+            return jsonify(resultado), 404
+
+        # Convertir URL de Wix si es necesario
+        print(f"\n   🔄 Procesando URL de foto...")
+        resultado["pasos"].append("   🔄 Procesando URL...")
+
+        if foto_url_original.startswith('wix:image://v1/'):
+            parts = foto_url_original.replace('wix:image://v1/', '').split('/')
+            if len(parts) > 0:
+                image_id = parts[0]
+                foto_url_wix_cdn = f"https://static.wixstatic.com/media/{image_id}"
+                resultado["pasos"].append(f"      ✅ Convertida de wix:image:// a CDN URL")
+                print(f"      ✅ URL CDN: {foto_url_wix_cdn}")
+        elif 'static.wixstatic.com' in foto_url_original:
+            foto_url_wix_cdn = foto_url_original
+            resultado["pasos"].append(f"      ℹ️  Ya es una URL de Wix CDN")
+            print(f"      ℹ️  Ya es URL CDN")
+        else:
+            foto_url_wix_cdn = foto_url_original
+            resultado["pasos"].append(f"      ℹ️  URL no es de Wix CDN (tipo: {foto_url_original[:50]}...)")
+            print(f"      ℹ️  URL no es de Wix CDN")
+
+        resultado["foto_url_wix"] = foto_url_wix_cdn
 
         # PASO 3: Descargar y subir a DO Spaces
         resultado["pasos"].append("3. Descargando imagen y subiendo a DO Spaces...")
