@@ -48,7 +48,10 @@ CORS(app, resources={
     r"/generar-certificado-medico-puppeteer": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Endpoint con Puppeteer
     r"/generar-certificado-desde-wix-puppeteer/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Wix con Puppeteer
     r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
-    r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Servir archivos HTML temporales para Puppeteer
+    r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir archivos HTML temporales para Puppeteer
+    r"/api/formularios": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # API para obtener formularios
+    r"/api/actualizar-formulario": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # API para actualizar formularios
+    r"/ver-formularios.html": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Página para ver y editar formularios
 })
 
 # Configuración de carpetas por empresa
@@ -4973,6 +4976,891 @@ const puppeteer = require('{project_dir}/node_modules/puppeteer');
             'success': False,
             'error': str(e)
         }), 500
+
+
+# ============================================================================
+# ENDPOINTS PARA VER Y EDITAR FORMULARIOS
+# ============================================================================
+
+@app.route('/api/formularios', methods=['GET', 'OPTIONS'])
+def get_formularios():
+    """
+    Obtiene todos los formularios de la base de datos PostgreSQL
+    Soporta filtros opcionales por query params
+    """
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        # Obtener password de PostgreSQL
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return jsonify({
+                "success": False,
+                "error": "POSTGRES_PASSWORD no configurado"
+            }), 500
+
+        # Conectar a PostgreSQL
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+
+        # Usar RealDictCursor para obtener resultados como diccionarios
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Query base
+        query = "SELECT * FROM formularios ORDER BY fecha_registro DESC"
+
+        # Ejecutar query
+        cur.execute(query)
+        rows = cur.fetchall()
+
+        # Convertir a lista de diccionarios
+        formularios = []
+        for row in rows:
+            formulario = dict(row)
+            # Convertir fecha_registro a string si existe
+            if 'fecha_registro' in formulario and formulario['fecha_registro']:
+                formulario['fecha_registro'] = formulario['fecha_registro'].isoformat()
+            formularios.append(formulario)
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "total": len(formularios),
+            "data": formularios
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error obteniendo formularios: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/api/actualizar-formulario', methods=['POST', 'OPTIONS'])
+def actualizar_formulario():
+    """
+    Actualiza un formulario en PostgreSQL y sincroniza con Wix
+    Recibe JSON con id (PostgreSQL) y campos a actualizar
+    """
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    try:
+        import psycopg2
+
+        # Obtener datos del request
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "No se recibieron datos"
+            }), 400
+
+        formulario_id = data.get('id')
+        wix_id = data.get('wix_id')
+
+        if not formulario_id:
+            return jsonify({
+                "success": False,
+                "error": "El campo 'id' es requerido"
+            }), 400
+
+        # Obtener password de PostgreSQL
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return jsonify({
+                "success": False,
+                "error": "POSTGRES_PASSWORD no configurado"
+            }), 500
+
+        # Conectar a PostgreSQL
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        # Construir UPDATE query dinámicamente
+        campos_actualizables = [
+            'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
+            'numero_id', 'cargo', 'empresa', 'cod_empresa', 'celular',
+            'genero', 'edad', 'fecha_nacimiento', 'lugar_nacimiento', 'ciudad_residencia',
+            'hijos', 'profesion_oficio', 'empresa1', 'empresa2', 'estado_civil',
+            'nivel_educativo', 'email', 'estatura', 'peso', 'ejercicio',
+            'cirugia_ocular', 'consumo_licor', 'cirugia_programada', 'condicion_medica',
+            'dolor_cabeza', 'dolor_espalda', 'ruido_jaqueca', 'embarazo',
+            'enfermedad_higado', 'enfermedad_pulmonar', 'fuma', 'hernias',
+            'hormigueos', 'presion_alta', 'problemas_azucar', 'problemas_cardiacos',
+            'problemas_sueno', 'usa_anteojos', 'usa_lentes_contacto', 'varices',
+            'hepatitis', 'familia_hereditarias', 'familia_geneticas', 'familia_diabetes',
+            'familia_hipertension', 'familia_infartos', 'familia_cancer',
+            'familia_trastornos', 'familia_infecciosas'
+        ]
+
+        # Filtrar solo los campos que vienen en el request
+        updates = []
+        values = []
+        for campo in campos_actualizables:
+            if campo in data:
+                updates.append(f"{campo} = %s")
+                values.append(data[campo])
+
+        if not updates:
+            return jsonify({
+                "success": False,
+                "error": "No se especificaron campos para actualizar"
+            }), 400
+
+        # Agregar el ID al final de los valores
+        values.append(formulario_id)
+
+        # Ejecutar UPDATE
+        update_query = f"""
+            UPDATE formularios
+            SET {', '.join(updates)}
+            WHERE id = %s
+        """
+
+        print(f"🔄 Actualizando formulario {formulario_id} en PostgreSQL...")
+        cur.execute(update_query, values)
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        print(f"✅ Formulario {formulario_id} actualizado en PostgreSQL")
+
+        # SINCRONIZAR CON WIX si existe wix_id
+        wix_updated = False
+        wix_error = None
+
+        if wix_id:
+            try:
+                print(f"🔄 Sincronizando con Wix (ID: {wix_id})...")
+
+                # URL base de Wix (puede ser producción o desarrollo)
+                wix_base_url = "https://bsl-formulario-f5qx3.ondigitalocean.app"
+
+                # Preparar datos para Wix (mapear nombres de campos)
+                wix_data = {
+                    '_id': wix_id
+                }
+
+                # Mapear campos de PostgreSQL a Wix
+                campo_mapping = {
+                    'primer_nombre': 'primerNombre',
+                    'segundo_nombre': 'segundoNombre',
+                    'primer_apellido': 'primerApellido',
+                    'segundo_apellido': 'segundoApellido',
+                    'numero_id': 'numeroId',
+                    'celular': 'celular',
+                    'cargo': 'cargo',
+                    'empresa': 'empresa',
+                    'cod_empresa': 'codEmpresa',
+                    'genero': 'genero',
+                    'edad': 'edad',
+                    'fecha_nacimiento': 'fechaNacimiento',
+                    'lugar_nacimiento': 'lugarNacimiento',
+                    'ciudad_residencia': 'ciudadResidencia',
+                    'hijos': 'hijos',
+                    'profesion_oficio': 'profesionOficio',
+                    'empresa1': 'empresa1',
+                    'empresa2': 'empresa2',
+                    'estado_civil': 'estadoCivil',
+                    'nivel_educativo': 'nivelEducativo',
+                    'email': 'email'
+                }
+
+                # Agregar campos al payload de Wix
+                for pg_field, wix_field in campo_mapping.items():
+                    if pg_field in data:
+                        wix_data[wix_field] = data[pg_field]
+
+                # Llamar al endpoint de actualización de Wix
+                wix_response = requests.post(
+                    f"{wix_base_url}/actualizarFormulario",
+                    json=wix_data,
+                    timeout=10
+                )
+
+                if wix_response.status_code == 200:
+                    wix_result = wix_response.json()
+                    if wix_result.get('success'):
+                        print(f"✅ Formulario sincronizado con Wix")
+                        wix_updated = True
+                    else:
+                        wix_error = wix_result.get('error', 'Error desconocido en Wix')
+                        print(f"⚠️ Error al actualizar en Wix: {wix_error}")
+                else:
+                    wix_error = f"HTTP {wix_response.status_code}"
+                    print(f"⚠️ Error al llamar a Wix: {wix_error}")
+
+            except Exception as e:
+                wix_error = str(e)
+                print(f"⚠️ Excepción al sincronizar con Wix: {wix_error}")
+
+        return jsonify({
+            "success": True,
+            "message": "Formulario actualizado correctamente",
+            "postgres_updated": True,
+            "wix_updated": wix_updated,
+            "wix_error": wix_error
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error actualizando formulario: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/ver-formularios.html', methods=['GET'])
+def ver_formularios_page():
+    """
+    Sirve la página HTML para ver y editar formularios
+    """
+    html_content = """<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ver y Editar Formularios - BSL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Figtree', sans-serif;
+            background: #F9FAFB;
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 18px;
+            color: #6B7280;
+        }
+
+        .formularios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .formulario-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .formulario-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .formulario-header {
+            border-bottom: 2px solid #E5E7EB;
+            padding-bottom: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .formulario-id {
+            display: inline-block;
+            background: #00B8E6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .edit-btn {
+            background: #10B981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .edit-btn:hover {
+            background: #059669;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1F2937;
+            margin: 16px 0 12px 0;
+        }
+
+        .dato {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .dato-label {
+            font-weight: 500;
+            color: #6B7280;
+        }
+
+        .dato-value {
+            font-weight: 400;
+            color: #1F2937;
+        }
+
+        .foto-container {
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .foto-container img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Figtree', sans-serif;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00B8E6;
+            box-shadow: 0 0 0 3px rgba(0, 184, 230, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            background: #00B8E6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #0095BD;
+        }
+
+        .btn-primary:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: #6B7280;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #4B5563;
+        }
+
+        .success-message {
+            background: #D1FAE5;
+            color: #065F46;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error-message {
+            background: #FEE2E2;
+            color: #991B1B;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Ver y Editar Formularios</h1>
+        <div id="loading" class="loading">Cargando formularios...</div>
+        <div id="formularios-container" class="formularios-grid"></div>
+    </div>
+
+    <!-- Modal de edición -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Editar Formulario</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+
+            <div id="successMessage" class="success-message"></div>
+            <div id="errorMessage" class="error-message"></div>
+
+            <form id="editForm">
+                <input type="hidden" id="edit_id" name="id">
+                <input type="hidden" id="edit_wix_id" name="wix_id">
+
+                <div class="section-title">Información Personal</div>
+
+                <div class="form-group">
+                    <label>Primer Nombre</label>
+                    <input type="text" id="edit_primer_nombre" name="primer_nombre">
+                </div>
+
+                <div class="form-group">
+                    <label>Segundo Nombre</label>
+                    <input type="text" id="edit_segundo_nombre" name="segundo_nombre">
+                </div>
+
+                <div class="form-group">
+                    <label>Primer Apellido</label>
+                    <input type="text" id="edit_primer_apellido" name="primer_apellido">
+                </div>
+
+                <div class="form-group">
+                    <label>Segundo Apellido</label>
+                    <input type="text" id="edit_segundo_apellido" name="segundo_apellido">
+                </div>
+
+                <div class="form-group">
+                    <label>Número de Identificación</label>
+                    <input type="text" id="edit_numero_id" name="numero_id">
+                </div>
+
+                <div class="form-group">
+                    <label>Celular</label>
+                    <input type="text" id="edit_celular" name="celular">
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="edit_email" name="email">
+                </div>
+
+                <div class="section-title">Información Laboral</div>
+
+                <div class="form-group">
+                    <label>Cargo</label>
+                    <input type="text" id="edit_cargo" name="cargo">
+                </div>
+
+                <div class="form-group">
+                    <label>Empresa</label>
+                    <input type="text" id="edit_empresa" name="empresa">
+                </div>
+
+                <div class="form-group">
+                    <label>Código Empresa</label>
+                    <input type="text" id="edit_cod_empresa" name="cod_empresa">
+                </div>
+
+                <div class="section-title">Información Adicional</div>
+
+                <div class="form-group">
+                    <label>Género</label>
+                    <select id="edit_genero" name="genero">
+                        <option value="">Seleccionar...</option>
+                        <option value="MASCULINO">Masculino</option>
+                        <option value="FEMENINO">Femenino</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Edad</label>
+                    <input type="number" id="edit_edad" name="edad">
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Nacimiento</label>
+                    <input type="text" id="edit_fecha_nacimiento" name="fecha_nacimiento" placeholder="DD/MM/YYYY">
+                </div>
+
+                <div class="form-group">
+                    <label>Ciudad de Residencia</label>
+                    <input type="text" id="edit_ciudad_residencia" name="ciudad_residencia">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary" id="saveBtn">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let formularios = [];
+        let currentFormulario = null;
+
+        // Cargar formularios al iniciar
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadFormularios();
+        });
+
+        async function loadFormularios() {
+            try {
+                const response = await fetch('/api/formularios');
+                const data = await response.json();
+
+                if (data.success) {
+                    formularios = data.data;
+                    renderFormularios();
+                } else {
+                    document.getElementById('loading').innerHTML = '❌ Error: ' + data.error;
+                }
+            } catch (error) {
+                document.getElementById('loading').innerHTML = '❌ Error al cargar formularios: ' + error.message;
+            }
+        }
+
+        function renderFormularios() {
+            const container = document.getElementById('formularios-container');
+            const loading = document.getElementById('loading');
+
+            loading.style.display = 'none';
+
+            if (formularios.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px;">No se encontraron formularios</p>';
+                return;
+            }
+
+            container.innerHTML = formularios.map(form => {
+                const fecha = new Date(form.fecha_registro).toLocaleString('es-CO');
+
+                return `
+                    <div class="formulario-card">
+                        <div class="formulario-header">
+                            <div>
+                                <div class="formulario-id">ID: ${form.id}</div>
+                                ${form.wix_id ? `<div class="formulario-id" style="background: #10B981; margin-top: 8px;">Wix ID: ${form.wix_id}</div>` : ''}
+                            </div>
+                            <button class="edit-btn" onclick="openEditModal(${form.id})">✏️ Editar</button>
+                        </div>
+
+                        ${form.foto ? `
+                            <div class="foto-container">
+                                <img src="${form.foto}" alt="Foto del paciente">
+                            </div>
+                        ` : ''}
+
+                        <div class="section-title">👤 Información Personal</div>
+                        <div class="dato">
+                            <span class="dato-label">Nombre Completo:</span>
+                            <span class="dato-value">${form.primer_nombre || ''} ${form.segundo_nombre || ''} ${form.primer_apellido || ''} ${form.segundo_apellido || ''}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Número ID:</span>
+                            <span class="dato-value">${form.numero_id || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Celular:</span>
+                            <span class="dato-value">${form.celular || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Email:</span>
+                            <span class="dato-value">${form.email || 'N/A'}</span>
+                        </div>
+
+                        <div class="section-title">💼 Información Laboral</div>
+                        <div class="dato">
+                            <span class="dato-label">Cargo:</span>
+                            <span class="dato-value">${form.cargo || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Empresa:</span>
+                            <span class="dato-value">${form.empresa || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Código Empresa:</span>
+                            <span class="dato-value">${form.cod_empresa || 'N/A'}</span>
+                        </div>
+
+                        <div class="section-title">📅 Otros Datos</div>
+                        <div class="dato">
+                            <span class="dato-label">Género:</span>
+                            <span class="dato-value">${form.genero || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Edad:</span>
+                            <span class="dato-value">${form.edad || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Fecha Nacimiento:</span>
+                            <span class="dato-value">${form.fecha_nacimiento || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Ciudad:</span>
+                            <span class="dato-value">${form.ciudad_residencia || 'N/A'}</span>
+                        </div>
+                        <div class="dato">
+                            <span class="dato-label">Fecha Registro:</span>
+                            <span class="dato-value">${fecha}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openEditModal(formularioId) {
+            currentFormulario = formularios.find(f => f.id === formularioId);
+            if (!currentFormulario) return;
+
+            // Llenar el formulario con los datos actuales
+            document.getElementById('edit_id').value = currentFormulario.id;
+            document.getElementById('edit_wix_id').value = currentFormulario.wix_id || '';
+            document.getElementById('edit_primer_nombre').value = currentFormulario.primer_nombre || '';
+            document.getElementById('edit_segundo_nombre').value = currentFormulario.segundo_nombre || '';
+            document.getElementById('edit_primer_apellido').value = currentFormulario.primer_apellido || '';
+            document.getElementById('edit_segundo_apellido').value = currentFormulario.segundo_apellido || '';
+            document.getElementById('edit_numero_id').value = currentFormulario.numero_id || '';
+            document.getElementById('edit_celular').value = currentFormulario.celular || '';
+            document.getElementById('edit_email').value = currentFormulario.email || '';
+            document.getElementById('edit_cargo').value = currentFormulario.cargo || '';
+            document.getElementById('edit_empresa').value = currentFormulario.empresa || '';
+            document.getElementById('edit_cod_empresa').value = currentFormulario.cod_empresa || '';
+            document.getElementById('edit_genero').value = currentFormulario.genero || '';
+            document.getElementById('edit_edad').value = currentFormulario.edad || '';
+            document.getElementById('edit_fecha_nacimiento').value = currentFormulario.fecha_nacimiento || '';
+            document.getElementById('edit_ciudad_residencia').value = currentFormulario.ciudad_residencia || '';
+
+            // Limpiar mensajes
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            // Mostrar modal
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentFormulario = null;
+        }
+
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Manejar envío del formulario
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const saveBtn = document.getElementById('saveBtn');
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+
+            // Ocultar mensajes
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            // Deshabilitar botón
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Guardando...';
+
+            try {
+                // Recopilar datos del formulario
+                const formData = {
+                    id: parseInt(document.getElementById('edit_id').value),
+                    wix_id: document.getElementById('edit_wix_id').value || null,
+                    primer_nombre: document.getElementById('edit_primer_nombre').value,
+                    segundo_nombre: document.getElementById('edit_segundo_nombre').value,
+                    primer_apellido: document.getElementById('edit_primer_apellido').value,
+                    segundo_apellido: document.getElementById('edit_segundo_apellido').value,
+                    numero_id: document.getElementById('edit_numero_id').value,
+                    celular: document.getElementById('edit_celular').value,
+                    email: document.getElementById('edit_email').value,
+                    cargo: document.getElementById('edit_cargo').value,
+                    empresa: document.getElementById('edit_empresa').value,
+                    cod_empresa: document.getElementById('edit_cod_empresa').value,
+                    genero: document.getElementById('edit_genero').value,
+                    edad: parseInt(document.getElementById('edit_edad').value) || null,
+                    fecha_nacimiento: document.getElementById('edit_fecha_nacimiento').value,
+                    ciudad_residencia: document.getElementById('edit_ciudad_residencia').value
+                };
+
+                // Enviar petición
+                const response = await fetch('/api/actualizar-formulario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    successMsg.textContent = '✅ Formulario actualizado correctamente';
+                    if (result.wix_updated) {
+                        successMsg.textContent += ' (sincronizado con Wix)';
+                    } else if (result.wix_error) {
+                        successMsg.textContent += ` (PostgreSQL actualizado, pero error en Wix: ${result.wix_error})`;
+                    }
+                    successMsg.style.display = 'block';
+
+                    // Recargar formularios después de 1.5 segundos
+                    setTimeout(async () => {
+                        await loadFormularios();
+                        closeModal();
+                    }, 1500);
+                } else {
+                    errorMsg.textContent = '❌ Error: ' + result.error;
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                errorMsg.textContent = '❌ Error al guardar: ' + error.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Guardar Cambios';
+            }
+        });
+    </script>
+</body>
+</html>"""
+
+    return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
 if __name__ == "__main__":
