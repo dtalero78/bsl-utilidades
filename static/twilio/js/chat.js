@@ -14,10 +14,7 @@ let audioPermitido = false; // Flag para saber si el usuario ya interactuó
 let unreadMessages = 0; // Contador de mensajes no leídos
 let originalTitle = 'Twilio-BSL WhatsApp Chat'; // Título original
 let titleBlinkInterval = null; // Intervalo para parpadeo del título
-let eventSource = null; // SSE connection
-let sseConnected = false; // Estado de conexión SSE
-let sseReconnectAttempts = 0; // Intentos de reconexión
-const MAX_SSE_RECONNECT_ATTEMPTS = 5; // Máximo de intentos antes de usar fallback
+// SSE removido - Cloudflare lo bloquea, usando polling inteligente
 
 // API Configuration
 const API_BASE = window.API_BASE || window.location.origin;
@@ -79,25 +76,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar conversaciones
     cargarConversaciones();
 
-    // Conectar SSE para notificaciones en tiempo real
-    console.log('🔌 Iniciando conexión SSE...');
-    conectarSSE();
-
-    // Fallback polling cada 60 segundos (solo si SSE falla completamente)
-    console.log('⏰ Configurando fallback polling cada 60 segundos...');
+    // Usar polling inteligente (Cloudflare bloquea SSE)
+    console.log('⏰ Configurando polling inteligente cada 30 segundos...');
     autoRefreshInterval = setInterval(() => {
-        // Solo hacer polling si SSE no está conectado
-        if (!sseConnected) {
-            console.log(`⏰ Fallback polling ejecutándose... (SSE desconectado)`);
-            if (conversacionActual) {
-                console.log('🔄 Actualizando conversación actual...');
-                actualizarConversacionActualSilencioso();
-            } else {
-                console.log('📋 Actualizando lista de conversaciones...');
-                cargarConversacionesSilencioso();
-            }
+        console.log(`⏰ Polling ejecutándose...`);
+        if (conversacionActual) {
+            console.log('🔄 Actualizando conversación actual...');
+            actualizarConversacionActualSilencioso();
+        } else {
+            console.log('📋 Actualizando lista de conversaciones...');
+            cargarConversacionesSilencioso();
         }
-    }, 60000); // 60 segundos = fallback solo si SSE falla
+    }, 30000); // 30 segundos (equilibrio entre tiempo real y recursos)
 
     // Auto-expand textarea
     const messageInput = document.getElementById('messageInput');
@@ -258,182 +248,6 @@ function reproducirSonidoNotificacion() {
         });
     } catch (e) {
         console.error('❌ Error al reproducir sonido:', e);
-    }
-}
-
-// ============================================================================
-// SSE (Server-Sent Events) Real-Time Notifications
-// ============================================================================
-
-function conectarSSE() {
-    try {
-        console.log('🔌 Conectando a SSE endpoint...');
-
-        // Cerrar conexión anterior si existe
-        if (eventSource) {
-            eventSource.close();
-        }
-
-        // Crear nueva conexión EventSource
-        eventSource = new EventSource(`${API_BASE}/events`);
-
-        eventSource.onopen = function() {
-            console.log('✅ SSE conectado exitosamente');
-            sseConnected = true;
-            sseReconnectAttempts = 0;
-        };
-
-        eventSource.onmessage = function(event) {
-            try {
-                const data = JSON.parse(event.data);
-                console.log('📨 SSE mensaje recibido:', data);
-
-                if (data.event === 'connected') {
-                    console.log(`✅ SSE suscriptor ID: ${data.subscriber_id}`);
-                } else if (data.event === 'keepalive') {
-                    console.log('💓 SSE keepalive recibido');
-                }
-            } catch (e) {
-                console.error('❌ Error procesando mensaje SSE:', e);
-            }
-        };
-
-        // Escuchar eventos personalizados
-        eventSource.addEventListener('new_message', function(event) {
-            try {
-                const messageData = JSON.parse(event.data);
-                console.log('📬 Nuevo mensaje SSE:', messageData);
-
-                // Manejar nuevo mensaje
-                manejarNuevoMensajeSSE(messageData);
-            } catch (e) {
-                console.error('❌ Error procesando new_message:', e);
-            }
-        });
-
-        eventSource.onerror = function(error) {
-            console.error('❌ Error SSE:', error);
-            sseConnected = false;
-
-            // Intentar reconectar con backoff exponencial
-            sseReconnectAttempts++;
-            if (sseReconnectAttempts < MAX_SSE_RECONNECT_ATTEMPTS) {
-                const delay = Math.min(1000 * Math.pow(2, sseReconnectAttempts), 30000);
-                console.log(`🔄 Reintentando SSE en ${delay}ms (intento ${sseReconnectAttempts}/${MAX_SSE_RECONNECT_ATTEMPTS})`);
-                setTimeout(conectarSSE, delay);
-            } else {
-                console.log('⚠️ Máximo de reintentos SSE alcanzado. Usando fallback polling.');
-                eventSource.close();
-            }
-        };
-
-    } catch (error) {
-        console.error('❌ Error fatal conectando SSE:', error);
-        sseConnected = false;
-    }
-}
-
-function manejarNuevoMensajeSSE(messageData) {
-    console.log('🔔 Procesando nuevo mensaje desde SSE:', messageData);
-
-    // Si estamos viendo esta conversación, agregar el mensaje directamente
-    if (conversacionActual && conversacionActual === messageData.numero) {
-        console.log('👁️ Mensaje es para la conversación actual - Agregando mensaje directamente...');
-        agregarMensajeAlChat(messageData);
-    } else {
-        // Actualizar solo el preview en la lista de conversaciones
-        console.log('📋 Actualizando preview de conversación...');
-        actualizarPreviewConversacion(messageData);
-    }
-
-    // Reproducir sonido de notificación
-    if (audioPermitido) {
-        console.log('🔔 Reproduciendo sonido de notificación...');
-        reproducirSonidoNotificacion();
-    }
-
-    // Incrementar contador de mensajes no leídos
-    unreadMessages++;
-
-    // Si el usuario NO está en la pestaña, iniciar parpadeo del título
-    if (document.hidden) {
-        console.log('📋 Usuario en otra pestaña - Iniciando parpadeo del título');
-        startTitleBlink(messageData.body);
-    }
-
-    // Mostrar notificación del navegador
-    mostrarNotificacionNavegador('Nuevo mensaje de WhatsApp', messageData.body || '(mensaje)');
-}
-
-function agregarMensajeAlChat(messageData) {
-    /**
-     * Agrega un mensaje nuevo directamente al DOM sin recargar toda la conversación
-     */
-    const messagesContainer = document.getElementById('messagesContainer');
-    if (!messagesContainer) return;
-
-    // Crear objeto de mensaje compatible con renderizarMensaje()
-    const nuevoMensaje = {
-        sid: messageData.message_sid,
-        direction: 'inbound',
-        body: messageData.body,
-        timestamp: messageData.timestamp,
-        status: 'received'
-    };
-
-    // Agregar el mensaje al DOM
-    messagesContainer.innerHTML += renderizarMensaje(nuevoMensaje);
-
-    // Incrementar contador de mensajes
-    lastMessageCount++;
-
-    // Auto-scroll al fondo
-    scrollToBottom();
-
-    console.log('✅ Mensaje agregado directamente al chat');
-}
-
-function actualizarPreviewConversacion(messageData) {
-    /**
-     * Actualiza solo el preview de la conversación en la lista sin recargar todo
-     */
-    const numero = messageData.numero;
-
-    // Buscar el item de conversación en el DOM
-    const conversationItems = document.querySelectorAll('.conversation-item');
-    let conversationItem = null;
-
-    for (const item of conversationItems) {
-        if (item.onclick && item.onclick.toString().includes(numero)) {
-            conversationItem = item;
-            break;
-        }
-    }
-
-    if (conversationItem) {
-        // Actualizar el preview y timestamp
-        const previewElement = conversationItem.querySelector('.conversation-preview');
-        const timeElement = conversationItem.querySelector('.conversation-time');
-
-        if (previewElement) {
-            previewElement.textContent = truncateText(messageData.body || '(media)', 50);
-        }
-
-        if (timeElement) {
-            timeElement.textContent = formatTime(messageData.timestamp);
-        }
-
-        // Mover la conversación al tope de la lista
-        const conversationsList = document.getElementById('conversationsList');
-        if (conversationsList) {
-            conversationsList.insertBefore(conversationItem, conversationsList.firstChild);
-        }
-
-        console.log('✅ Preview de conversación actualizado');
-    } else {
-        // Si no existe la conversación, recargar la lista completa (nuevo contacto)
-        console.log('⚠️ Conversación no encontrada - Recargando lista...');
-        cargarConversacionesSilencioso();
     }
 }
 
@@ -998,9 +812,5 @@ function getLastMessageTime(conversacion) {
 window.addEventListener('beforeunload', () => {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
-    }
-    if (eventSource) {
-        console.log('🔌 Cerrando conexión SSE...');
-        eventSource.close();
     }
 });
