@@ -1,7 +1,7 @@
 import os
 import requests
 import base64
-from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template, make_response
+from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template, make_response, Response, stream_with_context
 from flask_cors import CORS
 from dotenv import load_dotenv
 import traceback
@@ -15,6 +15,8 @@ import logging
 import subprocess
 import json as json_module
 import time
+import queue
+import threading
 from do_spaces_uploader import subir_imagen_a_do_spaces
 
 # Configurar logging
@@ -4282,6 +4284,51 @@ if TWILIO_AVAILABLE and TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
 elif not TWILIO_AVAILABLE:
     logger.warning("SDK de Twilio no instalado. Instalar con: pip install twilio")
 
+# ============================================================================
+# SSE (Server-Sent Events) System for Real-Time Notifications
+# ============================================================================
+
+# Estructura para manejar suscriptores SSE
+sse_subscribers = []
+sse_lock = threading.Lock()
+
+class SSESubscriber:
+    """Representa un cliente conectado vía SSE"""
+    def __init__(self):
+        self.queue = queue.Queue(maxsize=50)
+        self.id = str(uuid.uuid4())
+
+    def send_event(self, event_type, data):
+        """Envía un evento al cliente"""
+        try:
+            self.queue.put({
+                'event': event_type,
+                'data': data,
+                'timestamp': datetime.now().isoformat()
+            }, block=False)
+        except queue.Full:
+            logger.warning(f"Cola SSE llena para subscriber {self.id}")
+
+def broadcast_sse_event(event_type, data):
+    """Envía un evento a todos los suscriptores SSE"""
+    with sse_lock:
+        dead_subscribers = []
+        for subscriber in sse_subscribers:
+            try:
+                subscriber.send_event(event_type, data)
+            except Exception as e:
+                logger.error(f"Error enviando evento SSE: {e}")
+                dead_subscribers.append(subscriber)
+
+        # Limpiar suscriptores muertos
+        for subscriber in dead_subscribers:
+            try:
+                sse_subscribers.remove(subscriber)
+            except ValueError:
+                pass
+
+        logger.info(f"📡 Evento SSE enviado: {event_type} a {len(sse_subscribers)} clientes")
+
 # Funciones de integración Wix CHATBOT
 def obtener_conversacion_por_celular(celular):
     """Obtiene conversación desde Wix CHATBOT"""
@@ -4351,6 +4398,60 @@ def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
 def twilio_chat_interface():
     """Interfaz principal del chat WhatsApp"""
     return render_template('twilio/chat.html')
+
+@app.route('/twilio-chat/events')
+def twilio_sse_stream():
+    """SSE endpoint para notificaciones en tiempo real"""
+    def event_stream():
+        subscriber = SSESubscriber()
+
+        with sse_lock:
+            sse_subscribers.append(subscriber)
+            logger.info(f"✅ Nuevo suscriptor SSE: {subscriber.id} (Total: {len(sse_subscribers)})")
+
+        try:
+            # Enviar evento inicial de conexión
+            yield f"data: {json_module.dumps({'event': 'connected', 'subscriber_id': subscriber.id})}\n\n"
+
+            # Keepalive cada 30 segundos para mantener la conexión abierta
+            last_keepalive = time.time()
+
+            while True:
+                try:
+                    # Intentar obtener evento de la cola (timeout 15s)
+                    event = subscriber.queue.get(timeout=15)
+
+                    # Formatear como SSE
+                    event_data = json_module.dumps(event['data'])
+                    yield f"event: {event['event']}\n"
+                    yield f"data: {event_data}\n\n"
+
+                except queue.Empty:
+                    # No hay eventos - enviar keepalive si han pasado 30 segundos
+                    current_time = time.time()
+                    if current_time - last_keepalive > 30:
+                        yield f"data: {json_module.dumps({'event': 'keepalive', 'timestamp': datetime.now().isoformat()})}\n\n"
+                        last_keepalive = current_time
+
+        except GeneratorExit:
+            logger.info(f"🔌 Cliente SSE desconectado: {subscriber.id}")
+        finally:
+            with sse_lock:
+                try:
+                    sse_subscribers.remove(subscriber)
+                    logger.info(f"❌ Suscriptor removido: {subscriber.id} (Total: {len(sse_subscribers)})")
+                except ValueError:
+                    pass
+
+    return Response(
+        stream_with_context(event_stream()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive'
+        }
+    )
 
 @app.route('/twilio-chat/health')
 def twilio_health():
@@ -4540,7 +4641,7 @@ def twilio_enviar_mensaje():
 
 @app.route('/twilio-chat/webhook/twilio', methods=['POST'])
 def twilio_webhook():
-    """Webhook para mensajes entrantes de Twilio - SOLO logging"""
+    """Webhook para mensajes entrantes de Twilio - Con notificaciones SSE"""
     try:
         from_number = request.form.get('From')
         to_number = request.form.get('To')
@@ -4556,6 +4657,20 @@ def twilio_webhook():
         logger.info(f"   Mensaje: {body}")
         logger.info(f"   Media: {num_media} archivo(s)")
         logger.info("="*60)
+
+        # Extraer número limpio
+        numero_clean = from_number.replace('whatsapp:', '').replace('+', '')
+
+        # Enviar notificación SSE a todos los clientes conectados
+        broadcast_sse_event('new_message', {
+            'numero': numero_clean,
+            'from': from_number,
+            'to': to_number,
+            'body': body,
+            'message_sid': message_sid,
+            'num_media': int(num_media),
+            'timestamp': datetime.now().isoformat()
+        })
 
         # NO guardamos en Wix - Twilio ya lo guardó automáticamente
         # El mensaje estará disponible cuando se consulte la API de Twilio
