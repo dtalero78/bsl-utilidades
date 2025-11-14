@@ -336,14 +336,14 @@ function conectarSSE() {
 function manejarNuevoMensajeSSE(messageData) {
     console.log('🔔 Procesando nuevo mensaje desde SSE:', messageData);
 
-    // Si estamos viendo esta conversación, actualizar
+    // Si estamos viendo esta conversación, agregar el mensaje directamente
     if (conversacionActual && conversacionActual === messageData.numero) {
-        console.log('👁️ Mensaje es para la conversación actual - Actualizando...');
-        actualizarConversacionActualSilencioso();
+        console.log('👁️ Mensaje es para la conversación actual - Agregando mensaje directamente...');
+        agregarMensajeAlChat(messageData);
     } else {
-        // Actualizar lista de conversaciones
-        console.log('📋 Actualizando lista de conversaciones...');
-        cargarConversacionesSilencioso();
+        // Actualizar solo el preview en la lista de conversaciones
+        console.log('📋 Actualizando preview de conversación...');
+        actualizarPreviewConversacion(messageData);
     }
 
     // Reproducir sonido de notificación
@@ -363,6 +363,78 @@ function manejarNuevoMensajeSSE(messageData) {
 
     // Mostrar notificación del navegador
     mostrarNotificacionNavegador('Nuevo mensaje de WhatsApp', messageData.body || '(mensaje)');
+}
+
+function agregarMensajeAlChat(messageData) {
+    /**
+     * Agrega un mensaje nuevo directamente al DOM sin recargar toda la conversación
+     */
+    const messagesContainer = document.getElementById('messagesContainer');
+    if (!messagesContainer) return;
+
+    // Crear objeto de mensaje compatible con renderizarMensaje()
+    const nuevoMensaje = {
+        sid: messageData.message_sid,
+        direction: 'inbound',
+        body: messageData.body,
+        timestamp: messageData.timestamp,
+        status: 'received'
+    };
+
+    // Agregar el mensaje al DOM
+    messagesContainer.innerHTML += renderizarMensaje(nuevoMensaje);
+
+    // Incrementar contador de mensajes
+    lastMessageCount++;
+
+    // Auto-scroll al fondo
+    scrollToBottom();
+
+    console.log('✅ Mensaje agregado directamente al chat');
+}
+
+function actualizarPreviewConversacion(messageData) {
+    /**
+     * Actualiza solo el preview de la conversación en la lista sin recargar todo
+     */
+    const numero = messageData.numero;
+
+    // Buscar el item de conversación en el DOM
+    const conversationItems = document.querySelectorAll('.conversation-item');
+    let conversationItem = null;
+
+    for (const item of conversationItems) {
+        if (item.onclick && item.onclick.toString().includes(numero)) {
+            conversationItem = item;
+            break;
+        }
+    }
+
+    if (conversationItem) {
+        // Actualizar el preview y timestamp
+        const previewElement = conversationItem.querySelector('.conversation-preview');
+        const timeElement = conversationItem.querySelector('.conversation-time');
+
+        if (previewElement) {
+            previewElement.textContent = truncateText(messageData.body || '(media)', 50);
+        }
+
+        if (timeElement) {
+            timeElement.textContent = formatTime(messageData.timestamp);
+        }
+
+        // Mover la conversación al tope de la lista
+        const conversationsList = document.getElementById('conversationsList');
+        if (conversationsList) {
+            conversationsList.insertBefore(conversationItem, conversationsList.firstChild);
+        }
+
+        console.log('✅ Preview de conversación actualizado');
+    } else {
+        // Si no existe la conversación, recargar la lista completa (nuevo contacto)
+        console.log('⚠️ Conversación no encontrada - Recargando lista...');
+        cargarConversacionesSilencioso();
+    }
 }
 
 // ============================================================================
