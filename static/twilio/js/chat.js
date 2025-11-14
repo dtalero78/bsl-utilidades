@@ -275,7 +275,7 @@ function conectarSSE() {
         }
 
         // Crear nueva conexión EventSource
-        eventSource = new EventSource(`${API_BASE}/twilio-chat/events`);
+        eventSource = new EventSource(`${API_BASE}/events`);
 
         eventSource.onopen = function() {
             console.log('✅ SSE conectado exitosamente');
