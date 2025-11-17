@@ -2516,21 +2516,16 @@ def test_puppeteer_imagen(wix_id):
             datos_wix = response.json().get("data", {})
             wix_id_historia = datos_wix.get('_id')
 
-            # Consultar formulario
-            formulario_response = requests.get(
-                f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id_historia}",
-                timeout=10
-            )
+            # Consultar formulario desde PostgreSQL
+            datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
 
-            if formulario_response.status_code != 200:
-                raise Exception(f"Error consultando formulario: {formulario_response.status_code}")
+            if not datos_formulario:
+                raise Exception("No se encontraron datos del formulario en PostgreSQL")
 
-            formulario_data = formulario_response.json()
-            datos_formulario = formulario_data.get('item', {})
             foto_url_original = datos_formulario.get('foto')
 
             if not foto_url_original:
-                raise Exception("No se encontró campo 'foto' en formulario")
+                raise Exception("No se encontró foto en PostgreSQL")
 
             # Convertir URL
             if foto_url_original.startswith('wix:image://v1/'):
@@ -2718,37 +2713,28 @@ def guardar_foto_desde_wix_do(wix_id):
             resultado["pasos"].append("   2B. Consultando formulario por idGeneral...")
 
             try:
-                formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id_historia}"
-                print(f"      URL: {formulario_url}")
+                print(f"      Consultando PostgreSQL para wix_id={wix_id_historia}")
 
-                formulario_response = requests.get(formulario_url, timeout=10)
-                print(f"      Status: {formulario_response.status_code}")
+                datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
 
-                if formulario_response.status_code == 200:
-                    formulario_data = formulario_response.json()
-                    print(f"      📋 Respuesta formulario: success={formulario_data.get('success')}, tiene item={bool(formulario_data.get('item'))}")
+                if datos_formulario:
+                    print(f"      ✅ Datos del formulario encontrados en PostgreSQL")
 
-                    if formulario_data.get('success') and formulario_data.get('item'):
-                        datos_formulario = formulario_data.get('item')
-
-                        if datos_formulario.get('foto'):
-                            foto_url_original = datos_formulario.get('foto')
-                            resultado["pasos"].append(f"      ✅ Foto encontrada en formulario")
-                            print(f"      ✅ Foto en formulario: {foto_url_original[:100]}...")
-                        else:
-                            resultado["pasos"].append(f"      ℹ️  Formulario sin foto")
-                            print(f"      ℹ️  Formulario existe pero no tiene campo 'foto'")
-                            print(f"      📋 Campos disponibles: {list(datos_formulario.keys())[:20]}")
+                    if datos_formulario.get('foto'):
+                        foto_url_original = datos_formulario.get('foto')
+                        resultado["pasos"].append(f"      ✅ Foto encontrada en PostgreSQL")
+                        print(f"      ✅ Foto en PostgreSQL: {foto_url_original[:100]}...")
                     else:
-                        resultado["pasos"].append(f"      ℹ️  Formulario no encontrado para idGeneral={wix_id_historia}")
-                        print(f"      ℹ️  Formulario no encontrado")
+                        resultado["pasos"].append(f"      ℹ️  Formulario sin foto")
+                        print(f"      ℹ️  Formulario existe pero no tiene foto")
+                        print(f"      📋 Campos disponibles: {list(datos_formulario.keys())}")
                 else:
-                    resultado["pasos"].append(f"      ℹ️  Formulario no disponible (HTTP {formulario_response.status_code})")
-                    print(f"      ℹ️  Formulario no disponible")
+                    resultado["pasos"].append(f"      ℹ️  Formulario no encontrado en PostgreSQL para wix_id={wix_id_historia}")
+                    print(f"      ℹ️  Formulario no encontrado en PostgreSQL")
 
             except Exception as e:
-                resultado["pasos"].append(f"      ⚠️  Error consultando formulario: {str(e)}")
-                print(f"      ⚠️  Error consultando formulario: {e}")
+                resultado["pasos"].append(f"      ⚠️  Error consultando PostgreSQL: {str(e)}")
+                print(f"      ⚠️  Error consultando PostgreSQL: {e}")
                 traceback.print_exc()
 
         # Validar si se encontró foto
