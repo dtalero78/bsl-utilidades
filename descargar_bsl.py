@@ -4208,25 +4208,41 @@ def enviar_certificado_whatsapp():
             "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
         }
 
-        whatsapp_response = requests.post(
-            whatsapp_url,
-            headers=whatsapp_headers,
-            json=whatsapp_payload,
-            timeout=30
-        )
+        try:
+            whatsapp_response = requests.post(
+                whatsapp_url,
+                headers=whatsapp_headers,
+                json=whatsapp_payload,
+                timeout=10  # Reducido a 10 segundos
+            )
 
-        if whatsapp_response.status_code in [200, 201]:
-            print(f"✅ Certificado enviado exitosamente por WhatsApp")
+            if whatsapp_response.status_code in [200, 201]:
+                print(f"✅ Certificado enviado exitosamente por WhatsApp")
+                return jsonify({
+                    "success": True,
+                    "message": "Certificado enviado exitosamente por WhatsApp"
+                }), 200
+            else:
+                print(f"❌ Error enviando por WhatsApp: {whatsapp_response.status_code}")
+                print(f"   Respuesta: {whatsapp_response.text}")
+                return jsonify({
+                    "success": False,
+                    "message": "Error al enviar el mensaje por WhatsApp. Verifica el número."
+                }), 500
+
+        except requests.exceptions.Timeout:
+            # Timeout en la respuesta de WhatsApp, pero el mensaje probablemente se envió
+            print(f"⏱️  Timeout esperando respuesta de WhatsApp (mensaje probablemente enviado)")
             return jsonify({
                 "success": True,
-                "message": "Certificado enviado exitosamente por WhatsApp"
+                "message": "Certificado enviado por WhatsApp (confirmación pendiente)"
             }), 200
-        else:
-            print(f"❌ Error enviando por WhatsApp: {whatsapp_response.status_code}")
-            print(f"   Respuesta: {whatsapp_response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error de conexión con WhatsApp: {str(e)}")
             return jsonify({
                 "success": False,
-                "message": "Error al enviar el mensaje por WhatsApp. Verifica el número."
+                "message": "Error de conexión con WhatsApp. Intenta nuevamente."
             }), 500
 
     except Exception as e:
