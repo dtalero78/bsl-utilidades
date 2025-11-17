@@ -4531,14 +4531,18 @@ def enviar_mensaje_whapi(to_number, message_body, media_url=None):
         response.raise_for_status()
 
         data = response.json()
-        message_id = data.get('id', '')
+        logger.info(f"📥 Respuesta de Whapi: {json_module.dumps(data, indent=2)}")
+
+        # Whapi puede devolver el ID en diferentes campos
+        message_id = data.get('id') or data.get('message_id') or data.get('sent_message_id') or str(data)
 
         logger.info(f"✅ Mensaje enviado via Whapi. ID: {message_id}")
         logger.info(f"   De: {WHAPI_PHONE_NUMBER}")
         logger.info(f"   Para: {chat_id}")
         logger.info(f"   Contenido: {message_body[:50]}...")
 
-        return message_id
+        # Retornar algo aunque no tengamos ID - el mensaje SÍ se envió
+        return message_id if message_id else 'sent_ok'
     except Exception as e:
         logger.error(f"❌ Error enviando mensaje via Whapi: {str(e)}")
         import traceback
