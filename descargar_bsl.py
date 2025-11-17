@@ -4758,9 +4758,13 @@ def twilio_get_conversaciones():
 
 @app.route('/twilio-chat/api/conversacion/<numero>')
 def twilio_get_conversacion(numero):
-    """Obtiene conversación específica - COMBINANDO Twilio + Whapi"""
+    """Obtiene conversación específica - COMBINANDO Twilio + Whapi con paginación"""
     try:
-        logger.info(f"📱 Obteniendo conversación para número: {numero}")
+        # Parámetros de paginación
+        limit = request.args.get('limit', default=50, type=int)  # Default: 50 mensajes
+        offset = request.args.get('offset', default=0, type=int)
+
+        logger.info(f"📱 Obteniendo conversación para número: {numero} (offset={offset}, limit={limit})")
 
         conversacion_messages = []
 
@@ -4830,16 +4834,30 @@ def twilio_get_conversacion(numero):
             logger.error(f"⚠️ Error obteniendo mensajes de Whapi: {str(e)}")
 
         # ==================== ORDENAR Y FORMATEAR ====================
-        # Ordenar cronológicamente todos los mensajes combinados
+        # Ordenar cronológicamente todos los mensajes combinados (más antiguos primero)
         conversacion_messages.sort(key=lambda x: x.get('date_sent', ''))
 
-        logger.info(f"✅ Total de mensajes combinados: {len(conversacion_messages)}")
+        # Aplicar paginación (desde el final - mensajes más recientes)
+        total_messages = len(conversacion_messages)
+
+        # Calcular índices para paginación inversa (queremos los más recientes primero)
+        # Si offset=0, queremos los últimos 50 mensajes
+        start_index = max(0, total_messages - offset - limit)
+        end_index = total_messages - offset
+
+        mensajes_paginados = conversacion_messages[start_index:end_index]
+
+        logger.info(f"✅ Mensajes: {len(mensajes_paginados)}/{total_messages} (offset={offset}, limit={limit})")
 
         return jsonify({
             'success': True,
             'numero': numero,
-            'twilio_messages': conversacion_messages,  # Mantener el nombre por compatibilidad con frontend
-            'total_messages': len(conversacion_messages),
+            'twilio_messages': mensajes_paginados,  # Mantener el nombre por compatibilidad con frontend
+            'total': total_messages,
+            'count': len(mensajes_paginados),
+            'offset': offset,
+            'limit': limit,
+            'has_more': start_index > 0,  # Hay más mensajes antiguos disponibles
             'source': 'twilio_and_whapi'
         })
     except Exception as e:

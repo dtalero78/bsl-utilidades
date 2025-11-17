@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
         audioBanner.addEventListener('click', habilitarAudio);
     }
 
+    // Limpiar cache antiguo de fotos de perfil
+    limpiarCacheFotosPerfil();
+
     // Cargar conversaciones
     cargarConversaciones();
 
@@ -96,10 +99,10 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('❌ WebSocket desconectado');
     });
 
-    // Event: Nuevo mensaje
+    // Event: Nuevo mensaje con queue y throttling
     socket.on('new_message', (data) => {
         console.log('📨 Nuevo mensaje recibido vía WebSocket:', data);
-        handleNewMessage(data);
+        agregarMensajeACola(data);
     });
 
     // Event: Error
@@ -293,6 +296,72 @@ async function cargarConversaciones() {
     }
 }
 
+// ============================================================================
+// PROFILE PICTURE CACHE
+// ============================================================================
+
+function obtenerFotoPerfilCached(numero, profilePictureUrl) {
+    if (!profilePictureUrl) return null;
+
+    const cacheKey = `profile_pic_${numero}`;
+    const cacheTimeKey = `profile_pic_time_${numero}`;
+    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+
+    try {
+        // Verificar si existe en cache
+        const cached = localStorage.getItem(cacheKey);
+        const cacheTime = localStorage.getItem(cacheTimeKey);
+
+        if (cached && cacheTime) {
+            const age = Date.now() - parseInt(cacheTime);
+
+            // Si el cache es válido (menos de 24 horas)
+            if (age < CACHE_DURATION) {
+                return cached;
+            }
+        }
+
+        // Guardar nuevo valor en cache
+        localStorage.setItem(cacheKey, profilePictureUrl);
+        localStorage.setItem(cacheTimeKey, Date.now().toString());
+
+        return profilePictureUrl;
+    } catch (e) {
+        // Si falla localStorage (cuota excedida, etc), retornar URL sin cache
+        console.warn('Error usando cache de fotos:', e);
+        return profilePictureUrl;
+    }
+}
+
+function limpiarCacheFotosPerfil() {
+    // Limpiar fotos de perfil con más de 7 días
+    const MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días
+
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+
+            if (key && key.startsWith('profile_pic_time_')) {
+                const cacheTime = parseInt(localStorage.getItem(key));
+                const age = Date.now() - cacheTime;
+
+                if (age > MAX_AGE) {
+                    const numero = key.replace('profile_pic_time_', '');
+                    localStorage.removeItem(`profile_pic_${numero}`);
+                    localStorage.removeItem(key);
+                    console.log(`♻️ Cache limpiado para ${numero}`);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error limpiando cache:', e);
+    }
+}
+
+// ============================================================================
+// CONVERSATIONS RENDERING
+// ============================================================================
+
 function renderizarConversaciones() {
     const listContainer = document.getElementById('conversationsList');
 
@@ -333,8 +402,8 @@ function crearElementoConversacion(numero, conversacion) {
     const source = conversacion.source || 'twilio';
     const avatarClass = source === 'whapi' ? 'avatar-whapi' : (source === 'both' ? 'avatar-both' : 'avatar-twilio');
 
-    // Mostrar foto de perfil si está disponible
-    const profilePicture = conversacion.profile_picture;
+    // Obtener foto de perfil con cache
+    const profilePicture = obtenerFotoPerfilCached(numero, conversacion.profile_picture);
     const avatarContent = profilePicture
         ? `<img src="${profilePicture}" alt="${nombre}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
            <i class="fas fa-user" style="display: none;"></i>`
@@ -740,21 +809,30 @@ function scrollToBottom() {
     }, 100);
 }
 
+// Variable para timeout de debouncing
+let searchTimeout;
+
 function filtrarConversaciones() {
-    const searchInput = document.getElementById('searchInput');
-    const filter = searchInput.value.toLowerCase();
-    const items = document.querySelectorAll('.conversation-item');
+    // Cancelar búsqueda anterior si existe
+    clearTimeout(searchTimeout);
 
-    items.forEach(item => {
-        const nombre = item.querySelector('.conversation-name').textContent.toLowerCase();
-        const numero = item.onclick.toString();
+    // Esperar 300ms después del último keypress
+    searchTimeout = setTimeout(() => {
+        const searchInput = document.getElementById('searchInput');
+        const filter = searchInput.value.toLowerCase();
+        const items = document.querySelectorAll('.conversation-item');
 
-        if (nombre.includes(filter) || numero.includes(filter)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
+        items.forEach(item => {
+            const nombre = item.querySelector('.conversation-name')?.textContent.toLowerCase() || '';
+            const numero = item.getAttribute('data-numero') || '';
+
+            if (nombre.includes(filter) || numero.includes(filter)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }, 300);
 }
 
 function toggleContactInfo() {
@@ -879,10 +957,52 @@ function getLastMessageTime(conversacion) {
 }
 
 // ============================================================================
+// WEBSOCKET MESSAGE QUEUE (Throttling)
+// ============================================================================
+
+let messageQueue = [];
+let isProcessingQueue = false;
+
+function agregarMensajeACola(data) {
+    messageQueue.push(data);
+    console.log(`📥 Mensaje agregado a cola (${messageQueue.length} pendientes)`);
+    procesarColaMensajes();
+}
+
+async function procesarColaMensajes() {
+    // Si ya estamos procesando o no hay mensajes, salir
+    if (isProcessingQueue || messageQueue.length === 0) {
+        return;
+    }
+
+    isProcessingQueue = true;
+    console.log('⚙️ Iniciando procesamiento de cola de mensajes');
+
+    while (messageQueue.length > 0) {
+        const data = messageQueue.shift();
+        console.log(`⚡ Procesando mensaje (${messageQueue.length} restantes)`);
+
+        try {
+            await handleNewMessage(data);
+        } catch (error) {
+            console.error('❌ Error procesando mensaje de cola:', error);
+        }
+
+        // Throttle: esperar 100ms entre mensajes
+        if (messageQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
+    isProcessingQueue = false;
+    console.log('✅ Cola de mensajes procesada completamente');
+}
+
+// ============================================================================
 // WEBSOCKET MESSAGE HANDLING
 // ============================================================================
 
-function handleNewMessage(data) {
+async function handleNewMessage(data) {
     console.log('📨 Procesando nuevo mensaje:', data);
 
     try {
