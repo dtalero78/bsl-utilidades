@@ -789,6 +789,10 @@ body {
     }
 
     /* Message input adjustments */
+    .chat-area.active .message-input-area {
+        display: block !important; /* Ensure visible when chat is active */
+    }
+
     .input-wrapper {
         padding: var(--spacing-sm);
     }

@@ -563,7 +563,7 @@ function renderizarChat(numero, data) {
         : `<i class="fas fa-user"></i>`;
 
     chatHeader.innerHTML = `
-        <button class="btn-back-mobile" onclick="volverALista()" title="Volver" style="display: none;">
+        <button class="btn-back-mobile" onclick="volverALista()" title="Volver">
             <i class="fas fa-arrow-left"></i>
         </button>
         <div class="chat-contact" onclick="toggleContactInfo()">
