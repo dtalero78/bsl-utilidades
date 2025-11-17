@@ -3770,99 +3770,45 @@ def preview_certificado_html(wix_id):
                 print(f"❌ Error consultando datos de audiometría: {e}", flush=True)
                 datos_audiometria = None
 
-        # ===== CONSULTAR DATOS DEL FORMULARIO (edad, hijos, etc.) =====
-        datos_formulario = None
-        try:
-            wix_id_historia = datos_wix.get('_id', wix_id)
-            formulario_url = f"https://www.bsl.com.co/_functions/formularioPorIdGeneral?idGeneral={wix_id_historia}"
-            print(f"🔍 Consultando datos del formulario para HistoriaClinica ID: {wix_id_historia}", flush=True)
+        # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
+        wix_id_historia = datos_wix.get('_id', wix_id)
+        print(f"🔍 Consultando datos del formulario desde PostgreSQL para wix_id: {wix_id_historia}", flush=True)
 
-            formulario_response = requests.get(formulario_url, timeout=10)
+        datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
 
-            if formulario_response.status_code == 200:
-                formulario_data = formulario_response.json()
-                if formulario_data.get('success') and formulario_data.get('item'):
-                    datos_formulario = formulario_data['item']
-                    if datos_formulario:
-                        print(f"✅ Datos del formulario obtenidos correctamente", flush=True)
-                        print(f"📸 Foto en FORMULARIO: {datos_formulario.get('foto', 'NO EXISTE')}", flush=True)
-                        # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
-                        if datos_formulario.get('edad'):
-                            datos_wix['edad'] = datos_formulario.get('edad')
-                        if datos_formulario.get('genero'):
-                            datos_wix['genero'] = datos_formulario.get('genero')
-                        if datos_formulario.get('estadoCivil'):
-                            datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
-                        if datos_formulario.get('hijos'):
-                            datos_wix['hijos'] = datos_formulario.get('hijos')
-                        if datos_formulario.get('email'):
-                            datos_wix['email'] = datos_formulario.get('email')
-                        if datos_formulario.get('profesionUOficio'):
-                            datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
-                        if datos_formulario.get('ciudadDeResidencia'):
-                            datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
-                        if datos_formulario.get('fechaNacimiento'):
-                            # Convertir fecha de nacimiento a formato string legible
-                            fecha_nac = datos_formulario.get('fechaNacimiento')
-                            if isinstance(fecha_nac, str):
-                                try:
-                                    fecha_obj = datetime.fromisoformat(fecha_nac.replace('Z', '+00:00'))
-                                    datos_wix['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
-                                except:
-                                    datos_wix['fechaNacimiento'] = fecha_nac
-                            elif isinstance(fecha_nac, datetime):
-                                datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
-                        if datos_formulario.get('foto'):
-                            # Convertir URL de Wix a URL accesible Y descargarla localmente
-                            foto_wix = datos_formulario.get('foto')
-                            if foto_wix.startswith('wix:image://v1/'):
-                                # Formato: wix:image://v1/IMAGE_ID/FILENAME#originWidth=W&originHeight=H
-                                # Extraer solo el IMAGE_ID (primera parte antes del segundo /)
-                                # Ejemplo: wix:image://v1/7dbe9d_abc.../file.jpg
-                                # Convertir a URL simple de Wix sin parámetros complejos
-                                parts = foto_wix.replace('wix:image://v1/', '').split('/')
-                                if len(parts) > 0:
-                                    image_id = parts[0]  # Solo tomar el ID de la imagen (ej: f82308_200000448a0d43c4a7050b981150a428~mv2.jpg)
-                                    # Convertir a URL de Wix CDN
-                                    wix_url = f"https://static.wixstatic.com/media/{image_id}"
-                                    print(f"🔍 URL FOTO ORIGINAL WIX: {foto_wix}")
-                                    print(f"🔍 URL FOTO WIX CDN: {wix_url}")
+        if datos_formulario:
+            print(f"✅ Datos del formulario obtenidos desde PostgreSQL", flush=True)
 
-                                    # NUEVA LÓGICA: Descargar la imagen localmente para evitar bloqueos de Wix CDN
-                                    local_url = descargar_imagen_wix_localmente(wix_url)
-                                    if local_url:
-                                        datos_wix['foto_paciente'] = local_url
-                                        print(f"✅ Usando imagen local: {local_url}")
-                                    else:
-                                        # Si falla la descarga, intentar usar URL de Wix directamente (fallback)
-                                        datos_wix['foto_paciente'] = wix_url
-                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
-                                else:
-                                    datos_wix['foto_paciente'] = foto_wix
-                                    print(f"🔍 URL FOTO (sin conversión): {foto_wix}")
-                            else:
-                                # Si no es wix:image, verificar si es URL de Wix CDN y descargarla
-                                if 'static.wixstatic.com' in foto_wix:
-                                    print(f"🔍 URL FOTO de Wix CDN detectada: {foto_wix}")
-                                    local_url = descargar_imagen_wix_localmente(foto_wix)
-                                    if local_url:
-                                        datos_wix['foto_paciente'] = local_url
-                                        print(f"✅ Usando imagen local: {local_url}")
-                                    else:
-                                        datos_wix['foto_paciente'] = foto_wix
-                                        print(f"⚠️  Usando URL de Wix directamente (fallback): {foto_wix}")
-                                else:
-                                    datos_wix['foto_paciente'] = foto_wix
-                                    print(f"🔍 URL FOTO (no es wix:image): {foto_wix}")
-                        print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
-                    else:
-                        print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
-                else:
-                    print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}", flush=True)
+            # Sobrescribir los datos de HistoriaClinica con los de PostgreSQL si existen
+            if datos_formulario.get('edad'):
+                datos_wix['edad'] = datos_formulario.get('edad')
+            if datos_formulario.get('genero'):
+                datos_wix['genero'] = datos_formulario.get('genero')
+            if datos_formulario.get('estadoCivil'):
+                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+            if datos_formulario.get('hijos'):
+                datos_wix['hijos'] = datos_formulario.get('hijos')
+            if datos_formulario.get('email'):
+                datos_wix['email'] = datos_formulario.get('email')
+            if datos_formulario.get('profesionUOficio'):
+                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+            if datos_formulario.get('ciudadDeResidencia'):
+                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+            if datos_formulario.get('fechaNacimiento'):
+                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
+
+            # Foto del paciente
+            if datos_formulario.get('foto'):
+                datos_wix['foto_paciente'] = datos_formulario.get('foto')
+                print(f"✅ Usando foto de PostgreSQL (data URI base64)", flush=True)
             else:
-                print(f"⚠️ Error al consultar datos del formulario: {formulario_response.status_code}", flush=True)
-        except Exception as e:
-            print(f"❌ Error consultando datos del formulario: {e}", flush=True)
+                datos_wix['foto_paciente'] = None
+                print(f"ℹ️  No hay foto disponible en PostgreSQL", flush=True)
+
+            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
+        else:
+            print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}", flush=True)
+            datos_wix['foto_paciente'] = None
 
         # Textos dinámicos según exámenes
         textos_examenes = {
