@@ -4583,8 +4583,12 @@ def twilio_health():
 
 @app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
-    """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi"""
+    """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi con paginación"""
     try:
+        # Parámetros de paginación
+        limit = request.args.get('limit', default=30, type=int)  # Default: 30 conversaciones
+        offset = request.args.get('offset', default=0, type=int)
+
         conversaciones = {}
 
         # ==================== OBTENER MENSAJES DE TWILIO ====================
@@ -4715,27 +4719,35 @@ def twilio_get_conversaciones():
                 'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None,
                 'last_message_time_raw': data['last_message_time'],  # Para ordenar
                 'source': data['source'],  # 'twilio', 'whapi', or 'both'
-                'twilio_messages': data['messages'],
-                'profile_picture': data.get('profile_picture')  # URL de foto de perfil (solo Whapi)
+                'profile_picture': data.get('profile_picture'),  # URL de foto de perfil (solo Whapi)
+                'message_count': len(data['messages'])  # Solo contador, no mensajes completos
             })
 
         # Ordenar por fecha de último mensaje (más reciente primero)
         conversaciones_lista.sort(key=lambda x: x['last_message_time_raw'] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
+        # Aplicar paginación
+        total_conversaciones = len(conversaciones_lista)
+        conversaciones_paginadas = conversaciones_lista[offset:offset+limit]
+
         # Convertir lista ordenada a diccionario para mantener compatibilidad con frontend
         conversaciones_formateadas = {}
-        for conv in conversaciones_lista:
+        for conv in conversaciones_paginadas:
             numero = conv.pop('numero')
             conv.pop('last_message_time_raw')  # Eliminar campo temporal
             conversaciones_formateadas[numero] = conv
             conversaciones_formateadas[numero]['numero'] = numero  # Restaurar numero en el objeto
 
-        logger.info(f"✅ Conversaciones agrupadas y ordenadas: {len(conversaciones_formateadas)} (Twilio + Whapi)")
+        logger.info(f"✅ Conversaciones: {len(conversaciones_formateadas)}/{total_conversaciones} (offset={offset}, limit={limit})")
 
         return jsonify({
             'success': True,
             'conversaciones': conversaciones_formateadas,
-            'total': len(conversaciones_formateadas),
+            'total': total_conversaciones,
+            'count': len(conversaciones_formateadas),
+            'offset': offset,
+            'limit': limit,
+            'has_more': (offset + limit) < total_conversaciones,
             'source': 'twilio_and_whapi'
         })
     except Exception as e:
@@ -4764,23 +4776,36 @@ def twilio_get_conversacion(numero):
                 else:
                     numero_whatsapp = numero
 
-                # Obtener TODOS los mensajes y filtrar por número
+                # Usar filtros nativos de Twilio para obtener solo mensajes relevantes
                 logger.info(f"📱 Buscando mensajes Twilio para: {numero_whatsapp}")
-                all_messages = twilio_client.messages.list(limit=200)
 
-                for msg in all_messages:
-                    if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp:
-                        conversacion_messages.append({
-                            'sid': msg.sid,
-                            'from': msg.from_,
-                            'to': msg.to,
-                            'body': msg.body,
-                            'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
-                            'status': msg.status,
-                            'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
-                            'media_count': msg.num_media if hasattr(msg, 'num_media') else 0,
-                            'source': 'twilio'
-                        })
+                # Obtener mensajes salientes (enviados a este número)
+                outgoing = twilio_client.messages.list(
+                    from_=TWILIO_WHATSAPP_NUMBER,
+                    to=numero_whatsapp,
+                    limit=50
+                )
+
+                # Obtener mensajes entrantes (recibidos de este número)
+                incoming = twilio_client.messages.list(
+                    from_=numero_whatsapp,
+                    to=TWILIO_WHATSAPP_NUMBER,
+                    limit=50
+                )
+
+                # Combinar y formatear
+                for msg in list(outgoing) + list(incoming):
+                    conversacion_messages.append({
+                        'sid': msg.sid,
+                        'from': msg.from_,
+                        'to': msg.to,
+                        'body': msg.body,
+                        'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
+                        'status': msg.status,
+                        'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
+                        'media_count': msg.num_media if hasattr(msg, 'num_media') else 0,
+                        'source': 'twilio'
+                    })
 
                 logger.info(f"✅ Mensajes Twilio encontrados: {len([m for m in conversacion_messages if m['source'] == 'twilio'])}")
             except Exception as e:

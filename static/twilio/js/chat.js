@@ -316,41 +316,72 @@ function renderizarConversaciones() {
     });
 
     for (const [numero, conversacion] of sortedConversaciones) {
-        const lastMessage = getLastMessage(conversacion);
-        const nombre = conversacion.nombre || conversacion.wix_data?.nombre || formatPhoneNumber(numero);
-        const preview = lastMessage ? truncateText(lastMessage.body || lastMessage.mensaje, 50) : 'Sin mensajes';
-        const time = lastMessage ? formatTime(lastMessage.date_sent || lastMessage.timestamp) : '';
-        const initial = nombre.charAt(0).toUpperCase();
-        const isActive = conversacionActual === numero ? 'active' : '';
-
-        // Determinar la clase de avatar según la fuente
-        const source = conversacion.source || 'twilio'; // Default a twilio si no se especifica
-        const avatarClass = source === 'whapi' ? 'avatar-whapi' : (source === 'both' ? 'avatar-both' : 'avatar-twilio');
-
-        // Mostrar foto de perfil si está disponible (solo para Whapi)
-        const profilePicture = conversacion.profile_picture;
-        const avatarContent = profilePicture
-            ? `<img src="${profilePicture}" alt="${nombre}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-               <i class="fas fa-user" style="display: none;"></i>`
-            : `<i class="fas fa-user"></i>`;
-
-        html += `
-            <div class="conversation-item ${isActive}" onclick="abrirConversacion('${numero}')">
-                <div class="conversation-avatar ${avatarClass}">
-                    ${avatarContent}
-                </div>
-                <div class="conversation-info">
-                    <div class="conversation-header">
-                        <span class="conversation-name">${nombre}</span>
-                        <span class="conversation-time">${time}</span>
-                    </div>
-                    <div class="conversation-preview">${preview}</div>
-                </div>
-            </div>
-        `;
+        html += crearElementoConversacion(numero, conversacion);
     }
 
     listContainer.innerHTML = html;
+}
+
+function crearElementoConversacion(numero, conversacion) {
+    const lastMessage = getLastMessage(conversacion);
+    const nombre = conversacion.nombre || conversacion.wix_data?.nombre || formatPhoneNumber(numero);
+    const preview = conversacion.last_message || (lastMessage ? truncateText(lastMessage.body || lastMessage.mensaje, 50) : 'Sin mensajes');
+    const time = conversacion.last_message_time ? formatTime(conversacion.last_message_time) : (lastMessage ? formatTime(lastMessage.date_sent || lastMessage.timestamp) : '');
+    const isActive = conversacionActual === numero ? 'active' : '';
+
+    // Determinar la clase de avatar según la fuente
+    const source = conversacion.source || 'twilio';
+    const avatarClass = source === 'whapi' ? 'avatar-whapi' : (source === 'both' ? 'avatar-both' : 'avatar-twilio');
+
+    // Mostrar foto de perfil si está disponible
+    const profilePicture = conversacion.profile_picture;
+    const avatarContent = profilePicture
+        ? `<img src="${profilePicture}" alt="${nombre}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+           <i class="fas fa-user" style="display: none;"></i>`
+        : `<i class="fas fa-user"></i>`;
+
+    return `
+        <div class="conversation-item ${isActive}" data-numero="${numero}" onclick="abrirConversacion('${numero}')">
+            <div class="conversation-avatar ${avatarClass}">
+                ${avatarContent}
+            </div>
+            <div class="conversation-info">
+                <div class="conversation-header">
+                    <span class="conversation-name">${nombre}</span>
+                    <span class="conversation-time">${time}</span>
+                </div>
+                <div class="conversation-preview">${preview}</div>
+            </div>
+        </div>
+    `;
+}
+
+function actualizarConversacion(numero) {
+    const conversacion = conversaciones[numero];
+    if (!conversacion) return;
+
+    const listContainer = document.getElementById('conversationsList');
+    const existingItem = listContainer.querySelector(`[data-numero="${numero}"]`);
+
+    // Crear nuevo elemento HTML
+    const nuevoElemento = crearElementoConversacion(numero, conversacion);
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = nuevoElemento;
+    const nuevoItem = tempDiv.firstElementChild;
+
+    if (existingItem) {
+        // Actualizar elemento existente
+        existingItem.replaceWith(nuevoItem);
+
+        // Mover al inicio si es necesario (nuevo mensaje)
+        const primerElemento = listContainer.firstElementChild;
+        if (primerElemento !== nuevoItem) {
+            listContainer.insertBefore(nuevoItem, primerElemento);
+        }
+    } else {
+        // Insertar nuevo elemento al inicio
+        listContainer.insertBefore(nuevoItem, listContainer.firstElementChild);
+    }
 }
 
 // ============================================================================
@@ -881,22 +912,8 @@ function handleNewMessage(data) {
             conversaciones[data.numero].last_message = data.body?.substring(0, 50) || '(media)';
             conversaciones[data.numero].last_message_time = new Date().toISOString();
 
-            // Si tiene mensajes, agregar el nuevo mensaje al array
-            if (!conversaciones[data.numero].twilio_messages) {
-                conversaciones[data.numero].twilio_messages = [];
-            }
-            conversaciones[data.numero].twilio_messages.push({
-                body: data.body,
-                date_sent: new Date().toISOString(),
-                direction: 'inbound',
-                from: data.from,
-                to: data.to,
-                source: data.source || 'whapi',
-                message_id: data.message_id
-            });
-
-            // Re-renderizar la lista inmediatamente
-            renderizarConversaciones();
+            // Actualizar solo este elemento en el DOM (optimización)
+            actualizarConversacion(data.numero);
         } else {
             console.log('🆕 Nueva conversación detectada, recargando lista completa');
             cargarConversacionesSilencioso();
