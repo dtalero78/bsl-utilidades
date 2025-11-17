@@ -305,9 +305,13 @@ function renderizarConversaciones() {
         const initial = nombre.charAt(0).toUpperCase();
         const isActive = conversacionActual === numero ? 'active' : '';
 
+        // Determinar la clase de avatar según la fuente
+        const source = conversacion.source || 'twilio'; // Default a twilio si no se especifica
+        const avatarClass = source === 'whapi' ? 'avatar-whapi' : (source === 'both' ? 'avatar-both' : 'avatar-twilio');
+
         html += `
             <div class="conversation-item ${isActive}" onclick="abrirConversacion('${numero}')">
-                <div class="conversation-avatar">
+                <div class="conversation-avatar ${avatarClass}">
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="conversation-info">

@@ -181,6 +181,19 @@ body {
     flex-shrink: 0;
 }
 
+/* Avatar color variants by source */
+.conversation-avatar.avatar-twilio {
+    background: var(--whatsapp-green); /* Verde para Twilio */
+}
+
+.conversation-avatar.avatar-whapi {
+    background: #2563eb; /* Azul para Whapi */
+}
+
+.conversation-avatar.avatar-both {
+    background: linear-gradient(135deg, var(--whatsapp-green) 50%, #2563eb 50%); /* Degradado para ambos */
+}
+
 .conversation-info {
     flex: 1;
     min-width: 0;
