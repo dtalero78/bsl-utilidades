@@ -823,6 +823,11 @@ function getLastMessage(conversacion) {
 }
 
 function getLastMessageTime(conversacion) {
+    // Si el backend ya envía last_message_time, usarlo directamente
+    if (conversacion.last_message_time) {
+        return conversacion.last_message_time;
+    }
+    // Fallback: buscar en los mensajes
     const lastMsg = getLastMessage(conversacion);
     return lastMsg ? (lastMsg.date_sent || lastMsg.timestamp) : new Date(0);
 }
