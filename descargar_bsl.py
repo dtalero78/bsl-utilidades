@@ -253,8 +253,8 @@ def obtener_datos_formulario_postgres(wix_id):
                 estado_civil,
                 hijos,
                 email,
-                profesion_u_oficio,
-                ciudad_de_residencia,
+                profesion_oficio,
+                ciudad_residencia,
                 fecha_nacimiento,
                 primer_nombre,
                 primer_apellido
@@ -271,7 +271,7 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_u_oficio, ciudad_de_residencia, fecha_nacimiento, primer_nombre, primer_apellido = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
@@ -308,13 +308,13 @@ def obtener_datos_formulario_postgres(wix_id):
             datos_formulario['email'] = email
             print(f"📧 [PostgreSQL] Email: {email}")
 
-        if profesion_u_oficio:
-            datos_formulario['profesionUOficio'] = profesion_u_oficio
-            print(f"💼 [PostgreSQL] Profesión: {profesion_u_oficio}")
+        if profesion_oficio:
+            datos_formulario['profesionUOficio'] = profesion_oficio
+            print(f"💼 [PostgreSQL] Profesión: {profesion_oficio}")
 
-        if ciudad_de_residencia:
-            datos_formulario['ciudadDeResidencia'] = ciudad_de_residencia
-            print(f"🏙️  [PostgreSQL] Ciudad: {ciudad_de_residencia}")
+        if ciudad_residencia:
+            datos_formulario['ciudadDeResidencia'] = ciudad_residencia
+            print(f"🏙️  [PostgreSQL] Ciudad: {ciudad_residencia}")
 
         if fecha_nacimiento:
             # Convertir fecha de nacimiento a formato string legible
