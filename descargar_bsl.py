@@ -4719,15 +4719,21 @@ def twilio_get_conversaciones():
                     last_msg_text = last_msg.get('text', {}).get('body', '') if last_msg.get('type') == 'text' else '(media)'
 
                     # Crear timestamp comparable
-                    from datetime import datetime
+                    from datetime import datetime, timezone
                     if isinstance(last_msg_time, int):
-                        last_msg_datetime = datetime.fromtimestamp(last_msg_time)
+                        # Convertir a UTC aware datetime para comparar con Twilio
+                        last_msg_datetime = datetime.fromtimestamp(last_msg_time, tz=timezone.utc)
                     else:
-                        last_msg_datetime = datetime.now()
+                        last_msg_datetime = datetime.now(timezone.utc)
 
                     # Actualizar último mensaje si es más reciente
-                    if not conversaciones[numero_clean]['last_message_time'] or \
-                       last_msg_datetime > conversaciones[numero_clean]['last_message_time']:
+                    # Convertir last_message_time de Twilio a aware si es naive
+                    existing_time = conversaciones[numero_clean]['last_message_time']
+                    if existing_time and existing_time.tzinfo is None:
+                        # Si el existente es naive, convertirlo a aware UTC
+                        existing_time = existing_time.replace(tzinfo=timezone.utc)
+
+                    if not existing_time or last_msg_datetime > existing_time:
                         conversaciones[numero_clean]['last_message_time'] = last_msg_datetime
                         conversaciones[numero_clean]['last_message_preview'] = last_msg_text[:50]
 
