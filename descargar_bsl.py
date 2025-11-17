@@ -4976,6 +4976,15 @@ def whapi_webhook():
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Rutas adicionales de Whapi (envía eventos a diferentes paths)
+@app.route('/twilio-chat/webhook/whapi/messages', methods=['GET', 'POST', 'PATCH'])
+@app.route('/twilio-chat/webhook/whapi/statuses', methods=['GET', 'POST'])
+@app.route('/twilio-chat/webhook/whapi/chats', methods=['GET', 'POST', 'PATCH'])
+def whapi_webhook_events():
+    """Webhook para eventos específicos de Whapi (messages, statuses, chats)"""
+    # Redirigir todo al webhook principal
+    return whapi_webhook()
+
 # Servir archivos estáticos de Twilio
 @app.route('/twilio-chat/static/<path:filename>')
 def twilio_static(filename):
