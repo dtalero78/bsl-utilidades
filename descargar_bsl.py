@@ -4276,6 +4276,11 @@ TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+573153369631')
 WIX_BASE_URL = os.getenv('WIX_BASE_URL', 'https://www.bsl.com.co/_functions')
 
+# Configuración Whapi (segunda línea de WhatsApp)
+WHAPI_TOKEN = os.getenv('WHAPI_TOKEN', 'due3eWCwuBM2Xqd6cPujuTRqSbMb68lt')
+WHAPI_BASE_URL = os.getenv('WHAPI_BASE_URL', 'https://gate.whapi.cloud')
+WHAPI_PHONE_NUMBER = '573008021701'  # Número de la línea Whapi
+
 # Inicializar cliente Twilio
 twilio_client = None
 if TWILIO_AVAILABLE and TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
@@ -4396,6 +4401,117 @@ def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
         logger.error(traceback.format_exc())
         return None
 
+# ============================================================================
+# WHAPI INTEGRATION FUNCTIONS
+# ============================================================================
+
+def obtener_conversaciones_whapi():
+    """Obtiene todas las conversaciones de Whapi"""
+    try:
+        url = f"{WHAPI_BASE_URL}/chats"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {WHAPI_TOKEN}"
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        chats = data.get('chats', [])
+
+        logger.info(f"✅ Obtenidos {len(chats)} chats de Whapi")
+        return chats
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo conversaciones de Whapi: {str(e)}")
+        return []
+
+def obtener_mensajes_whapi(chat_id):
+    """Obtiene mensajes de un chat específico de Whapi"""
+    try:
+        url = f"{WHAPI_BASE_URL}/messages/list/{chat_id}"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {WHAPI_TOKEN}"
+        }
+
+        params = {
+            "count": 100  # Obtener últimos 100 mensajes
+        }
+
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        messages = data.get('messages', [])
+
+        logger.info(f"✅ Obtenidos {len(messages)} mensajes de Whapi para chat {chat_id}")
+        return messages
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo mensajes de Whapi: {str(e)}")
+        return []
+
+def formatear_mensaje_whapi(msg, chat_id):
+    """Formatea un mensaje de Whapi al formato esperado por el frontend"""
+    try:
+        # Determinar dirección del mensaje
+        from_me = msg.get('from_me', False)
+
+        return {
+            'id': msg.get('id', ''),
+            'chat_id': chat_id,
+            'from': WHAPI_PHONE_NUMBER if from_me else chat_id,
+            'to': chat_id if from_me else WHAPI_PHONE_NUMBER,
+            'body': msg.get('text', {}).get('body', '') if msg.get('type') == 'text' else '(media)',
+            'date_sent': msg.get('timestamp'),
+            'status': 'delivered',
+            'direction': 'outbound' if from_me else 'inbound',
+            'media_count': 1 if msg.get('type') != 'text' else 0,
+            'source': 'whapi'
+        }
+    except Exception as e:
+        logger.error(f"❌ Error formateando mensaje de Whapi: {str(e)}")
+        return None
+
+def enviar_mensaje_whapi(to_number, message_body, media_url=None):
+    """Envía un mensaje de WhatsApp usando Whapi"""
+    try:
+        # Limpiar número de destino
+        numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
+        chat_id = f"{numero_clean}@s.whatsapp.net"
+
+        # Preparar datos del mensaje
+        url = f"{WHAPI_BASE_URL}/messages/text"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {WHAPI_TOKEN}",
+            "content-type": "application/json"
+        }
+
+        payload = {
+            "typing_time": 0,
+            "to": chat_id,
+            "body": message_body
+        }
+
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        message_id = data.get('id', '')
+
+        logger.info(f"✅ Mensaje enviado via Whapi. ID: {message_id}")
+        logger.info(f"   De: {WHAPI_PHONE_NUMBER}")
+        logger.info(f"   Para: {chat_id}")
+        logger.info(f"   Contenido: {message_body[:50]}...")
+
+        return message_id
+    except Exception as e:
+        logger.error(f"❌ Error enviando mensaje via Whapi: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
 # Rutas Twilio-BSL
 @app.route('/twilio-chat')
 def twilio_chat_interface():
@@ -4468,65 +4584,116 @@ def twilio_health():
 
 @app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
-    """Obtiene todas las conversaciones - SOLO desde Twilio"""
+    """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi"""
     try:
-        if not twilio_client:
-            return jsonify({
-                'success': False,
-                'error': 'Twilio no configurado',
-                'conversaciones': {},
-                'total': 0
-            })
-
-        # Obtener mensajes de Twilio
-        logger.info("Obteniendo mensajes de Twilio...")
-        messages = twilio_client.messages.list(from_=TWILIO_WHATSAPP_NUMBER, limit=100)
-        incoming = twilio_client.messages.list(to=TWILIO_WHATSAPP_NUMBER, limit=100)
-        all_messages = list(messages) + list(incoming)
-        all_messages.sort(key=lambda x: x.date_sent, reverse=True)
-
-        logger.info(f"Total de mensajes obtenidos: {len(all_messages)}")
-
-        # Agrupar por conversación
         conversaciones = {}
-        for msg in all_messages:
-            # Determinar el número del contacto
-            numero = msg.to if msg.from_ == TWILIO_WHATSAPP_NUMBER else msg.from_
-            numero_clean = numero.replace('whatsapp:', '').replace('+', '')
 
-            if numero_clean not in conversaciones:
-                conversaciones[numero_clean] = {
-                    'numero': numero_clean,
-                    'nombre': f"Usuario {numero_clean[-4:]}",  # Últimos 4 dígitos
-                    'messages': [],
-                    'last_message_time': None,
-                    'last_message_preview': '',
-                    'unread_count': 0
-                }
+        # ==================== OBTENER MENSAJES DE TWILIO ====================
+        if twilio_client:
+            try:
+                logger.info("📱 Obteniendo mensajes de Twilio...")
+                messages = twilio_client.messages.list(from_=TWILIO_WHATSAPP_NUMBER, limit=100)
+                incoming = twilio_client.messages.list(to=TWILIO_WHATSAPP_NUMBER, limit=100)
+                all_messages = list(messages) + list(incoming)
+                all_messages.sort(key=lambda x: x.date_sent, reverse=True)
 
-            # Agregar mensaje a la conversación
-            message_data = {
-                'sid': msg.sid,
-                'from': msg.from_,
-                'to': msg.to,
-                'body': msg.body,
-                'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
-                'status': msg.status,
-                'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
-                'media_count': msg.num_media if hasattr(msg, 'num_media') else 0
-            }
+                logger.info(f"✅ Total de mensajes Twilio obtenidos: {len(all_messages)}")
 
-            conversaciones[numero_clean]['messages'].append(message_data)
+                # Agrupar por conversación
+                for msg in all_messages:
+                    # Determinar el número del contacto
+                    numero = msg.to if msg.from_ == TWILIO_WHATSAPP_NUMBER else msg.from_
+                    numero_clean = numero.replace('whatsapp:', '').replace('+', '')
 
-            # Actualizar último mensaje y preview
-            if not conversaciones[numero_clean]['last_message_time'] or \
-               msg.date_sent > conversaciones[numero_clean]['last_message_time']:
-                conversaciones[numero_clean]['last_message_time'] = msg.date_sent
-                conversaciones[numero_clean]['last_message_preview'] = msg.body[:50] if msg.body else '(media)'
+                    if numero_clean not in conversaciones:
+                        conversaciones[numero_clean] = {
+                            'numero': numero_clean,
+                            'nombre': f"Usuario {numero_clean[-4:]}",
+                            'messages': [],
+                            'last_message_time': None,
+                            'last_message_preview': '',
+                            'source': 'twilio'
+                        }
 
+                    # Agregar mensaje a la conversación
+                    message_data = {
+                        'sid': msg.sid,
+                        'from': msg.from_,
+                        'to': msg.to,
+                        'body': msg.body,
+                        'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
+                        'status': msg.status,
+                        'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
+                        'media_count': msg.num_media if hasattr(msg, 'num_media') else 0,
+                        'source': 'twilio'
+                    }
+
+                    conversaciones[numero_clean]['messages'].append(message_data)
+
+                    # Actualizar último mensaje y preview
+                    if not conversaciones[numero_clean]['last_message_time'] or \
+                       msg.date_sent > conversaciones[numero_clean]['last_message_time']:
+                        conversaciones[numero_clean]['last_message_time'] = msg.date_sent
+                        conversaciones[numero_clean]['last_message_preview'] = msg.body[:50] if msg.body else '(media)'
+
+            except Exception as e:
+                logger.error(f"⚠️ Error obteniendo mensajes de Twilio: {str(e)}")
+
+        # ==================== OBTENER MENSAJES DE WHAPI ====================
+        try:
+            logger.info("📱 Obteniendo conversaciones de Whapi...")
+            chats_whapi = obtener_conversaciones_whapi()
+            logger.info(f"✅ Total de chats Whapi obtenidos: {len(chats_whapi)}")
+
+            for chat in chats_whapi:
+                chat_id = chat.get('id', '')
+                # Limpiar el chat_id para obtener solo el número
+                numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+                # Obtener nombre del contacto
+                nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
+
+                if numero_clean not in conversaciones:
+                    conversaciones[numero_clean] = {
+                        'numero': numero_clean,
+                        'nombre': nombre,
+                        'messages': [],
+                        'last_message_time': None,
+                        'last_message_preview': '',
+                        'source': 'whapi'
+                    }
+                else:
+                    # Si ya existe (desde Twilio), agregar indicador de múltiples fuentes
+                    conversaciones[numero_clean]['source'] = 'both'
+                    conversaciones[numero_clean]['nombre'] = nombre  # Usar nombre de Whapi si está disponible
+
+                # Obtener último mensaje del chat
+                last_msg = chat.get('last_message', {})
+                if last_msg:
+                    last_msg_time = last_msg.get('timestamp', 0)
+                    last_msg_text = last_msg.get('text', {}).get('body', '') if last_msg.get('type') == 'text' else '(media)'
+
+                    # Crear timestamp comparable
+                    from datetime import datetime
+                    if isinstance(last_msg_time, int):
+                        last_msg_datetime = datetime.fromtimestamp(last_msg_time)
+                    else:
+                        last_msg_datetime = datetime.now()
+
+                    # Actualizar último mensaje si es más reciente
+                    if not conversaciones[numero_clean]['last_message_time'] or \
+                       last_msg_datetime > conversaciones[numero_clean]['last_message_time']:
+                        conversaciones[numero_clean]['last_message_time'] = last_msg_datetime
+                        conversaciones[numero_clean]['last_message_preview'] = last_msg_text[:50]
+
+        except Exception as e:
+            logger.error(f"⚠️ Error obteniendo conversaciones de Whapi: {str(e)}")
+
+        # ==================== FORMATEAR RESPUESTA ====================
         # Ordenar mensajes dentro de cada conversación
         for numero, data in conversaciones.items():
-            data['messages'].sort(key=lambda x: x['date_sent'])
+            if data['messages']:
+                data['messages'].sort(key=lambda x: x['date_sent'])
 
         # Convertir a formato esperado por el frontend
         conversaciones_formateadas = {}
@@ -4536,88 +4703,112 @@ def twilio_get_conversaciones():
                 'numero': numero,
                 'nombre': data['nombre'],
                 'last_message': data['last_message_preview'],
-                'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None
+                'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None,
+                'source': data['source']  # 'twilio', 'whapi', or 'both'
             }
 
-        logger.info(f"Conversaciones agrupadas: {len(conversaciones_formateadas)}")
+        logger.info(f"✅ Conversaciones agrupadas: {len(conversaciones_formateadas)} (Twilio + Whapi)")
 
         return jsonify({
             'success': True,
             'conversaciones': conversaciones_formateadas,
             'total': len(conversaciones_formateadas),
-            'source': 'twilio_only'
+            'source': 'twilio_and_whapi'
         })
     except Exception as e:
-        logger.error(f"Error obteniendo conversaciones: {str(e)}")
+        logger.error(f"❌ Error obteniendo conversaciones: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/twilio-chat/api/conversacion/<numero>')
 def twilio_get_conversacion(numero):
-    """Obtiene conversación específica - SOLO desde Twilio"""
+    """Obtiene conversación específica - COMBINANDO Twilio + Whapi"""
     try:
-        if not twilio_client:
-            return jsonify({
-                'success': False,
-                'error': 'Twilio no configurado'
-            }), 500
-
-        logger.info(f"Obteniendo conversación para número: {numero}")
-
-        # Normalizar número
-        if not numero.startswith('whatsapp:'):
-            if numero.startswith('+'):
-                numero_whatsapp = f'whatsapp:{numero}'
-            else:
-                numero_whatsapp = f'whatsapp:+{numero}'
-        else:
-            numero_whatsapp = numero
-
-        # Obtener TODOS los mensajes y filtrar por número
-        logger.info(f"Buscando mensajes para: {numero_whatsapp}")
-        all_messages = twilio_client.messages.list(limit=200)
+        logger.info(f"📱 Obteniendo conversación para número: {numero}")
 
         conversacion_messages = []
-        for msg in all_messages:
-            if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp:
-                conversacion_messages.append({
-                    'sid': msg.sid,
-                    'from': msg.from_,
-                    'to': msg.to,
-                    'body': msg.body,
-                    'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
-                    'status': msg.status,
-                    'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
-                    'media_count': msg.num_media if hasattr(msg, 'num_media') else 0
-                })
 
-        # Ordenar cronológicamente
-        conversacion_messages.sort(key=lambda x: x['date_sent'])
+        # ==================== OBTENER MENSAJES DE TWILIO ====================
+        if twilio_client:
+            try:
+                # Normalizar número para Twilio
+                if not numero.startswith('whatsapp:'):
+                    if numero.startswith('+'):
+                        numero_whatsapp = f'whatsapp:{numero}'
+                    else:
+                        numero_whatsapp = f'whatsapp:+{numero}'
+                else:
+                    numero_whatsapp = numero
 
-        logger.info(f"Mensajes encontrados: {len(conversacion_messages)}")
+                # Obtener TODOS los mensajes y filtrar por número
+                logger.info(f"📱 Buscando mensajes Twilio para: {numero_whatsapp}")
+                all_messages = twilio_client.messages.list(limit=200)
+
+                for msg in all_messages:
+                    if msg.from_ == numero_whatsapp or msg.to == numero_whatsapp:
+                        conversacion_messages.append({
+                            'sid': msg.sid,
+                            'from': msg.from_,
+                            'to': msg.to,
+                            'body': msg.body,
+                            'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
+                            'status': msg.status,
+                            'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
+                            'media_count': msg.num_media if hasattr(msg, 'num_media') else 0,
+                            'source': 'twilio'
+                        })
+
+                logger.info(f"✅ Mensajes Twilio encontrados: {len([m for m in conversacion_messages if m['source'] == 'twilio'])}")
+            except Exception as e:
+                logger.error(f"⚠️ Error obteniendo mensajes de Twilio: {str(e)}")
+
+        # ==================== OBTENER MENSAJES DE WHAPI ====================
+        try:
+            # Construir chat_id para Whapi
+            numero_clean = numero.replace('whatsapp:', '').replace('+', '')
+            chat_id = f"{numero_clean}@s.whatsapp.net"
+
+            logger.info(f"📱 Buscando mensajes Whapi para: {chat_id}")
+            mensajes_whapi = obtener_mensajes_whapi(chat_id)
+
+            for msg in mensajes_whapi:
+                mensaje_formateado = formatear_mensaje_whapi(msg, numero_clean)
+                if mensaje_formateado:
+                    conversacion_messages.append(mensaje_formateado)
+
+            logger.info(f"✅ Mensajes Whapi encontrados: {len([m for m in conversacion_messages if m.get('source') == 'whapi'])}")
+        except Exception as e:
+            logger.error(f"⚠️ Error obteniendo mensajes de Whapi: {str(e)}")
+
+        # ==================== ORDENAR Y FORMATEAR ====================
+        # Ordenar cronológicamente todos los mensajes combinados
+        conversacion_messages.sort(key=lambda x: x.get('date_sent', ''))
+
+        logger.info(f"✅ Total de mensajes combinados: {len(conversacion_messages)}")
 
         return jsonify({
             'success': True,
             'numero': numero,
-            'twilio_messages': conversacion_messages,
+            'twilio_messages': conversacion_messages,  # Mantener el nombre por compatibilidad con frontend
             'total_messages': len(conversacion_messages),
-            'source': 'twilio_only'
+            'source': 'twilio_and_whapi'
         })
     except Exception as e:
-        logger.error(f"Error obteniendo conversación: {str(e)}")
+        logger.error(f"❌ Error obteniendo conversación: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
 def twilio_enviar_mensaje():
-    """Envía mensaje WhatsApp"""
+    """Envía mensaje WhatsApp - Auto-detecta la línea correcta"""
     try:
         data = request.json
         to_number = data.get('to')
         message_body = data.get('message')
         media_url = data.get('media_url')
+        source = data.get('source', 'auto')  # 'auto', 'twilio', 'whapi'
 
         if not to_number or not message_body:
             return jsonify({
@@ -4625,21 +4816,58 @@ def twilio_enviar_mensaje():
                 'error': 'Faltan campos requeridos: to, message'
             }), 400
 
-        message_sid = enviar_mensaje_whatsapp(to_number, message_body, media_url)
+        message_id = None
+        used_source = None
 
-        if message_sid:
+        # Si se especifica la fuente, usarla directamente
+        if source == 'twilio':
+            message_id = enviar_mensaje_whatsapp(to_number, message_body, media_url)
+            used_source = 'twilio'
+        elif source == 'whapi':
+            message_id = enviar_mensaje_whapi(to_number, message_body, media_url)
+            used_source = 'whapi'
+        else:
+            # Auto-detectar: Verificar si la conversación existe en Whapi
+            numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
+            chat_id = f"{numero_clean}@s.whatsapp.net"
+
+            # Intentar obtener conversaciones de Whapi
+            try:
+                chats_whapi = obtener_conversaciones_whapi()
+                chat_ids_whapi = [chat.get('id', '') for chat in chats_whapi]
+
+                if chat_id in chat_ids_whapi:
+                    # La conversación existe en Whapi, usar Whapi
+                    logger.info(f"📱 Conversación encontrada en Whapi, usando línea {WHAPI_PHONE_NUMBER}")
+                    message_id = enviar_mensaje_whapi(to_number, message_body, media_url)
+                    used_source = 'whapi'
+                else:
+                    # La conversación no existe en Whapi, usar Twilio
+                    logger.info(f"📱 Conversación no encontrada en Whapi, usando Twilio")
+                    message_id = enviar_mensaje_whatsapp(to_number, message_body, media_url)
+                    used_source = 'twilio'
+            except Exception as e:
+                # Si falla la detección, usar Twilio por defecto
+                logger.warning(f"⚠️ Error detectando fuente, usando Twilio por defecto: {str(e)}")
+                message_id = enviar_mensaje_whatsapp(to_number, message_body, media_url)
+                used_source = 'twilio'
+
+        if message_id:
             return jsonify({
                 'success': True,
-                'message_sid': message_sid,
+                'message_id': message_id,
+                'source': used_source,
                 'timestamp': datetime.now().isoformat()
             })
         else:
             return jsonify({
                 'success': False,
-                'error': 'Error al enviar mensaje'
+                'error': f'Error al enviar mensaje via {used_source}'
             }), 500
     except Exception as e:
-        logger.error(f"Error en enviar_mensaje: {str(e)}")
+        logger.error(f"❌ Error en enviar_mensaje: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/twilio-chat/webhook/twilio', methods=['POST'])
