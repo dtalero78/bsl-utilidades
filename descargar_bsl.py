@@ -203,15 +203,26 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
 
 # ============== FUNCIONES AUXILIARES ==============
 
-def obtener_foto_desde_postgres(wix_id):
+def obtener_datos_formulario_postgres(wix_id):
     """
-    Obtiene la foto del paciente desde PostgreSQL usando el wix_id.
+    Obtiene TODOS los datos del formulario desde PostgreSQL usando el wix_id.
 
     Args:
         wix_id: ID de Wix del registro de HistoriaClinica
 
     Returns:
-        str: Data URI base64 de la foto si existe, None si no existe o hay error
+        dict: Diccionario con todos los datos del formulario si existe, None si no existe o hay error
+              {
+                  'foto': str (data URI),
+                  'edad': int,
+                  'genero': str,
+                  'estadoCivil': str,
+                  'hijos': str,
+                  'email': str,
+                  'profesionUOficio': str,
+                  'ciudadDeResidencia': str,
+                  'fechaNacimiento': str
+              }
     """
     try:
         import psycopg2
@@ -222,7 +233,7 @@ def obtener_foto_desde_postgres(wix_id):
             return None
 
         # Conectar a PostgreSQL
-        print(f"🔌 [PostgreSQL] Conectando para buscar foto con wix_id: {wix_id}")
+        print(f"🔌 [PostgreSQL] Conectando para buscar datos del formulario con wix_id: {wix_id}")
         conn = psycopg2.connect(
             host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
             port=int(os.getenv("POSTGRES_PORT", "25060")),
@@ -233,9 +244,20 @@ def obtener_foto_desde_postgres(wix_id):
         )
         cur = conn.cursor()
 
-        # Buscar la foto por wix_id
+        # Buscar todos los datos del formulario por wix_id
         cur.execute("""
-            SELECT foto, primer_nombre, primer_apellido
+            SELECT
+                foto,
+                edad,
+                genero,
+                estado_civil,
+                hijos,
+                email,
+                profesion_u_oficio,
+                ciudad_de_residencia,
+                fecha_nacimiento,
+                primer_nombre,
+                primer_apellido
             FROM formularios
             WHERE wix_id = %s
             LIMIT 1;
@@ -249,29 +271,84 @@ def obtener_foto_desde_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
             return None
 
-        foto, primer_nombre, primer_apellido = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_u_oficio, ciudad_de_residencia, fecha_nacimiento, primer_nombre, primer_apellido = row
 
-        if not foto:
-            print(f"ℹ️  [PostgreSQL] Registro encontrado pero sin foto: {primer_nombre} {primer_apellido}")
-            return None
+        print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
-        # Verificar que sea un data URI válido
-        if not foto.startswith("data:image/"):
-            print(f"⚠️  [PostgreSQL] Foto no es un data URI válido (no comienza con 'data:image/')")
-            return None
+        # Construir diccionario con los datos
+        datos_formulario = {}
 
-        foto_size_kb = len(foto) / 1024
-        print(f"✅ [PostgreSQL] Foto encontrada para {primer_nombre} {primer_apellido}")
-        print(f"📸 [PostgreSQL] Foto size: {foto_size_kb:.1f} KB")
+        # Foto (validar que sea data URI)
+        if foto and foto.startswith("data:image/"):
+            foto_size_kb = len(foto) / 1024
+            print(f"📸 [PostgreSQL] Foto encontrada: {foto_size_kb:.1f} KB")
+            datos_formulario['foto'] = foto
+        else:
+            print(f"ℹ️  [PostgreSQL] Sin foto válida")
+            datos_formulario['foto'] = None
 
-        return foto
+        # Otros campos
+        if edad:
+            datos_formulario['edad'] = edad
+            print(f"👤 [PostgreSQL] Edad: {edad}")
+
+        if genero:
+            datos_formulario['genero'] = genero
+            print(f"👤 [PostgreSQL] Género: {genero}")
+
+        if estado_civil:
+            datos_formulario['estadoCivil'] = estado_civil
+            print(f"👤 [PostgreSQL] Estado civil: {estado_civil}")
+
+        if hijos:
+            datos_formulario['hijos'] = hijos
+            print(f"👶 [PostgreSQL] Hijos: {hijos}")
+
+        if email:
+            datos_formulario['email'] = email
+            print(f"📧 [PostgreSQL] Email: {email}")
+
+        if profesion_u_oficio:
+            datos_formulario['profesionUOficio'] = profesion_u_oficio
+            print(f"💼 [PostgreSQL] Profesión: {profesion_u_oficio}")
+
+        if ciudad_de_residencia:
+            datos_formulario['ciudadDeResidencia'] = ciudad_de_residencia
+            print(f"🏙️  [PostgreSQL] Ciudad: {ciudad_de_residencia}")
+
+        if fecha_nacimiento:
+            # Convertir fecha de nacimiento a formato string legible
+            if isinstance(fecha_nacimiento, str):
+                try:
+                    from datetime import datetime
+                    fecha_obj = datetime.fromisoformat(fecha_nacimiento.replace('Z', '+00:00'))
+                    datos_formulario['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
+                except:
+                    datos_formulario['fechaNacimiento'] = fecha_nacimiento
+            else:
+                # Si es un objeto datetime de PostgreSQL
+                datos_formulario['fechaNacimiento'] = fecha_nacimiento.strftime('%d de %B de %Y')
+            print(f"🎂 [PostgreSQL] Fecha de nacimiento: {datos_formulario['fechaNacimiento']}")
+
+        return datos_formulario
 
     except ImportError:
         print("⚠️  [PostgreSQL] psycopg2 no está instalado, no se puede consultar PostgreSQL")
         return None
     except Exception as e:
-        print(f"❌ [PostgreSQL] Error al consultar foto: {e}")
+        print(f"❌ [PostgreSQL] Error al consultar datos del formulario: {e}")
+        import traceback
+        traceback.print_exc()
         return None
+
+
+def obtener_foto_desde_postgres(wix_id):
+    """
+    Función de compatibilidad: Obtiene solo la foto desde PostgreSQL.
+    (Wrapper de obtener_datos_formulario_postgres)
+    """
+    datos = obtener_datos_formulario_postgres(wix_id)
+    return datos.get('foto') if datos else None
 
 
 def descargar_imagen_wix_con_puppeteer(wix_url):
@@ -3114,68 +3191,45 @@ def api_generar_certificado_pdf(wix_id):
             except Exception as e:
                 print(f"❌ Error consultando datos de audiometría: {e}")
 
-        # ===== CONSULTAR DATOS DEL FORMULARIO (edad, hijos, etc.) =====
-        datos_formulario = None
-        try:
-            wix_id_historia = datos_wix.get('_id', wix_id)
-            formulario_url = f"https://www.bsl.com.co/_functions/formularioPorIdGeneral?idGeneral={wix_id_historia}"
-            print(f"🔍 Consultando datos del formulario para HistoriaClinica ID: {wix_id_historia}")
+        # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
+        wix_id_historia = datos_wix.get('_id', wix_id)
+        print(f"🔍 Consultando datos del formulario desde PostgreSQL para wix_id: {wix_id_historia}")
 
-            formulario_response = requests.get(formulario_url, timeout=10)
+        datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
 
-            if formulario_response.status_code == 200:
-                formulario_data = formulario_response.json()
-                if formulario_data.get('success') and formulario_data.get('item'):
-                    datos_formulario = formulario_data['item']
-                    if datos_formulario:
-                        print(f"✅ Datos del formulario obtenidos correctamente")
-                        print(f"📸 Foto en FORMULARIO: {datos_formulario.get('foto', 'NO EXISTE')}")
-                        # Sobrescribir los datos de HistoriaClinica con los del FORMULARIO si existen
-                        if datos_formulario.get('edad'):
-                            datos_wix['edad'] = datos_formulario.get('edad')
-                        if datos_formulario.get('genero'):
-                            datos_wix['genero'] = datos_formulario.get('genero')
-                        if datos_formulario.get('estadoCivil'):
-                            datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
-                        if datos_formulario.get('hijos'):
-                            datos_wix['hijos'] = datos_formulario.get('hijos')
-                        if datos_formulario.get('email'):
-                            datos_wix['email'] = datos_formulario.get('email')
-                        if datos_formulario.get('profesionUOficio'):
-                            datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
-                        if datos_formulario.get('ciudadDeResidencia'):
-                            datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
-                        if datos_formulario.get('fechaNacimiento'):
-                            # Convertir fecha de nacimiento a formato string legible
-                            fecha_nac = datos_formulario.get('fechaNacimiento')
-                            if isinstance(fecha_nac, str):
-                                try:
-                                    fecha_obj = datetime.fromisoformat(fecha_nac.replace('Z', '+00:00'))
-                                    datos_wix['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
-                                except:
-                                    datos_wix['fechaNacimiento'] = fecha_nac
-                            elif isinstance(fecha_nac, datetime):
-                                datos_wix['fechaNacimiento'] = fecha_nac.strftime('%d de %B de %Y')
+        if datos_formulario:
+            print(f"✅ Datos del formulario obtenidos desde PostgreSQL")
 
-                        # ===== PRIORIDAD: FOTO DESDE POSTGRESQL =====
-                        foto_postgres = obtener_foto_desde_postgres(wix_id_historia)
-                        if foto_postgres:
-                            datos_wix['foto_paciente'] = foto_postgres
-                            print(f"✅ Usando foto de PostgreSQL (data URI base64)")
-                        else:
-                            # No hay foto en PostgreSQL, continuar sin foto
-                            print(f"ℹ️  No hay foto disponible en PostgreSQL para wix_id: {wix_id_historia}")
-                            datos_wix['foto_paciente'] = None
+            # Sobrescribir los datos de HistoriaClinica con los de PostgreSQL si existen
+            if datos_formulario.get('edad'):
+                datos_wix['edad'] = datos_formulario.get('edad')
+            if datos_formulario.get('genero'):
+                datos_wix['genero'] = datos_formulario.get('genero')
+            if datos_formulario.get('estadoCivil'):
+                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+            if datos_formulario.get('hijos'):
+                datos_wix['hijos'] = datos_formulario.get('hijos')
+            if datos_formulario.get('email'):
+                datos_wix['email'] = datos_formulario.get('email')
+            if datos_formulario.get('profesionUOficio'):
+                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+            if datos_formulario.get('ciudadDeResidencia'):
+                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+            if datos_formulario.get('fechaNacimiento'):
+                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
 
-                        print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
-                    else:
-                        print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
-                else:
-                    print(f"⚠️ No se encontraron datos del formulario para {wix_id_historia}")
+            # Foto del paciente
+            if datos_formulario.get('foto'):
+                datos_wix['foto_paciente'] = datos_formulario.get('foto')
+                print(f"✅ Usando foto de PostgreSQL (data URI base64)")
             else:
-                print(f"⚠️ Error al consultar datos del formulario: {formulario_response.status_code}")
-        except Exception as e:
-            print(f"❌ Error consultando datos del formulario: {e}")
+                datos_wix['foto_paciente'] = None
+                print(f"ℹ️  No hay foto disponible en PostgreSQL")
+
+            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
+        else:
+            print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}")
+            datos_wix['foto_paciente'] = None
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         textos_examenes = {
