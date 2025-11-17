@@ -4454,8 +4454,17 @@ def obtener_mensajes_whapi(chat_id):
 def formatear_mensaje_whapi(msg, chat_id):
     """Formatea un mensaje de Whapi al formato esperado por el frontend"""
     try:
+        from datetime import datetime
+
         # Determinar dirección del mensaje
         from_me = msg.get('from_me', False)
+
+        # Convertir timestamp Unix a ISO string para compatibilidad con Twilio
+        timestamp = msg.get('timestamp', 0)
+        if isinstance(timestamp, int):
+            date_sent = datetime.fromtimestamp(timestamp).isoformat()
+        else:
+            date_sent = timestamp
 
         return {
             'id': msg.get('id', ''),
@@ -4463,7 +4472,7 @@ def formatear_mensaje_whapi(msg, chat_id):
             'from': WHAPI_PHONE_NUMBER if from_me else chat_id,
             'to': chat_id if from_me else WHAPI_PHONE_NUMBER,
             'body': msg.get('text', {}).get('body', '') if msg.get('type') == 'text' else '(media)',
-            'date_sent': msg.get('timestamp'),
+            'date_sent': date_sent,
             'status': 'delivered',
             'direction': 'outbound' if from_me else 'inbound',
             'media_count': 1 if msg.get('type') != 'text' else 0,
