@@ -4680,19 +4680,31 @@ def twilio_get_conversaciones():
             if data['messages']:
                 data['messages'].sort(key=lambda x: x['date_sent'])
 
-        # Convertir a formato esperado por el frontend
-        conversaciones_formateadas = {}
+        # Convertir a lista y ordenar por fecha de último mensaje (más reciente primero)
+        conversaciones_lista = []
         for numero, data in conversaciones.items():
-            conversaciones_formateadas[numero] = {
-                'twilio_messages': data['messages'],
+            conversaciones_lista.append({
                 'numero': numero,
                 'nombre': data['nombre'],
                 'last_message': data['last_message_preview'],
                 'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None,
-                'source': data['source']  # 'twilio', 'whapi', or 'both'
-            }
+                'last_message_time_raw': data['last_message_time'],  # Para ordenar
+                'source': data['source'],  # 'twilio', 'whapi', or 'both'
+                'twilio_messages': data['messages']
+            })
 
-        logger.info(f"✅ Conversaciones agrupadas: {len(conversaciones_formateadas)} (Twilio + Whapi)")
+        # Ordenar por fecha de último mensaje (más reciente primero)
+        conversaciones_lista.sort(key=lambda x: x['last_message_time_raw'] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+        # Convertir lista ordenada a diccionario para mantener compatibilidad con frontend
+        conversaciones_formateadas = {}
+        for conv in conversaciones_lista:
+            numero = conv.pop('numero')
+            conv.pop('last_message_time_raw')  # Eliminar campo temporal
+            conversaciones_formateadas[numero] = conv
+            conversaciones_formateadas[numero]['numero'] = numero  # Restaurar numero en el objeto
+
+        logger.info(f"✅ Conversaciones agrupadas y ordenadas: {len(conversaciones_formateadas)} (Twilio + Whapi)")
 
         return jsonify({
             'success': True,
