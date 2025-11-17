@@ -14,7 +14,7 @@ let audioPermitido = false; // Flag para saber si el usuario ya interactuó
 let unreadMessages = 0; // Contador de mensajes no leídos
 let originalTitle = 'Twilio-BSL WhatsApp Chat'; // Título original
 let titleBlinkInterval = null; // Intervalo para parpadeo del título
-// SSE removido - Cloudflare lo bloquea, usando polling inteligente
+let socket = null; // Socket.IO connection
 
 // API Configuration
 const API_BASE = window.API_BASE || window.location.origin;
@@ -76,18 +76,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar conversaciones
     cargarConversaciones();
 
-    // Usar polling inteligente (Cloudflare bloquea SSE)
-    console.log('⏰ Configurando polling inteligente cada 30 segundos...');
-    autoRefreshInterval = setInterval(() => {
-        console.log(`⏰ Polling ejecutándose...`);
-        if (conversacionActual) {
-            console.log('🔄 Actualizando conversación actual...');
-            actualizarConversacionActualSilencioso();
-        } else {
-            console.log('📋 Actualizando lista de conversaciones...');
-            cargarConversacionesSilencioso();
-        }
-    }, 30000); // 30 segundos (equilibrio entre tiempo real y recursos)
+    // Inicializar WebSocket con Socket.IO
+    console.log('🔌 Conectando a WebSocket...');
+    socket = io('/twilio-chat', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5
+    });
+
+    // Event: Conexión exitosa
+    socket.on('connect', () => {
+        console.log('✅ WebSocket conectado');
+    });
+
+    // Event: Desconexión
+    socket.on('disconnect', () => {
+        console.log('❌ WebSocket desconectado');
+    });
+
+    // Event: Nuevo mensaje
+    socket.on('new_message', (data) => {
+        console.log('📨 Nuevo mensaje recibido vía WebSocket:', data);
+        handleNewMessage(data);
+    });
+
+    // Event: Error
+    socket.on('error', (error) => {
+        console.error('❌ Error de WebSocket:', error);
+    });
 
     // Auto-expand textarea
     const messageInput = document.getElementById('messageInput');
@@ -810,11 +828,62 @@ function getLastMessageTime(conversacion) {
 }
 
 // ============================================================================
+// WEBSOCKET MESSAGE HANDLING
+// ============================================================================
+
+function handleNewMessage(data) {
+    console.log('📨 Procesando nuevo mensaje:', data);
+
+    try {
+        // Reproducir sonido de notificación
+        if (audioPermitido && notificationSound) {
+            notificationSound.play().catch(e => console.log('No se pudo reproducir sonido:', e));
+        }
+
+        // Mostrar notificación del navegador
+        if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+            const notification = new Notification('Nuevo mensaje de WhatsApp', {
+                body: `${data.body?.substring(0, 50) || '(media)'}`,
+                icon: '/static/images/whatsapp-icon.png',
+                tag: `msg-${data.numero}`
+            });
+
+            notification.onclick = function() {
+                window.focus();
+                abrirConversacion(data.numero);
+                notification.close();
+            };
+        }
+
+        // Si estamos viendo la conversación del mensaje, actualízala
+        if (conversacionActual === data.numero) {
+            console.log('🔄 Actualizando conversación actual con nuevo mensaje');
+            actualizarConversacionActualSilencioso();
+        } else {
+            // Si no, solo actualizar la lista de conversaciones
+            console.log('📋 Actualizando lista de conversaciones');
+            cargarConversacionesSilencioso();
+        }
+
+        // Incrementar contador de no leídos si el usuario no está viendo
+        if (document.hidden) {
+            unreadMessages++;
+            startTitleBlink(data.body);
+        }
+    } catch (error) {
+        console.error('❌ Error manejando mensaje nuevo:', error);
+    }
+}
+
+// ============================================================================
 // CLEANUP
 // ============================================================================
 
 window.addEventListener('beforeunload', () => {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
+    }
+    if (socket) {
+        socket.disconnect();
     }
 });

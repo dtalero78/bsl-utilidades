@@ -1,5 +1,7 @@
 flask
 flask-cors
+flask-socketio
+simple-websocket
 requests
 python-dotenv
 google-api-python-client

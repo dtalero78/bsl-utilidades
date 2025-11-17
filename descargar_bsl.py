@@ -3,6 +3,7 @@ import requests
 import base64
 from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template, make_response, Response, stream_with_context
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 import traceback
 from jinja2 import Template
@@ -36,6 +37,9 @@ except ImportError:
 load_dotenv(override=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+
+# Inicializar SocketIO para WebSockets
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=False)
 
 # Configurar CORS para todas las aplicaciones
 CORS(app, resources={
@@ -4353,25 +4357,13 @@ class SSESubscriber:
         except queue.Full:
             logger.warning(f"Cola SSE llena para subscriber {self.id}")
 
-def broadcast_sse_event(event_type, data):
-    """Envía un evento a todos los suscriptores SSE"""
-    with sse_lock:
-        dead_subscribers = []
-        for subscriber in sse_subscribers:
-            try:
-                subscriber.send_event(event_type, data)
-            except Exception as e:
-                logger.error(f"Error enviando evento SSE: {e}")
-                dead_subscribers.append(subscriber)
-
-        # Limpiar suscriptores muertos
-        for subscriber in dead_subscribers:
-            try:
-                sse_subscribers.remove(subscriber)
-            except ValueError:
-                pass
-
-        logger.info(f"📡 Evento SSE enviado: {event_type} a {len(sse_subscribers)} clientes")
+def broadcast_websocket_event(event_type, data):
+    """Envía un evento a todos los clientes conectados vía WebSocket"""
+    try:
+        socketio.emit(event_type, data, namespace='/twilio-chat')
+        logger.info(f"📡 Evento WebSocket enviado: {event_type}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando evento WebSocket: {e}")
 
 # Funciones de integración Wix CHATBOT
 def obtener_conversacion_por_celular(celular):
@@ -4943,8 +4935,8 @@ def twilio_webhook():
         # Extraer número limpio
         numero_clean = from_number.replace('whatsapp:', '').replace('+', '')
 
-        # Enviar notificación SSE a todos los clientes conectados
-        broadcast_sse_event('new_message', {
+        # Enviar notificación WebSocket a todos los clientes conectados
+        broadcast_websocket_event('new_message', {
             'numero': numero_clean,
             'from': from_number,
             'to': to_number,
@@ -5019,8 +5011,8 @@ def whapi_webhook():
                     # Extraer número limpio
                     numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
 
-                    # Enviar notificación SSE a todos los clientes conectados
-                    broadcast_sse_event('new_message', {
+                    # Enviar notificación WebSocket a todos los clientes conectados
+                    broadcast_websocket_event('new_message', {
                         'numero': numero_clean,
                         'from': from_number,
                         'to': WHAPI_PHONE_NUMBER,
@@ -5032,7 +5024,7 @@ def whapi_webhook():
                         'source': 'whapi'
                     })
 
-                    logger.info(f"✅ Notificación SSE enviada para mensaje de Whapi: {numero_clean}")
+                    logger.info(f"✅ Notificación WebSocket enviada para mensaje de Whapi: {numero_clean}")
 
         return jsonify({'success': True}), 200
 
@@ -6216,4 +6208,5 @@ def ver_formularios_page():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    # Usar socketio.run() en lugar de app.run() para soportar WebSockets
+    socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
