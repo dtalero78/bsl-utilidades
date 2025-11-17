@@ -860,14 +860,37 @@ function handleNewMessage(data) {
             };
         }
 
-        // Si estamos viendo la conversación del mensaje, actualízala
+        // Actualizar la conversación en memoria inmediatamente
+        if (conversaciones[data.numero]) {
+            console.log('⚡ Actualizando conversación en memoria');
+            conversaciones[data.numero].last_message = data.body?.substring(0, 50) || '(media)';
+            conversaciones[data.numero].last_message_time = new Date().toISOString();
+
+            // Si tiene mensajes, agregar el nuevo mensaje al array
+            if (!conversaciones[data.numero].twilio_messages) {
+                conversaciones[data.numero].twilio_messages = [];
+            }
+            conversaciones[data.numero].twilio_messages.push({
+                body: data.body,
+                date_sent: new Date().toISOString(),
+                direction: 'inbound',
+                from: data.from,
+                to: data.to,
+                source: data.source || 'whapi',
+                message_id: data.message_id
+            });
+
+            // Re-renderizar la lista inmediatamente
+            renderizarConversaciones();
+        } else {
+            console.log('🆕 Nueva conversación detectada, recargando lista completa');
+            cargarConversacionesSilencioso();
+        }
+
+        // Si estamos viendo la conversación del mensaje, actualízala también
         if (conversacionActual === data.numero) {
             console.log('🔄 Actualizando conversación actual con nuevo mensaje');
             actualizarConversacionActualSilencioso();
-        } else {
-            // Si no, solo actualizar la lista de conversaciones
-            console.log('📋 Actualizando lista de conversaciones');
-            cargarConversacionesSilencioso();
         }
 
         // Incrementar contador de no leídos si el usuario no está viendo
