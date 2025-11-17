@@ -39,7 +39,7 @@ load_dotenv(override=True)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # Inicializar SocketIO para WebSockets
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=False)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
 
 # Configurar CORS para todas las aplicaciones
 CORS(app, resources={
@@ -4345,7 +4345,23 @@ def broadcast_websocket_event(event_type, data):
     except Exception as e:
         logger.error(f"❌ Error enviando evento WebSocket: {e}")
 
+# ============================================================================
+# WebSocket Event Handlers
+# ============================================================================
+
+@socketio.on('connect', namespace='/twilio-chat')
+def handle_connect():
+    """Maneja nuevas conexiones WebSocket"""
+    logger.info(f"✅ Cliente WebSocket conectado")
+
+@socketio.on('disconnect', namespace='/twilio-chat')
+def handle_disconnect():
+    """Maneja desconexiones WebSocket"""
+    logger.info(f"❌ Cliente WebSocket desconectado")
+
+# ============================================================================
 # Funciones de integración Wix CHATBOT
+# ============================================================================
 def obtener_conversacion_por_celular(celular):
     """Obtiene conversación desde Wix CHATBOT"""
     try:
