@@ -498,6 +498,9 @@ async function abrirConversacion(numero) {
         // Update UI
         updateActiveConversation(numero);
 
+        // Mobile: Show chat area and hide sidebar
+        mostrarChatEnMobil();
+
         // Load conversation details
         const response = await fetch(`${API_BASE}/api/conversacion/${numero}`);
         const data = await response.json();
@@ -520,6 +523,29 @@ async function abrirConversacion(numero) {
     }
 }
 
+function mostrarChatEnMobil() {
+    // Solo en móvil (pantallas < 768px)
+    if (window.innerWidth <= 768) {
+        const sidebar = document.querySelector('.sidebar');
+        const chatArea = document.querySelector('.chat-area');
+
+        if (sidebar) sidebar.classList.add('hidden');
+        if (chatArea) chatArea.classList.add('active');
+    }
+}
+
+function volverALista() {
+    // Volver a la lista de conversaciones (móvil)
+    const sidebar = document.querySelector('.sidebar');
+    const chatArea = document.querySelector('.chat-area');
+
+    if (sidebar) sidebar.classList.remove('hidden');
+    if (chatArea) chatArea.classList.remove('active');
+
+    // Limpiar conversación actual
+    conversacionActual = null;
+}
+
 function renderizarChat(numero, data) {
     const chatHeader = document.getElementById('chatHeader');
     const messagesContainer = document.getElementById('messagesContainer');
@@ -537,6 +563,9 @@ function renderizarChat(numero, data) {
         : `<i class="fas fa-user"></i>`;
 
     chatHeader.innerHTML = `
+        <button class="btn-back-mobile" onclick="volverALista()" title="Volver" style="display: none;">
+            <i class="fas fa-arrow-left"></i>
+        </button>
         <div class="chat-contact" onclick="toggleContactInfo()">
             <div class="chat-avatar">
                 ${avatarContent}

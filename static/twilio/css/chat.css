@@ -260,6 +260,11 @@ body {
     min-height: 70px;
 }
 
+/* Back button (only visible on mobile) */
+.btn-back-mobile {
+    display: none;
+}
+
 .chat-header-placeholder {
     display: flex;
     align-items: center;
@@ -664,4 +669,181 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================================
+   MOBILE RESPONSIVE - WhatsApp Style
+   ============================================================================ */
+
+@media screen and (max-width: 768px) {
+    /* Main container adjustments */
+    .chat-container {
+        max-width: 100%;
+        box-shadow: none;
+    }
+
+    /* Sidebar - Full width by default */
+    .sidebar {
+        width: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 1;
+        transition: transform 0.3s ease;
+    }
+
+    /* Hide sidebar when chat is open */
+    .sidebar.hidden {
+        transform: translateX(-100%);
+    }
+
+    /* Chat area - Full width, hidden by default */
+    .chat-area {
+        width: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 2;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    /* Show chat area when active */
+    .chat-area.active {
+        transform: translateX(0);
+    }
+
+    /* Contact info panel - Full width on mobile */
+    .contact-info {
+        width: 100% !important;
+        right: 0 !important;
+    }
+
+    /* Back button in chat header */
+    .btn-back-mobile {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        cursor: pointer;
+        border-radius: 50%;
+        transition: background 0.2s;
+        margin-right: var(--spacing-sm);
+    }
+
+    .btn-back-mobile:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-back-mobile i {
+        font-size: 20px;
+    }
+
+    /* Adjust chat header for mobile */
+    .chat-header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .chat-contact {
+        gap: var(--spacing-sm);
+    }
+
+    .chat-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .chat-contact-info h3 {
+        font-size: 16px;
+    }
+
+    .chat-contact-info p {
+        font-size: 13px;
+    }
+
+    /* Adjust conversation items for better touch targets */
+    .conversation-item {
+        padding: var(--spacing-md);
+        min-height: 72px;
+    }
+
+    .conversation-avatar {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+    }
+
+    /* Search box adjustments */
+    .search-box {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .search-box input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    /* Message input adjustments */
+    .input-wrapper {
+        padding: var(--spacing-sm);
+    }
+
+    .input-wrapper textarea {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    /* Messages container - adjust padding for mobile */
+    .messages-container {
+        padding: var(--spacing-md) var(--spacing-sm);
+    }
+
+    /* Message bubbles - slightly smaller on mobile */
+    .message {
+        max-width: 85%;
+    }
+
+    /* Hide desktop-only elements */
+    .contact-info {
+        display: none !important;
+    }
+
+    /* Modal adjustments for mobile */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 5% auto;
+    }
+
+    #modalImage {
+        max-height: 70vh;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    /* Extra small devices adjustments */
+    .sidebar-header h2 {
+        font-size: 16px;
+    }
+
+    .conversation-name {
+        font-size: 15px;
+    }
+
+    .conversation-preview {
+        font-size: 13px;
+    }
+
+    .message {
+        font-size: 14px;
+        max-width: 90%;
+    }
+
+    .message-time {
+        font-size: 11px;
+    }
 }
