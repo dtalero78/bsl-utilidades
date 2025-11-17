@@ -327,10 +327,17 @@ function renderizarConversaciones() {
         const source = conversacion.source || 'twilio'; // Default a twilio si no se especifica
         const avatarClass = source === 'whapi' ? 'avatar-whapi' : (source === 'both' ? 'avatar-both' : 'avatar-twilio');
 
+        // Mostrar foto de perfil si está disponible (solo para Whapi)
+        const profilePicture = conversacion.profile_picture;
+        const avatarContent = profilePicture
+            ? `<img src="${profilePicture}" alt="${nombre}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <i class="fas fa-user" style="display: none;"></i>`
+            : `<i class="fas fa-user"></i>`;
+
         html += `
             <div class="conversation-item ${isActive}" onclick="abrirConversacion('${numero}')">
                 <div class="conversation-avatar ${avatarClass}">
-                    <i class="fas fa-user"></i>
+                    ${avatarContent}
                 </div>
                 <div class="conversation-info">
                     <div class="conversation-header">
@@ -387,10 +394,18 @@ function renderizarChat(numero, data) {
     const nombre = data.wix_data?.nombre || formatPhoneNumber(numero);
     const stopBot = data.wix_data?.stopBot ? '(Bot detenido)' : '(Bot activo)';
 
+    // Obtener foto de perfil de la conversación actual
+    const conversacion = conversaciones[numero];
+    const profilePicture = conversacion?.profile_picture;
+    const avatarContent = profilePicture
+        ? `<img src="${profilePicture}" alt="${nombre}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+           <i class="fas fa-user" style="display: none;"></i>`
+        : `<i class="fas fa-user"></i>`;
+
     chatHeader.innerHTML = `
         <div class="chat-contact" onclick="toggleContactInfo()">
             <div class="chat-avatar">
-                <i class="fas fa-user"></i>
+                ${avatarContent}
             </div>
             <div class="chat-contact-info">
                 <h3>${nombre}</h3>

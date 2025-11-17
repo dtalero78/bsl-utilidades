@@ -4450,6 +4450,32 @@ def obtener_conversaciones_whapi():
         logger.error(f"❌ Error obteniendo conversaciones de Whapi: {str(e)}")
         return []
 
+def obtener_foto_perfil_whapi(contact_id):
+    """Obtiene la URL de la foto de perfil de un contacto de Whapi"""
+    try:
+        url = f"{WHAPI_BASE_URL}/contacts/{contact_id}/profile"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {WHAPI_TOKEN}"
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        # La foto de perfil viene en data.picture o data.profile_pic_url
+        foto_url = data.get('picture') or data.get('profile_pic_url') or data.get('avatar')
+
+        if foto_url:
+            logger.info(f"✅ Foto de perfil obtenida para {contact_id}")
+            return foto_url
+        else:
+            logger.info(f"ℹ️ No hay foto de perfil para {contact_id}")
+            return None
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo foto de perfil de Whapi para {contact_id}: {str(e)}")
+        return None
+
 def obtener_mensajes_whapi(chat_id):
     """Obtiene mensajes de un chat específico de Whapi"""
     try:
@@ -4636,6 +4662,9 @@ def twilio_get_conversaciones():
                 # Obtener nombre del contacto
                 nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
 
+                # Obtener foto de perfil de Whapi
+                foto_perfil = obtener_foto_perfil_whapi(chat_id)
+
                 if numero_clean not in conversaciones:
                     conversaciones[numero_clean] = {
                         'numero': numero_clean,
@@ -4643,12 +4672,14 @@ def twilio_get_conversaciones():
                         'messages': [],
                         'last_message_time': None,
                         'last_message_preview': '',
-                        'source': 'whapi'
+                        'source': 'whapi',
+                        'profile_picture': foto_perfil
                     }
                 else:
                     # Si ya existe (desde Twilio), agregar indicador de múltiples fuentes
                     conversaciones[numero_clean]['source'] = 'both'
                     conversaciones[numero_clean]['nombre'] = nombre  # Usar nombre de Whapi si está disponible
+                    conversaciones[numero_clean]['profile_picture'] = foto_perfil  # Agregar foto de Whapi
 
                 # Obtener último mensaje del chat
                 last_msg = chat.get('last_message', {})
@@ -4694,7 +4725,8 @@ def twilio_get_conversaciones():
                 'last_message_time': data['last_message_time'].isoformat() if data['last_message_time'] else None,
                 'last_message_time_raw': data['last_message_time'],  # Para ordenar
                 'source': data['source'],  # 'twilio', 'whapi', or 'both'
-                'twilio_messages': data['messages']
+                'twilio_messages': data['messages'],
+                'profile_picture': data.get('profile_picture')  # URL de foto de perfil (solo Whapi)
             })
 
         # Ordenar por fecha de último mensaje (más reciente primero)
