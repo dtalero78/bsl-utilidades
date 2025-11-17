@@ -257,7 +257,8 @@ def obtener_datos_formulario_postgres(wix_id):
                 ciudad_residencia,
                 fecha_nacimiento,
                 primer_nombre,
-                primer_apellido
+                primer_apellido,
+                firma
             FROM formularios
             WHERE wix_id = %s
             LIMIT 1;
@@ -271,7 +272,7 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
@@ -329,6 +330,15 @@ def obtener_datos_formulario_postgres(wix_id):
                 # Si es un objeto datetime de PostgreSQL
                 datos_formulario['fechaNacimiento'] = fecha_nacimiento.strftime('%d de %B de %Y')
             print(f"🎂 [PostgreSQL] Fecha de nacimiento: {datos_formulario['fechaNacimiento']}")
+
+        # Firma del paciente (validar que sea data URI)
+        if firma and firma.startswith("data:image/"):
+            firma_size_kb = len(firma) / 1024
+            print(f"✍️  [PostgreSQL] Firma encontrada: {firma_size_kb:.1f} KB")
+            datos_formulario['firma'] = firma
+        else:
+            print(f"ℹ️  [PostgreSQL] Sin firma válida")
+            datos_formulario['firma'] = None
 
         return datos_formulario
 
@@ -3212,10 +3222,19 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix['foto_paciente'] = None
                 print(f"ℹ️  No hay foto disponible en PostgreSQL")
 
+            # Firma del paciente
+            if datos_formulario.get('firma'):
+                datos_wix['firma_paciente'] = datos_formulario.get('firma')
+                print(f"✅ Usando firma de PostgreSQL (data URI base64)")
+            else:
+                datos_wix['firma_paciente'] = None
+                print(f"ℹ️  No hay firma disponible en PostgreSQL")
+
             print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
         else:
             print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}")
             datos_wix['foto_paciente'] = None
+            datos_wix['firma_paciente'] = None
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         textos_examenes = {
@@ -3376,9 +3395,12 @@ def api_generar_certificado_pdf(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
-        # Firma del paciente - Ya no se descarga de Wix (QR estático en template)
-        firma_paciente_url = None
-        print(f"ℹ️  Firma paciente: usando QR estático en template (qr-validacion.jpg)")
+        # Firma del paciente desde PostgreSQL
+        firma_paciente_url = datos_wix.get('firma_paciente')
+        if firma_paciente_url:
+            print(f"✅ Firma paciente: obtenida desde PostgreSQL (data URI base64)")
+        else:
+            print(f"ℹ️  Firma paciente: no disponible")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
@@ -3791,10 +3813,19 @@ def preview_certificado_html(wix_id):
                 datos_wix['foto_paciente'] = None
                 print(f"ℹ️  No hay foto disponible en PostgreSQL", flush=True)
 
+            # Firma del paciente
+            if datos_formulario.get('firma'):
+                datos_wix['firma_paciente'] = datos_formulario.get('firma')
+                print(f"✅ Usando firma de PostgreSQL (data URI base64)", flush=True)
+            else:
+                datos_wix['firma_paciente'] = None
+                print(f"ℹ️  No hay firma disponible en PostgreSQL", flush=True)
+
             print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
         else:
             print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}", flush=True)
             datos_wix['foto_paciente'] = None
+            datos_wix['firma_paciente'] = None
 
         # Textos dinámicos según exámenes
         textos_examenes = {
@@ -3954,9 +3985,12 @@ def preview_certificado_html(wix_id):
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
-        # Firma del paciente - Ya no se descarga de Wix (QR estático en template)
-        firma_paciente_url = None
-        print(f"ℹ️  Firma paciente: usando QR estático en template (qr-validacion.jpg)")
+        # Firma del paciente desde PostgreSQL
+        firma_paciente_url = datos_wix.get('firma_paciente')
+        if firma_paciente_url:
+            print(f"✅ Firma paciente: obtenida desde PostgreSQL (data URI base64)")
+        else:
+            print(f"ℹ️  Firma paciente: no disponible")
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
