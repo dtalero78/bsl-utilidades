@@ -4969,6 +4969,75 @@ def twilio_webhook():
         logger.error(traceback.format_exc())
         return '', 500
 
+@app.route('/twilio-chat/webhook/whapi', methods=['POST'])
+def whapi_webhook():
+    """Webhook para mensajes entrantes de Whapi - Con notificaciones SSE"""
+    try:
+        # Whapi envía JSON en lugar de form data
+        data = request.get_json()
+
+        logger.info("="*60)
+        logger.info("📨 MENSAJE ENTRANTE DE WHAPI")
+        logger.info(f"   Payload completo: {json_module.dumps(data, indent=2)}")
+        logger.info("="*60)
+
+        # Extraer información del mensaje de Whapi
+        # La estructura de Whapi es diferente a Twilio
+        event = data.get('event', {})
+        messages = data.get('messages', [])
+
+        if messages:
+            for msg in messages:
+                chat_id = msg.get('chat_id', '')
+                from_number = msg.get('from', '')
+                message_id = msg.get('id', '')
+                message_type = msg.get('type', 'text')
+
+                # Extraer el cuerpo del mensaje según el tipo
+                if message_type == 'text':
+                    body = msg.get('text', {}).get('body', '')
+                else:
+                    body = f'(media: {message_type})'
+
+                from_me = msg.get('from_me', False)
+                timestamp = msg.get('timestamp', 0)
+
+                logger.info("📱 Procesando mensaje de Whapi:")
+                logger.info(f"   ID: {message_id}")
+                logger.info(f"   Chat ID: {chat_id}")
+                logger.info(f"   De: {from_number}")
+                logger.info(f"   Tipo: {message_type}")
+                logger.info(f"   Mensaje: {body}")
+                logger.info(f"   From me: {from_me}")
+
+                # Solo procesar mensajes entrantes (from_me = False)
+                if not from_me:
+                    # Extraer número limpio
+                    numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+                    # Enviar notificación SSE a todos los clientes conectados
+                    broadcast_sse_event('new_message', {
+                        'numero': numero_clean,
+                        'from': from_number,
+                        'to': WHAPI_PHONE_NUMBER,
+                        'body': body,
+                        'message_id': message_id,
+                        'chat_id': chat_id,
+                        'type': message_type,
+                        'timestamp': timestamp,
+                        'source': 'whapi'
+                    })
+
+                    logger.info(f"✅ Notificación SSE enviada para mensaje de Whapi: {numero_clean}")
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error en webhook Whapi: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Servir archivos estáticos de Twilio
 @app.route('/twilio-chat/static/<path:filename>')
 def twilio_static(filename):
