@@ -277,22 +277,56 @@ function reproducirSonidoNotificacion() {
 // ============================================================================
 
 async function cargarConversaciones() {
+    const listContainer = document.getElementById('conversationsList');
+
     try {
         console.log('Loading conversations...');
+
+        // Mostrar indicador de carga
+        listContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Cargando conversaciones...</p>
+            </div>
+        `;
+
         const response = await fetch(`${API_BASE}/api/conversaciones`);
         const data = await response.json();
 
         if (data.success) {
             conversaciones = data.conversaciones;
             renderizarConversaciones();
-            console.log(`Loaded ${data.total} conversations`);
+            console.log(`✅ Loaded ${data.total} conversations (showing ${data.count})`);
+
+            // Mostrar mensaje si hay más conversaciones
+            if (data.has_more) {
+                console.log(`ℹ️ Hay ${data.total - data.count} conversaciones más disponibles`);
+            }
         } else {
             console.error('Error loading conversations:', data.error);
             mostrarError('Error al cargar conversaciones');
+            listContainer.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error al cargar conversaciones</p>
+                    <button onclick="cargarConversaciones()" style="margin-top: 10px; padding: 8px 16px; cursor: pointer;">
+                        Reintentar
+                    </button>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error fetching conversations:', error);
         mostrarError('Error de conexión');
+        listContainer.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Error de conexión</p>
+                <button onclick="cargarConversaciones()" style="margin-top: 10px; padding: 8px 16px; cursor: pointer;">
+                    Reintentar
+                </button>
+            </div>
+        `;
     }
 }
 

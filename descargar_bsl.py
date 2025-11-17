@@ -4,6 +4,7 @@ import base64
 from flask import Flask, request, jsonify, send_file, send_from_directory, redirect, render_template, make_response, Response, stream_with_context
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from flask_compress import Compress
 from dotenv import load_dotenv
 import traceback
 from jinja2 import Template
@@ -19,10 +20,31 @@ import time
 import queue
 import threading
 from do_spaces_uploader import subir_imagen_a_do_spaces
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configurar sesión de requests con retry automático
+def crear_sesion_con_retry():
+    """Crea una sesión de requests con retry automático para mayor resiliencia"""
+    session = requests.Session()
+    retry = Retry(
+        total=3,  # 3 intentos total
+        backoff_factor=0.3,  # Espera 0.3s, 0.6s, 1.2s entre intentos
+        status_forcelist=[500, 502, 503, 504],  # Retry en errores de servidor
+        allowed_methods=["GET", "POST", "PUT", "DELETE"]  # Métodos a reintentar
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+# Sesión global con retry
+requests_session = crear_sesion_con_retry()
+logger.info("✅ Sesión de requests configurada con retry automático (3 intentos)")
 
 # Intentar importar Twilio (opcional)
 try:
@@ -40,6 +62,11 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 
 # Inicializar SocketIO para WebSockets
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
+
+# Inicializar compresión gzip automática
+compress = Compress()
+compress.init_app(app)
+logger.info("✅ Compresión gzip habilitada para respuestas >1KB")
 
 # Configurar CORS para todas las aplicaciones
 CORS(app, resources={
@@ -4430,7 +4457,7 @@ def enviar_mensaje_whatsapp(to_number, message_body, media_url=None):
 # ============================================================================
 
 def obtener_conversaciones_whapi():
-    """Obtiene todas las conversaciones de Whapi"""
+    """Obtiene todas las conversaciones de Whapi con retry automático"""
     try:
         url = f"{WHAPI_BASE_URL}/chats"
         headers = {
@@ -4438,7 +4465,7 @@ def obtener_conversaciones_whapi():
             "authorization": f"Bearer {WHAPI_TOKEN}"
         }
 
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests_session.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -4467,7 +4494,7 @@ def obtener_foto_perfil_whapi(chat_data):
         return None
 
 def obtener_mensajes_whapi(chat_id):
-    """Obtiene mensajes de un chat específico de Whapi"""
+    """Obtiene mensajes de un chat específico de Whapi con retry automático"""
     try:
         url = f"{WHAPI_BASE_URL}/messages/list/{chat_id}"
         headers = {
@@ -4479,7 +4506,7 @@ def obtener_mensajes_whapi(chat_id):
             "count": 100  # Obtener últimos 100 mensajes
         }
 
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests_session.get(url, headers=headers, params=params, timeout=30)
         response.raise_for_status()
 
         data = response.json()
@@ -4523,7 +4550,7 @@ def formatear_mensaje_whapi(msg, chat_id):
         return None
 
 def enviar_mensaje_whapi(to_number, message_body, media_url=None):
-    """Envía un mensaje de WhatsApp usando Whapi"""
+    """Envía un mensaje de WhatsApp usando Whapi con retry automático"""
     try:
         # Limpiar número de destino
         numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
@@ -4543,7 +4570,7 @@ def enviar_mensaje_whapi(to_number, message_body, media_url=None):
             "body": message_body
         }
 
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests_session.post(url, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
 
         data = response.json()

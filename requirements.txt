@@ -1,6 +1,7 @@
 flask
 flask-cors
 flask-socketio
+flask-compress
 simple-websocket
 requests
 python-dotenv
