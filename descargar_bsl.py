@@ -4450,30 +4450,20 @@ def obtener_conversaciones_whapi():
         logger.error(f"❌ Error obteniendo conversaciones de Whapi: {str(e)}")
         return []
 
-def obtener_foto_perfil_whapi(contact_id):
-    """Obtiene la URL de la foto de perfil de un contacto de Whapi"""
+def obtener_foto_perfil_whapi(chat_data):
+    """Obtiene la URL de la foto de perfil de un contacto de Whapi desde los datos del chat"""
     try:
-        url = f"{WHAPI_BASE_URL}/contacts/{contact_id}/profile"
-        headers = {
-            "accept": "application/json",
-            "authorization": f"Bearer {WHAPI_TOKEN}"
-        }
-
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-
-        data = response.json()
-        # La foto de perfil viene en data.picture o data.profile_pic_url
-        foto_url = data.get('picture') or data.get('profile_pic_url') or data.get('avatar')
+        # Primero intentar obtener de los datos del chat (más eficiente)
+        foto_url = chat_data.get('chat_pic_full') or chat_data.get('chat_pic') or chat_data.get('picture')
 
         if foto_url:
-            logger.info(f"✅ Foto de perfil obtenida para {contact_id}")
             return foto_url
-        else:
-            logger.info(f"ℹ️ No hay foto de perfil para {contact_id}")
-            return None
+
+        # Si no está en los datos del chat, retornar None
+        # (La API de Whapi requiere configuración especial para obtener fotos vía /contacts/{id}/profile)
+        return None
     except Exception as e:
-        logger.error(f"❌ Error obteniendo foto de perfil de Whapi para {contact_id}: {str(e)}")
+        logger.error(f"❌ Error obteniendo foto de perfil de Whapi: {str(e)}")
         return None
 
 def obtener_mensajes_whapi(chat_id):
@@ -4662,8 +4652,8 @@ def twilio_get_conversaciones():
                 # Obtener nombre del contacto
                 nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
 
-                # Obtener foto de perfil de Whapi
-                foto_perfil = obtener_foto_perfil_whapi(chat_id)
+                # Obtener foto de perfil de Whapi desde los datos del chat
+                foto_perfil = obtener_foto_perfil_whapi(chat)
 
                 if numero_clean not in conversaciones:
                     conversaciones[numero_clean] = {
