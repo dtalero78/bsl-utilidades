@@ -4969,10 +4969,14 @@ def twilio_webhook():
         logger.error(traceback.format_exc())
         return '', 500
 
-@app.route('/twilio-chat/webhook/whapi', methods=['POST'])
+@app.route('/twilio-chat/webhook/whapi', methods=['GET', 'POST'])
 def whapi_webhook():
     """Webhook para mensajes entrantes de Whapi - Con notificaciones SSE"""
     try:
+        # Si es GET, responder para validación de Whapi
+        if request.method == 'GET':
+            return jsonify({'success': True, 'status': 'webhook_ready', 'service': 'whapi'}), 200
+
         # Whapi envía JSON en lugar de form data
         data = request.get_json()
 
