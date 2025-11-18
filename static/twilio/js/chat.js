@@ -629,6 +629,10 @@ function mergeMessages(twilioMessages, wixMessages = []) {
 
 function renderizarMensaje(msg) {
     const direction = msg.direction === 'outbound' ? 'outbound' : 'inbound';
+
+    // Debug: Ver qué timestamp estamos recibiendo
+    console.log(`📅 Mensaje timestamp:`, msg.timestamp, `Body:`, msg.body?.substring(0, 20) || '(media)');
+
     const time = formatTime(msg.timestamp);
     const statusIcon = getStatusIcon(msg.status);
 
