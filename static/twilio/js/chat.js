@@ -588,6 +588,10 @@ function renderizarChat(numero, data) {
     // Merge and sort messages from both sources
     const allMessages = mergeMessages(data.twilio_messages, data.wix_data?.mensajes || []);
 
+    console.log(`📊 Renderizando chat - Total mensajes: ${allMessages.length}`);
+    console.log(`📨 Twilio messages:`, data.twilio_messages?.length || 0);
+    console.log(`📨 Data recibida:`, data);
+
     // Render messages
     let messagesHtml = '';
     allMessages.forEach(msg => {
@@ -595,6 +599,7 @@ function renderizarChat(numero, data) {
     });
 
     messagesContainer.innerHTML = messagesHtml;
+    console.log(`✅ Mensajes renderizados en el DOM`);
 
     // Scroll to bottom
     scrollToBottom();
