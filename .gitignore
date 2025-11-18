@@ -27,3 +27,20 @@ credentials*.json
 *.pdf
 node_modules/
 .cache/
+
+# iOS / Xcode
+ios/BSLChat/Pods/
+ios/BSLChat/*.xcworkspace
+ios/BSLChat/Podfile.lock
+ios/BSLChat/.build/
+ios/BSLChat/DerivedData/
+ios/BSLChat/*.xcodeproj/xcuserdata/
+ios/BSLChat/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/BSLChat/*.resolved
+ios/BSLChat/.swiftpm/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.mobileprovision
+*.orig

@@ -1,0 +1,26 @@
+# Podfile for BSLChat iOS App
+source 'https://github.com/CocoaPods/Specs.git'
+platform :ios, '15.0'
+use_frameworks!
+
+target 'BSLChat' do
+  # Networking
+  pod 'Alamofire', '~> 5.8'
+
+  # WebSocket for real-time messaging
+  pod 'Socket.IO-Client-Swift', '~> 16.1.0'
+
+  # Image loading and caching
+  pod 'SDWebImage', '~> 5.18'
+
+  # Optionally add Kingfisher as alternative to SDWebImage
+  # pod 'Kingfisher', '~> 7.10'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
+end
