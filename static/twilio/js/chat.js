@@ -632,10 +632,13 @@ function renderizarMensaje(msg) {
     const time = formatTime(msg.timestamp);
     const statusIcon = getStatusIcon(msg.status);
 
+    // Manejar mensajes de media (sin body)
+    const messageContent = msg.body ? escapeHtml(msg.body) : '(media)';
+
     return `
         <div class="message ${direction}">
             <div class="message-bubble">
-                <div class="message-text">${escapeHtml(msg.body)}</div>
+                <div class="message-text">${messageContent}</div>
                 <div class="message-footer">
                     <span class="message-time">${time}</span>
                     ${direction === 'outbound' ? `<span class="message-status">${statusIcon}</span>` : ''}
@@ -977,6 +980,7 @@ function truncateText(text, maxLength) {
 }
 
 function escapeHtml(text) {
+    if (!text) return '';
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -984,7 +988,7 @@ function escapeHtml(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
 function getStatusIcon(status) {
