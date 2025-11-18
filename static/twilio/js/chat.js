@@ -706,9 +706,19 @@ async function enviarMensaje() {
 
             scrollToBottom();
 
-            // Refresh conversation after a short delay
+            // Actualizar contador de mensajes para detectar nuevos correctamente
+            lastMessageCount++;
+
+            // Actualizar preview en la lista de conversaciones
+            if (conversaciones[conversacionActual]) {
+                conversaciones[conversacionActual].last_message = mensaje.substring(0, 50);
+                conversaciones[conversacionActual].last_message_time = new Date().toISOString();
+                actualizarConversacion(conversacionActual);
+            }
+
+            // Refresh conversation after a short delay (silencioso para no reemplazar todo)
             setTimeout(() => {
-                actualizarConversacionActual();
+                actualizarConversacionActualSilencioso();
             }, 2000);
         } else {
             console.error('Error sending message:', data.error);
