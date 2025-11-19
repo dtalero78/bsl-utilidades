@@ -5131,6 +5131,13 @@ def whapi_webhook():
                 from_me = msg.get('from_me', False)
                 timestamp = msg.get('timestamp', 0)
 
+                # Convertir timestamp UNIX a ISO string para frontend
+                from datetime import datetime
+                if isinstance(timestamp, (int, float)):
+                    timestamp_iso = datetime.fromtimestamp(timestamp).isoformat()
+                else:
+                    timestamp_iso = timestamp  # Ya es string
+
                 logger.info("📱 Procesando mensaje de Whapi:")
                 logger.info(f"   ID: {message_id}")
                 logger.info(f"   Chat ID: {chat_id}")
@@ -5153,7 +5160,7 @@ def whapi_webhook():
                         'message_id': message_id,
                         'chat_id': chat_id,
                         'type': message_type,
-                        'timestamp': timestamp,
+                        'timestamp': timestamp_iso,  # ✅ Usar ISO string
                         'direction': 'inbound',  # ✅ Mensaje entrante de Whapi
                         'source': 'whapi'
                     })
