@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BSL Utilidades - Menú Principal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Figtree', sans-serif;
+      background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #e0e7ee;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+      padding: 40px 20px;
+    }
+
+    .logo {
+      width: 120px;
+      height: auto;
+      margin-bottom: 20px;
+      filter: brightness(0) invert(1);
+    }
+
+    header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 1.1em;
+      opacity: 0.8;
+      font-weight: 400;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+
+    .menu-category {
+      background: rgba(42, 55, 75, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .menu-category:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+
+    .menu-category h2 {
+      color: #ffffff;
+      margin-bottom: 20px;
+      font-size: 1.4em;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.3px;
+    }
+
+    .menu-category h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+      border-radius: 2px;
+    }
+
+    .menu-item {
+      display: block;
+      padding: 16px 20px;
+      margin: 12px 0;
+      background: rgba(52, 211, 153, 0.15);
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 12px;
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      transition: all 0.3s ease;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1em;
+    }
+
+    .menu-item:hover {
+      background: rgba(52, 211, 153, 0.25);
+      border-color: rgba(52, 211, 153, 0.4);
+      transform: translateX(5px);
+      box-shadow: 0 4px 15px rgba(52, 211, 153, 0.2);
+    }
+
+    .menu-item-description {
+      font-size: 0.85em;
+      opacity: 0.7;
+      margin-top: 5px;
+      display: block;
+      font-weight: 400;
+    }
+
+    footer {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.6);
+      padding: 20px;
+      margin-top: 40px;
+      font-size: 0.9em;
+      font-weight: 400;
+    }
+
+    .icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 2em;
+      }
+
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #2a374b 0%, #1f2937 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 5% auto;
+      padding: 35px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: slideDown 0.3s;
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .close {
+      color: rgba(255, 255, 255, 0.6);
+      float: right;
+      font-size: 28px;
+      font-weight: 300;
+      cursor: pointer;
+      line-height: 20px;
+      transition: color 0.3s;
+    }
+
+    .close:hover {
+      color: #ffffff;
+    }
+
+    .modal h3 {
+      color: #ffffff;
+      margin-bottom: 25px;
+      font-weight: 600;
+      font-size: 1.5em;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #e0e7ee;
+      font-weight: 500;
+      font-size: 0.95em;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      font-size: 1em;
+      font-family: 'Figtree', sans-serif;
+      color: #ffffff;
+      transition: all 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: rgba(52, 211, 153, 0.5);
+      background: rgba(52, 211, 153, 0.05);
+      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+    }
+
+    .form-group select option {
+      background: #1f2937;
+      color: #ffffff;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05em;
+      font-weight: 600;
+      font-family: 'Figtree', sans-serif;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(52, 211, 153, 0.3);
+    }
+
+    .message {
+      padding: 15px 18px;
+      margin-top: 15px;
+      border-radius: 10px;
+      display: none;
+      font-weight: 500;
+    }
+
+    .message.success {
+      background-color: rgba(52, 211, 153, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .message.error {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* Estilos para contenido de modales informativos */
+    .modal-content h4 {
+      color: #34d399;
+      font-weight: 600;
+      font-size: 1.1em;
+      margin-bottom: 10px;
+    }
+
+    .modal-content p {
+      color: #e0e7ee;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .modal-content ul {
+      color: #e0e7ee;
+      line-height: 1.8;
+    }
+
+    .modal-content ul li {
+      margin-bottom: 5px;
+    }
+
+    .modal-content strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .modal-content em {
+      color: #34d399;
+      font-style: normal;
+    }
+
+    .modal-content code,
+    .modal-content .modal-content > div[style*="monospace"] {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="/static/logo-bsl.png" alt="BSL Logo" class="logo">
+      <h1>Panel Médico</h1>
+      <p>Gestión de consultas y pacientes</p>
+    </header>
+
+    <div class="menu-grid">
+      <!-- Categoría: Generación de PDFs -->
+      <div class="menu-category">
+        <h2>Generación de PDFs</h2>
+        <button class="menu-item" onclick="openModal('generar-pdf-modal')">
+          Generar PDF y Subir
+          <span class="menu-item-description">Convierte página web a PDF y sube a la nube</span>
+        </button>
+        <button class="menu-item" onclick="openModal('subir-pdf-modal')">
+          Subir PDF Existente
+          <span class="menu-item-description">Sube un PDF desde URL a almacenamiento</span>
+        </button>
+        <button class="menu-item" onclick="openModal('descargar-pdf-modal')">
+          Descargar PDF Directo
+          <span class="menu-item-description">Genera y descarga PDF sin almacenar</span>
+        </button>
+        <a href="/descargar-pdf-drive/" class="menu-item">
+          Descargar desde Drive
+          <span class="menu-item-description">Recupera PDF almacenado en Google Drive</span>
+        </a>
+      </div>
+
+      <!-- Categoría: Certificados Médicos -->
+      <div class="menu-category">
+        <h2>Certificados Médicos</h2>
+        <a href="/static/test-certificado.html" class="menu-item">
+          Preview Certificado
+          <span class="menu-item-description">Vista previa HTML del certificado médico</span>
+        </a>
+        <button class="menu-item" onclick="openModal('generar-certificado-modal')">
+          Generar Certificado PDF
+          <span class="menu-item-description">Crea certificado médico en formato PDF</span>
+        </button>
+      </div>
+
+      <!-- Categoría: Procesamiento CSV -->
+      <div class="menu-category">
+        <h2>Procesamiento de Datos</h2>
+        <a href="/static/procesar-csv.html" class="menu-item">
+          Procesar Archivo CSV
+          <span class="menu-item-description">Programación de citas y separación de nombres</span>
+        </a>
+        <button class="menu-item" onclick="openModal('info-csv-modal')">
+          Información CSV
+          <span class="menu-item-description">Ver formato y funcionalidades disponibles</span>
+        </button>
+      </div>
+
+      <!-- Categoría: Configuración -->
+      <div class="menu-category">
+        <h2>Información del Sistema</h2>
+        <button class="menu-item" onclick="openModal('info-empresas-modal')">
+          Empresas Configuradas
+          <span class="menu-item-description">BSL, LGS, RIPPLING</span>
+        </button>
+        <button class="menu-item" onclick="openModal('info-storage-modal')">
+          Almacenamiento
+          <span class="menu-item-description">Drive, Drive OAuth, Google Cloud Storage</span>
+        </button>
+        <button class="menu-item" onclick="openModal('info-api-modal')">
+          Documentación API
+          <span class="menu-item-description">Endpoints y parámetros disponibles</span>
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2025 BSL Utilidades - Gestión Documental y Médica</p>
+    </footer>
+  </div>
+
+  <!-- Modal: Generar PDF y Subir -->
+  <div id="generar-pdf-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('generar-pdf-modal')">&times;</span>
+      <h3>Generar PDF y Subir</h3>
+      <form id="form-generar-pdf" onsubmit="generarPDF(event)">
+        <div class="form-group">
+          <label for="documento-generar">Número de Documento:</label>
+          <input type="text" id="documento-generar" required placeholder="Ej: 123456789">
+        </div>
+        <div class="form-group">
+          <label for="empresa-generar">Empresa:</label>
+          <select id="empresa-generar" required>
+            <option value="BSL">BSL</option>
+            <option value="LGS">LGS</option>
+            <option value="RIPPLING">RIPPLING</option>
+          </select>
+        </div>
+        <div class="form-group" id="tipo-examen-group" style="display: none;">
+          <label for="tipo-examen">Tipo de Examen (RIPPLING):</label>
+          <select id="tipo-examen">
+            <option value="ingreso">Ingreso</option>
+            <option value="periódico">Periódico</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-submit">Generar y Subir PDF</button>
+        <div id="msg-generar-pdf" class="message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Subir PDF Existente -->
+  <div id="subir-pdf-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('subir-pdf-modal')">&times;</span>
+      <h3>Subir PDF Existente</h3>
+      <form id="form-subir-pdf" onsubmit="subirPDF(event)">
+        <div class="form-group">
+          <label for="documento-subir">Número de Documento:</label>
+          <input type="text" id="documento-subir" required placeholder="Ej: 123456789">
+        </div>
+        <div class="form-group">
+          <label for="url-pdf">URL del PDF:</label>
+          <input type="url" id="url-pdf" required placeholder="https://ejemplo.com/archivo.pdf">
+        </div>
+        <div class="form-group">
+          <label for="empresa-subir">Empresa:</label>
+          <select id="empresa-subir" required>
+            <option value="BSL">BSL</option>
+            <option value="LGS">LGS</option>
+            <option value="RIPPLING">RIPPLING</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-submit">Subir PDF</button>
+        <div id="msg-subir-pdf" class="message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Descargar PDF Directo -->
+  <div id="descargar-pdf-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('descargar-pdf-modal')">&times;</span>
+      <h3>Descargar PDF Directo</h3>
+      <form id="form-descargar-pdf" onsubmit="descargarPDF(event)">
+        <div class="form-group">
+          <label for="documento-descargar">Número de Documento:</label>
+          <input type="text" id="documento-descargar" required placeholder="Ej: 123456789">
+        </div>
+        <div class="form-group">
+          <label for="empresa-descargar">Empresa:</label>
+          <select id="empresa-descargar" required>
+            <option value="BSL">BSL</option>
+            <option value="LGS">LGS</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-submit">Descargar PDF</button>
+        <div id="msg-descargar-pdf" class="message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Información CSV -->
+  <div id="info-csv-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('info-csv-modal')">&times;</span>
+      <h3>Procesamiento de CSV - Información</h3>
+      <p><strong>Funcionalidades:</strong></p>
+      <ul style="margin-left: 20px; margin-bottom: 15px;">
+        <li>Separación automática de nombres completos</li>
+        <li>Asignación de citas médicas (fecha y hora)</li>
+        <li>Distribución round-robin de médicos</li>
+        <li>Normalización de ciudades (Bogotá → BOGOTA)</li>
+        <li>Ordenamiento automático (BOGOTA primero)</li>
+      </ul>
+      <p><strong>Columnas requeridas en CSV:</strong></p>
+      <ul style="margin-left: 20px; margin-bottom: 15px;">
+        <li>NOMBRES APELLIDOS Y (o NOMBRES COMPLETOS)</li>
+        <li>No IDENTIFICACION</li>
+        <li>CARGO</li>
+        <li>TELEFONOS</li>
+        <li>CIUDAD</li>
+        <li>TIPO DE EXAMEN OCUPACIONAL</li>
+      </ul>
+      <p><strong>Médicos disponibles:</strong> SIXTA, JUAN 134, CESAR, MARY, NUBIA, PRESENCIAL</p>
+      <p style="margin-top: 15px;"><em>Los registros de BOGOTA siempre se asignan a PRESENCIAL a las 07:00</em></p>
+    </div>
+  </div>
+
+  <!-- Modal: Información Empresas -->
+  <div id="info-empresas-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('info-empresas-modal')">&times;</span>
+      <h3>Empresas Configuradas</h3>
+      <div style="margin-bottom: 20px;">
+        <h4>BSL</h4>
+        <p><strong>Dominio:</strong> https://www.bsl.com.co</p>
+        <p><strong>Ruta:</strong> /descarga-whp/{documento}</p>
+        <p><strong>Captura:</strong> Página completa</p>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4>LGS</h4>
+        <p><strong>Dominio:</strong> https://www.lgsplataforma.com</p>
+        <p><strong>Ruta:</strong> /contrato-imprimir/{documento}?forReview=</p>
+        <p><strong>Captura:</strong> Selector CSS #text1</p>
+      </div>
+      <div>
+        <h4>RIPPLING</h4>
+        <p><strong>Tipo:</strong> Routing dinámico por tipo de examen</p>
+        <p><strong>Carpetas:</strong> Ingreso / Periódico</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Información Storage -->
+  <div id="info-storage-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('info-storage-modal')">&times;</span>
+      <h3>Opciones de Almacenamiento</h3>
+      <div style="margin-bottom: 20px;">
+        <h4>Google Drive (Service Account)</h4>
+        <p>Autenticación mediante cuenta de servicio. Configurado con variable GOOGLE_CREDENTIALS_BASE64</p>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4>Google Drive (OAuth)</h4>
+        <p>Autenticación OAuth del usuario. Requiere GOOGLE_OAUTH_CREDENTIALS_BASE64 y token</p>
+      </div>
+      <div>
+        <h4>Google Cloud Storage</h4>
+        <p>Almacenamiento en buckets de GCS. Ideal para grandes volúmenes</p>
+      </div>
+      <p style="margin-top: 20px;"><em>Configurar en variable de entorno: STORAGE_DESTINATION</em></p>
+    </div>
+  </div>
+
+  <!-- Modal: Documentación API -->
+  <div id="info-api-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('info-api-modal')">&times;</span>
+      <h3>Endpoints API</h3>
+      <div style="font-family: monospace; font-size: 0.9em;">
+        <p><strong>POST /generar-pdf</strong></p>
+        <p style="margin-left: 20px;">Body: {documento, empresa, tipoExamen?}</p>
+        <br>
+        <p><strong>POST /subir-pdf-directo</strong></p>
+        <p style="margin-left: 20px;">Body: {documento, pdfUrl, empresa}</p>
+        <br>
+        <p><strong>POST /descargar-pdf-empresas</strong></p>
+        <p style="margin-left: 20px;">Body: {documento, empresa}</p>
+        <br>
+        <p><strong>GET /descargar-pdf-drive/&lt;documento&gt;</strong></p>
+        <br>
+        <p><strong>POST /procesar-csv</strong></p>
+        <p style="margin-left: 20px;">Body: FormData con archivo CSV</p>
+        <br>
+        <p><strong>POST /preview-certificado-medico</strong></p>
+        <p style="margin-left: 20px;">Body: {datos del formulario médico}</p>
+        <br>
+        <p><strong>POST /generar-certificado-medico</strong></p>
+        <p style="margin-left: 20px;">Body: {datos del formulario médico}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Generar Certificado -->
+  <div id="generar-certificado-modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('generar-certificado-modal')">&times;</span>
+      <h3>Generar Certificado Médico</h3>
+      <p style="margin-bottom: 20px;">Esta función requiere datos completos del formulario médico. Use la interfaz de prueba para generar certificados con todos los campos necesarios.</p>
+      <a href="/static/test-certificado.html" class="btn-submit" style="display: block; text-align: center; text-decoration: none;">
+        Ir a Interfaz de Certificados
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Control de modales
+    function openModal(modalId) {
+      document.getElementById(modalId).style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+      // Limpiar mensajes
+      const messages = document.querySelectorAll('.message');
+      messages.forEach(msg => {
+        msg.style.display = 'none';
+        msg.className = 'message';
+      });
+    }
+
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+      }
+    }
+
+    // Mostrar campo tipo examen solo para RIPPLING
+    document.getElementById('empresa-generar').addEventListener('change', function() {
+      const tipoExamenGroup = document.getElementById('tipo-examen-group');
+      if (this.value === 'RIPPLING') {
+        tipoExamenGroup.style.display = 'block';
+      } else {
+        tipoExamenGroup.style.display = 'none';
+      }
+    });
+
+    // Función: Generar PDF
+    async function generarPDF(event) {
+      event.preventDefault();
+      const msgEl = document.getElementById('msg-generar-pdf');
+      const documento = document.getElementById('documento-generar').value;
+      const empresa = document.getElementById('empresa-generar').value;
+      const tipoExamen = document.getElementById('tipo-examen').value;
+
+      msgEl.textContent = 'Generando PDF...';
+      msgEl.className = 'message';
+      msgEl.style.display = 'block';
+
+      try {
+        const body = { documento, empresa };
+        if (empresa === 'RIPPLING') {
+          body.tipoExamen = tipoExamen;
+        }
+
+        const response = await fetch('/generar-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          msgEl.textContent = `✅ ${data.message}`;
+          msgEl.className = 'message success';
+          document.getElementById('form-generar-pdf').reset();
+        } else {
+          msgEl.textContent = `❌ ${data.error}`;
+          msgEl.className = 'message error';
+        }
+      } catch (error) {
+        msgEl.textContent = '❌ Error al generar PDF: ' + error.message;
+        msgEl.className = 'message error';
+      }
+    }
+
+    // Función: Subir PDF
+    async function subirPDF(event) {
+      event.preventDefault();
+      const msgEl = document.getElementById('msg-subir-pdf');
+      const documento = document.getElementById('documento-subir').value;
+      const pdfUrl = document.getElementById('url-pdf').value;
+      const empresa = document.getElementById('empresa-subir').value;
+
+      msgEl.textContent = 'Subiendo PDF...';
+      msgEl.className = 'message';
+      msgEl.style.display = 'block';
+
+      try {
+        const response = await fetch('/subir-pdf-directo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documento, pdfUrl, empresa })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          msgEl.textContent = `✅ ${data.message}`;
+          msgEl.className = 'message success';
+          document.getElementById('form-subir-pdf').reset();
+        } else {
+          msgEl.textContent = `❌ ${data.error}`;
+          msgEl.className = 'message error';
+        }
+      } catch (error) {
+        msgEl.textContent = '❌ Error al subir PDF: ' + error.message;
+        msgEl.className = 'message error';
+      }
+    }
+
+    // Función: Descargar PDF
+    async function descargarPDF(event) {
+      event.preventDefault();
+      const msgEl = document.getElementById('msg-descargar-pdf');
+      const documento = document.getElementById('documento-descargar').value;
+      const empresa = document.getElementById('empresa-descargar').value;
+
+      msgEl.textContent = 'Generando y descargando PDF...';
+      msgEl.className = 'message';
+      msgEl.style.display = 'block';
+
+      try {
+        const response = await fetch('/descargar-pdf-empresas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documento, empresa })
+        });
+
+        if (!response.ok) throw new Error('No se pudo generar el PDF');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${documento}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        msgEl.textContent = '✅ Descarga completada';
+        msgEl.className = 'message success';
+        document.getElementById('form-descargar-pdf').reset();
+      } catch (error) {
+        msgEl.textContent = '❌ Error al descargar PDF: ' + error.message;
+        msgEl.className = 'message error';
+      }
+    }
+  </script>
+</body>
+</html>

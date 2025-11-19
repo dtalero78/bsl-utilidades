@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Descarga de Certificado</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 60px; }
+    #msg { font-size: 1.1em; margin-top: 30px; }
+    .loader {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #3a7ca5;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      animation: spin 1s linear infinite;
+      margin: 24px auto;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <h2>Generando y descargando...</h2>
+  <div class="loader"></div>
+  <div id="msg">Por favor, espera unos segundos.</div>
+
+  <script>
+    window.onload = function() {
+      const params = new URLSearchParams(window.location.search);
+      const documento = params.get("documento");
+      const empresa = params.get("empresa") || "BSL"; // ✅ LEER EL PARÁMETRO EMPRESA
+      const msg = document.getElementById("msg");
+
+      if (!documento) {
+        msg.textContent = "❌ No se recibió el identificador del documento.";
+        return;
+      }
+
+      console.log(`📄 Generando PDF para documento: ${documento}, empresa: ${empresa}`);
+
+      // ✅ ENVIAR EL PARÁMETRO EMPRESA EN EL BODY DEL FETCH
+      fetch("/descargar-pdf-empresas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          documento: documento,
+          empresa: empresa  // ✅ INCLUIR LA EMPRESA
+        })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("No se pudo generar el certificado.");
+        return res.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${documento}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        msg.textContent = "✅ Descarga completada. Puedes cerrar esta ventana.";
+        setTimeout(() => window.close(), 3500);
+      })
+      .catch(err => {
+        msg.textContent = "❌ Error: No se pudo descargar el certificado. Intenta nuevamente.";
+        console.error(err);
+        setTimeout(() => window.close(), 4000);
+      });
+    };
+  </script>
+</body>
+</html>

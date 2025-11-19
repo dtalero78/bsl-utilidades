@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Certificado desde Wix ID</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+            font-family: 'Courier New', monospace;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-details {
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        .pdf-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .pdf-link:hover {
+            background: #218838;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .example-ids {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .example-ids h3 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .example-id {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #667eea;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .example-id:hover {
+            background: #e0e0e0;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Generar Certificado desde Wix</h1>
+        <p class="subtitle">Ingresa el _id del registro en HistoriaClinica</p>
+
+        <div class="info-box">
+            <p><strong>ℹ️ Modo de funcionamiento:</strong></p>
+            <p>Este endpoint consulta los datos de Wix usando el <code>_id</code> del registro y genera automáticamente el certificado médico en PDF.</p>
+        </div>
+
+        <div class="example-ids">
+            <h3>📋 ID de Ejemplo:</h3>
+            <div class="example-id" onclick="fillId('e66c40b4-5a25-4696-b296-c43c754946fd')">
+                e66c40b4-5a25-4696-b296-c43c754946fd
+            </div>
+        </div>
+
+        <form id="certificadoForm">
+            <div class="form-group">
+                <label for="wix_id">Wix Record ID*</label>
+                <input
+                    type="text"
+                    id="wix_id"
+                    name="wix_id"
+                    required
+                    placeholder="e66c40b4-5a25-4696-b296-c43c754946fd"
+                    value="e66c40b4-5a25-4696-b296-c43c754946fd">
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="guardar_drive" name="guardar_drive">
+                <label for="guardar_drive" class="checkbox-label">Guardar en Google Drive</label>
+            </div>
+
+            <button type="submit" id="submitBtn">Generar Certificado</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Generando certificado médico desde Wix...</p>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('certificadoForm');
+        const result = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function fillId(id) {
+            document.getElementById('wix_id').value = id;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Mostrar loading
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            submitBtn.disabled = true;
+
+            const wixId = document.getElementById('wix_id').value.trim();
+            const guardarDrive = document.getElementById('guardar_drive').checked;
+
+            try {
+                // Obtener la URL base actual
+                const baseUrl = window.location.origin;
+                const url = `${baseUrl}/generar-certificado-desde-wix/${encodeURIComponent(wixId)}${guardarDrive ? '?guardar_drive=true' : ''}`;
+
+                console.log('Calling:', url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const responseData = await response.json();
+
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                submitBtn.disabled = false;
+
+                if (responseData.success) {
+                    result.className = 'result-success';
+                    result.innerHTML = `
+                        <div class="result-title">✅ Certificado Generado Exitosamente</div>
+                        <div class="result-details">
+                            <p><strong>Wix ID:</strong> ${wixId}</p>
+                            <p><strong>Código de Seguridad:</strong> ${responseData.codigo_seguridad}</p>
+                            ${responseData.drive_file_id ? `<p><strong>ID en Drive:</strong> ${responseData.drive_file_id}</p>` : ''}
+                        </div>
+                        <a href="${responseData.pdf_url}" target="_blank" class="pdf-link">📄 Ver/Descargar PDF</a>
+                        ${responseData.drive_web_link ? `<a href="${responseData.drive_web_link}" target="_blank" class="pdf-link" style="margin-left: 10px;">🔗 Ver en Google Drive</a>` : ''}
+                    `;
+                } else {
+                    result.className = 'result-error';
+                    result.innerHTML = `
+                        <div class="result-title">❌ Error al Generar Certificado</div>
+                        <p>${responseData.error || 'Error desconocido'}</p>
+                        ${responseData.wix_id ? `<p><small>Wix ID: ${responseData.wix_id}</small></p>` : ''}
+                    `;
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                submitBtn.disabled = false;
+                result.className = 'result-error';
+                result.innerHTML = `
+                    <div class="result-title">❌ Error de Conexión</div>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

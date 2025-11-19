@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas BSL - Consultas por Día</title>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #00a651 0%, #008241 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #00a651;
+        }
+
+        .calendar-wrapper {
+            padding: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .loading:after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #c00;
+        }
+
+        /* Personalización de FullCalendar */
+        .fc {
+            font-size: 1em;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .fc .fc-button {
+            background: #00a651;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fc .fc-button:hover {
+            background: #008241;
+        }
+
+        .fc .fc-button:disabled {
+            background: #ccc;
+        }
+
+        .fc-daygrid-day-number {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .fc-daygrid-event {
+            background: #00a651;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-weight: 600;
+        }
+
+        /* Indicador de carga en el calendario */
+        #calendar.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .month-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .month-selector select,
+        .month-selector input[type="date"] {
+            padding: 10px 15px;
+            border: 2px solid #00a651;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+
+        .month-selector select:hover,
+        .month-selector input[type="date"]:hover {
+            background: #f0f0f0;
+        }
+
+        .month-selector input[type="date"]:focus,
+        .month-selector select:focus {
+            outline: none;
+            border-color: #008241;
+            box-shadow: 0 0 0 3px rgba(0, 166, 81, 0.1);
+        }
+
+        /* Mejorar visualización del date picker */
+        .month-selector input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            background: none;
+            padding: 5px;
+            font-size: 1.2em;
+        }
+
+        .month-selector input[type="date"]::-webkit-datetime-edit-text,
+        .month-selector input[type="date"]::-webkit-datetime-edit-month-field,
+        .month-selector input[type="date"]::-webkit-datetime-edit-day-field,
+        .month-selector input[type="date"]::-webkit-datetime-edit-year-field {
+            padding: 2px;
+        }
+
+        .refresh-btn {
+            background: #00a651;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .refresh-btn:hover {
+            background: #008241;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 166, 81, 0.3);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Sección de gráfico por día de semana */
+        .chart-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .chart-section h2 {
+            color: #00a651;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #chartDiasSemana {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Estadísticas de Consultas BSL</h1>
+            <p>Visualización de consultas médicas por día</p>
+        </div>
+
+        <div class="stats-summary">
+            <div class="stat-card">
+                <div class="label">Total Consultas</div>
+                <div class="value" id="totalConsultas">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Mes Actual</div>
+                <div class="value" id="mesActual">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Promedio Diario</div>
+                <div class="value" id="promedioDiario">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Día Máximo</div>
+                <div class="value" id="diaMaximo">-</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="month-selector">
+                <label for="modoSelector"><strong>Modo:</strong></label>
+                <select id="modoSelector" onchange="cambiarModo()">
+                    <option value="mes">Por Mes</option>
+                    <option value="rango">Rango de Fechas</option>
+                </select>
+            </div>
+
+            <!-- Selector de mes (visible por defecto) -->
+            <div class="month-selector" id="selectorMes">
+                <label for="yearSelect"><strong>Año:</strong></label>
+                <select id="yearSelect">
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                </select>
+                <label for="monthSelect"><strong>Mes:</strong></label>
+                <select id="monthSelect">
+                    <option value="0">Enero</option>
+                    <option value="1">Febrero</option>
+                    <option value="2">Marzo</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Mayo</option>
+                    <option value="5">Junio</option>
+                    <option value="6">Julio</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Septiembre</option>
+                    <option value="9">Octubre</option>
+                    <option value="10">Noviembre</option>
+                    <option value="11">Diciembre</option>
+                </select>
+            </div>
+
+            <!-- Selector de rango (oculto por defecto) -->
+            <div class="month-selector" id="selectorRango" style="display: none;">
+                <label for="fechaInicio"><strong>Desde:</strong></label>
+                <input type="date" id="fechaInicio" placeholder="Fecha inicial" required />
+                <label for="fechaFin"><strong>Hasta:</strong></label>
+                <input type="date" id="fechaFin" placeholder="Fecha final" required />
+            </div>
+
+            <button class="refresh-btn" onclick="cargarEstadisticas()">🔄 Actualizar</button>
+        </div>
+
+        <!-- Sección de gráfico por día de semana -->
+        <div class="chart-section">
+            <h2>📈 Consultas por Día de la Semana</h2>
+            <div class="chart-container">
+                <canvas id="chartDiasSemana"></canvas>
+            </div>
+        </div>
+
+        <div class="calendar-wrapper">
+            <div id="loading" class="loading">Cargando estadísticas</div>
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <script>
+        let calendar;
+        let chartDiasSemana;
+        const WIX_API_URL = 'https://www.bsl.com.co/_functions/estadisticasConsultas';
+
+        // Función para cambiar entre modo mes y rango de fechas
+        function cambiarModo() {
+            const modo = document.getElementById('modoSelector').value;
+            const selectorMes = document.getElementById('selectorMes');
+            const selectorRango = document.getElementById('selectorRango');
+
+            if (modo === 'mes') {
+                selectorMes.style.display = 'flex';
+                selectorRango.style.display = 'none';
+            } else {
+                selectorMes.style.display = 'none';
+                selectorRango.style.display = 'flex';
+            }
+
+            // Recargar estadísticas con el nuevo modo
+            cargarEstadisticas();
+        }
+
+        // Inicializar el calendario
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+
+            // Configurar selectores al mes/año actual
+            const hoy = new Date();
+            document.getElementById('yearSelect').value = hoy.getFullYear();
+            document.getElementById('monthSelect').value = hoy.getMonth();
+
+            // Inicializar date pickers con valores por defecto (últimos 30 días)
+            const hace30Dias = new Date(hoy);
+            hace30Dias.setDate(hoy.getDate() - 30);
+            document.getElementById('fechaInicio').value = hace30Dias.toISOString().split('T')[0];
+            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,dayGridWeek'
+                },
+                buttonText: {
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana'
+                },
+                events: [],
+                eventClick: function(info) {
+                    alert('Consultas: ' + info.event.title + '\nFecha: ' + info.event.startStr);
+                },
+                height: 'auto',
+                eventColor: '#00a651'
+            });
+
+            calendar.render();
+
+            // Cargar estadísticas iniciales
+            cargarEstadisticas();
+
+            // Event listeners para cambios de mes/año
+            document.getElementById('monthSelect').addEventListener('change', cargarEstadisticas);
+            document.getElementById('yearSelect').addEventListener('change', cargarEstadisticas);
+            document.getElementById('fechaInicio').addEventListener('change', cargarEstadisticas);
+            document.getElementById('fechaFin').addEventListener('change', cargarEstadisticas);
+        });
+
+        async function cargarEstadisticas() {
+            const loadingDiv = document.getElementById('loading');
+            const calendarDiv = document.getElementById('calendar');
+
+            loadingDiv.style.display = 'block';
+            calendarDiv.style.opacity = '0.5';
+
+            try {
+                let fechaInicioStr, fechaFinStr;
+
+                // Determinar modo y obtener fechas apropiadas
+                const modo = document.getElementById('modoSelector').value;
+
+                if (modo === 'mes') {
+                    // Modo mes: usar selectores de año y mes
+                    const year = document.getElementById('yearSelect').value;
+                    const month = document.getElementById('monthSelect').value;
+
+                    // Calcular primer y último día del mes
+                    const fechaInicio = new Date(year, month, 1);
+                    const fechaFin = new Date(year, parseInt(month) + 1, 0);
+
+                    fechaInicioStr = fechaInicio.toISOString().split('T')[0];
+                    fechaFinStr = fechaFin.toISOString().split('T')[0];
+                } else {
+                    // Modo rango: usar inputs de fecha
+                    fechaInicioStr = document.getElementById('fechaInicio').value;
+                    fechaFinStr = document.getElementById('fechaFin').value;
+
+                    if (!fechaInicioStr || !fechaFinStr) {
+                        mostrarError('Por favor selecciona ambas fechas');
+                        return;
+                    }
+
+                    // Validar que fecha inicio sea menor o igual a fecha fin
+                    if (new Date(fechaInicioStr) > new Date(fechaFinStr)) {
+                        mostrarError('La fecha de inicio debe ser menor o igual a la fecha de fin');
+                        return;
+                    }
+                }
+
+                console.log(`📅 Cargando estadísticas: ${fechaInicioStr} a ${fechaFinStr}`);
+
+                const response = await fetch(`${WIX_API_URL}?fechaInicio=${fechaInicioStr}&fechaFin=${fechaFinStr}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('📊 Datos recibidos:', data);
+
+                if (data.success) {
+                    mostrarEstadisticas(data.conteosPorFecha, data.total, fechaInicioStr, fechaFinStr);
+                } else {
+                    mostrarError(data.error || 'Error al cargar estadísticas');
+                }
+
+            } catch (error) {
+                console.error('❌ Error:', error);
+                mostrarError('Error al conectar con el servidor: ' + error.message);
+            } finally {
+                loadingDiv.style.display = 'none';
+                calendarDiv.style.opacity = '1';
+            }
+        }
+
+        function mostrarEstadisticas(conteosPorFecha, total, fechaInicio, fechaFin) {
+            // Convertir los datos a eventos de FullCalendar
+            const eventos = Object.keys(conteosPorFecha).map(fecha => ({
+                title: `${conteosPorFecha[fecha]} consultas`,
+                start: fecha,
+                allDay: true,
+                extendedProps: {
+                    count: conteosPorFecha[fecha]
+                }
+            }));
+
+            // Actualizar calendario y moverlo a la fecha inicial del período
+            calendar.removeAllEvents();
+            calendar.addEventSource(eventos);
+
+            // Mover el calendario a la fecha de inicio del período seleccionado
+            if (fechaInicio) {
+                calendar.gotoDate(fechaInicio);
+            }
+
+            // Calcular estadísticas
+            const valores = Object.values(conteosPorFecha);
+            const totalConsultas = total;
+            const diasConConsultas = valores.length;
+            const promedio = diasConConsultas > 0 ? (totalConsultas / diasConConsultas).toFixed(1) : 0;
+            const maximo = valores.length > 0 ? Math.max(...valores) : 0;
+
+            // Actualizar tarjetas de estadísticas
+            document.getElementById('totalConsultas').textContent = totalConsultas;
+            document.getElementById('mesActual').textContent = valores.reduce((a, b) => a + b, 0);
+            document.getElementById('promedioDiario').textContent = promedio;
+            document.getElementById('diaMaximo').textContent = maximo;
+
+            // Calcular consultas por día de la semana
+            const consultasPorDiaSemana = {
+                'Lunes': 0,
+                'Martes': 0,
+                'Miércoles': 0,
+                'Jueves': 0,
+                'Viernes': 0,
+                'Sábado': 0,
+                'Domingo': 0
+            };
+
+            const cantidadDiasPorSemana = {
+                'Lunes': 0,
+                'Martes': 0,
+                'Miércoles': 0,
+                'Jueves': 0,
+                'Viernes': 0,
+                'Sábado': 0,
+                'Domingo': 0
+            };
+
+            const nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+            // Contar todas las ocurrencias de cada día en el período
+            const inicio = new Date(fechaInicio + 'T12:00:00');
+            const fin = new Date(fechaFin + 'T12:00:00');
+
+            for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+                const diaSemana = nombresDias[d.getDay()];
+                cantidadDiasPorSemana[diaSemana]++;
+            }
+
+            // Sumar consultas por día de la semana
+            Object.keys(conteosPorFecha).forEach(fechaStr => {
+                const fecha = new Date(fechaStr + 'T12:00:00'); // Agregar hora para evitar problemas de timezone
+                const diaSemana = nombresDias[fecha.getDay()];
+                consultasPorDiaSemana[diaSemana] += conteosPorFecha[fechaStr];
+            });
+
+            // Actualizar gráfico con las cantidades reales de días
+            actualizarGraficoDiasSemana(consultasPorDiaSemana, cantidadDiasPorSemana);
+
+            console.log(`✅ Mostrando ${eventos.length} días con consultas`);
+            console.log('📊 Consultas por día de semana:', consultasPorDiaSemana);
+        }
+
+        function actualizarGraficoDiasSemana(consultasPorDiaSemana, cantidadDiasPorSemana) {
+            const ctx = document.getElementById('chartDiasSemana').getContext('2d');
+
+            // Destruir gráfico anterior si existe
+            if (chartDiasSemana) {
+                chartDiasSemana.destroy();
+            }
+
+            const diasOrdenados = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            const datos = diasOrdenados.map(dia => consultasPorDiaSemana[dia]);
+
+            chartDiasSemana = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: diasOrdenados,
+                    datasets: [{
+                        label: 'Consultas',
+                        data: datos,
+                        borderColor: '#00a651',
+                        backgroundColor: 'rgba(0, 166, 81, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#00a651',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return `Total: ${context.parsed.y} consultas`;
+                                },
+                                afterLabel: function(context) {
+                                    const diaSemana = diasOrdenados[context.dataIndex];
+                                    const cantidadDias = cantidadDiasPorSemana[diaSemana];
+                                    const promedio = cantidadDias > 0 ? (context.parsed.y / cantidadDias).toFixed(1) : 0;
+                                    return `Promedio: ${promedio} consultas/día (${cantidadDias} ${diaSemana}s en el período)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function mostrarError(mensaje) {
+            const calendarWrapper = document.querySelector('.calendar-wrapper');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = '⚠️ ' + mensaje;
+
+            // Remover errores anteriores
+            const erroresAnteriores = calendarWrapper.querySelectorAll('.error');
+            erroresAnteriores.forEach(e => e.remove());
+
+            calendarWrapper.insertBefore(errorDiv, calendarWrapper.firstChild);
+
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+    </script>
+</body>
+</html>

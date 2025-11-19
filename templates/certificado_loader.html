@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generando tu certificado médico...</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .loader-container {
+            text-align: center;
+            max-width: 600px;
+            padding: 60px 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo {
+            width: 200px;
+            height: auto;
+            margin-bottom: 40px;
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 26px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 35px;
+        }
+
+        .phrase {
+            font-size: 16px;
+            margin: 25px 0;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            border-radius: 8px;
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            line-height: 1.5;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            10%, 90% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .spinner {
+            margin: 35px auto;
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e8e8e8;
+            border-radius: 10px;
+            margin-top: 35px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
+            border-radius: 10px;
+            animation: progress 15s linear forwards;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .status {
+            margin-top: 25px;
+            font-size: 14px;
+            color: #777;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container">
+        <img src="/static/logo-bsl.png" alt="BSL Logo" class="logo">
+
+        <h1>Generando Certificado Médico</h1>
+        <p class="subtitle">Por favor espera mientras preparamos el documento</p>
+
+        <div class="phrase" id="phrase">
+            Preparando documento...
+        </div>
+
+        <div class="spinner"></div>
+
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+
+        <div class="status" id="status">
+            Procesando información del examen médico ocupacional
+        </div>
+    </div>
+
+    <script>
+        const phrases = [
+            "Recopilando información del examen médico ocupacional",
+            "Procesando resultados de laboratorio y pruebas clínicas",
+            "Verificando aptitud física y mental del colaborador",
+            "Consolidando datos de audiometría y optometría",
+            "Generando concepto médico ocupacional",
+            "Validando recomendaciones y restricciones laborales",
+            "Preparando firmas digitales de los especialistas",
+            "Compilando historial clínico del trabajador",
+            "Organizando resultados de exámenes complementarios",
+            "Estructurando documento con estándares de salud ocupacional",
+            "Finalizando certificado médico para el colaborador"
+        ];
+
+        let currentPhraseIndex = 0;
+        const phraseElement = document.getElementById('phrase');
+        let phraseInterval = null;
+
+        function showNextPhrase() {
+            phraseElement.style.animation = 'none';
+            setTimeout(() => {
+                phraseElement.textContent = phrases[currentPhraseIndex];
+                phraseElement.style.animation = 'fadeInOut 3s ease-in-out infinite';
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+            }, 50);
+        }
+
+        function stopLoader() {
+            // Detener cambio de frases
+            if (phraseInterval) {
+                clearInterval(phraseInterval);
+            }
+
+            // Detener animaciones
+            phraseElement.style.animation = 'none';
+            document.querySelector('.spinner').style.display = 'none';
+            document.querySelector('.progress-fill').style.animation = 'none';
+        }
+
+        // Mostrar primera frase inmediatamente
+        showNextPhrase();
+
+        // Cambiar frase cada 3 segundos
+        phraseInterval = setInterval(showNextPhrase, 3000);
+
+        // Iniciar descarga en segundo plano
+        const wixId = "{{ wix_id }}";
+        const downloadUrl = `/api/generar-certificado-pdf/${wixId}`;
+
+        fetch(downloadUrl)
+            .then(response => {
+                if (!response.ok) throw new Error('Error al generar certificado');
+                return response.blob();
+            })
+            .then(blob => {
+                // Detener loader
+                stopLoader();
+
+                // Descargar archivo
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `certificado_medico_${wixId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Mostrar mensaje de éxito
+                document.getElementById('status').innerHTML = '<span class="success"><strong>✓ Certificado descargado exitosamente</strong></span>';
+                phraseElement.textContent = 'Documento generado correctamente. Revisa tu carpeta de descargas.';
+
+                // Cerrar ventana después de 3 segundos
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            })
+            .catch(error => {
+                // Detener loader
+                stopLoader();
+
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '<span class="error"><strong>✕ Error al generar certificado</strong></span>';
+                phraseElement.textContent = 'Ha ocurrido un error en el proceso. Por favor contacta al administrador.';
+            });
+    </script>
+</body>
+</html>

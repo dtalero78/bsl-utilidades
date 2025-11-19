@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Certificado Médico por WhatsApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo img {
+            width: 180px;
+            height: auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 15px;
+            margin-bottom: 35px;
+            line-height: 1.5;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="tel"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Figtree', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="tel"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #888;
+            margin-top: 6px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-family: 'Figtree', sans-serif;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 102, 204, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            color: #0c5460;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-phrase {
+            font-size: 15px;
+            color: #555;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #0066cc;
+            border-radius: 8px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            10%, 90% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .whatsapp-icon {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="/static/logo-bsl.png" alt="BSL Logo">
+        </div>
+
+        <h1>Descargando Certificado Médico</h1>
+        <p class="subtitle">Esto puede tomar varios minutos. No cierres la ventana</p>
+
+        <form id="certificadoForm">
+            <div class="form-group">
+                <label for="numeroId">Número de Cédula</label>
+                <input
+                    type="text"
+                    id="numeroId"
+                    name="numeroId"
+                    placeholder="Ej: 1234567890"
+                    required
+                    pattern="[0-9]+"
+                >
+                <div class="help-text">Solo números, sin puntos ni espacios</div>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                <span class="whatsapp-icon">📱</span>
+                Enviar Certificado por WhatsApp
+            </button>
+        </form>
+
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div class="loading-phrase" id="loadingPhrase">
+                Buscando tu certificado médico...
+            </div>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="footer">
+            <p>Bienestar y Salud Laboral SAS</p>
+            <p>www.bsl.com.co</p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('certificadoForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loader = document.getElementById('loader');
+        const messageDiv = document.getElementById('message');
+        const loadingPhrase = document.getElementById('loadingPhrase');
+
+        const phrases = [
+            "Buscando tu certificado médico en la base de datos...",
+            "Recopilando información de tu examen ocupacional...",
+            "Procesando resultados de laboratorio y pruebas...",
+            "Verificando aptitud física y mental del trabajador...",
+            "Consolidando datos de audiometría y optometría...",
+            "Generando concepto médico ocupacional...",
+            "Validando recomendaciones laborales...",
+            "Preparando firmas digitales de especialistas...",
+            "Organizando información clínica del paciente...",
+            "Estructurando documento según normas de salud...",
+            "Finalizando certificado médico ocupacional...",
+            "Enviando certificado a tu WhatsApp..."
+        ];
+
+        let phraseInterval;
+        let currentPhraseIndex = 0;
+
+        function startPhraseAnimation() {
+            currentPhraseIndex = 0;
+            loadingPhrase.textContent = phrases[0];
+
+            phraseInterval = setInterval(() => {
+                currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+                loadingPhrase.style.animation = 'none';
+                setTimeout(() => {
+                    loadingPhrase.textContent = phrases[currentPhraseIndex];
+                    loadingPhrase.style.animation = 'fadeInOut 3s ease-in-out infinite';
+                }, 50);
+            }, 3000);
+        }
+
+        function stopPhraseAnimation() {
+            if (phraseInterval) {
+                clearInterval(phraseInterval);
+            }
+        }
+
+        // Verificar si hay un ID en la URL y enviar automáticamente
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Si hay un _id en la URL, enviar automáticamente
+        const historiaId = getUrlParameter('id');
+        if (historiaId) {
+            // Ejecutar automáticamente al cargar la página
+            window.addEventListener('load', () => {
+                enviarCertificadoPorId(historiaId);
+            });
+        }
+
+        // Función para enviar certificado usando el _id de la historia clínica
+        async function enviarCertificadoPorId(historiaId) {
+            // Ocultar el formulario y mostrar loader
+            form.style.display = 'none';
+            submitBtn.disabled = true;
+            loader.style.display = 'block';
+            messageDiv.style.display = 'none';
+            startPhraseAnimation();
+
+            try {
+                const response = await fetch('/enviar-certificado-whatsapp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        historiaId: historiaId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('✓ ¡Certificado enviado exitosamente! Revisa tu WhatsApp en unos momentos.', 'success');
+                } else {
+                    showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
+                    // Mostrar el formulario nuevamente en caso de error
+                    form.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión. Por favor verifica tu internet e intenta nuevamente.', 'error');
+                // Mostrar el formulario nuevamente en caso de error
+                form.style.display = 'block';
+            } finally {
+                stopPhraseAnimation();
+                submitBtn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const numeroId = document.getElementById('numeroId').value.trim();
+
+            // Validaciones
+            if (!numeroId) {
+                showMessage('Por favor ingresa tu número de cédula', 'error');
+                return;
+            }
+
+            if (!/^[0-9]+$/.test(numeroId)) {
+                showMessage('El número de cédula solo debe contener números', 'error');
+                return;
+            }
+
+            // Mostrar loader con frases animadas
+            submitBtn.disabled = true;
+            loader.style.display = 'block';
+            messageDiv.style.display = 'none';
+            startPhraseAnimation();
+
+            try {
+                const response = await fetch('/enviar-certificado-whatsapp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        numeroId: numeroId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('✓ ¡Certificado enviado exitosamente! Revisa tu WhatsApp en unos momentos.', 'success');
+                    form.reset();
+                } else {
+                    showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Error de conexión. Por favor verifica tu internet e intenta nuevamente.', 'error');
+            } finally {
+                stopPhraseAnimation();
+                submitBtn.disabled = false;
+                loader.style.display = 'none';
+            }
+        });
+
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
