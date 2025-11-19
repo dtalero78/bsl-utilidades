@@ -5146,28 +5146,30 @@ def whapi_webhook():
                 logger.info(f"   Mensaje: {body}")
                 logger.info(f"   From me: {from_me}")
 
-                # Solo procesar mensajes entrantes (from_me = False)
+                # Extraer número limpio
+                numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+                # Determinar dirección del mensaje
+                direction = 'outbound' if from_me else 'inbound'
+
+                # Enviar notificación WebSocket para TODOS los mensajes (entrantes y salientes)
+                broadcast_websocket_event('new_message', {
+                    'numero': numero_clean,
+                    'from': WHAPI_PHONE_NUMBER if from_me else from_number,
+                    'to': numero_clean if from_me else WHAPI_PHONE_NUMBER,
+                    'body': body,
+                    'message_id': message_id,
+                    'chat_id': chat_id,
+                    'type': message_type,
+                    'timestamp': timestamp_iso,  # ✅ Usar ISO string
+                    'direction': direction,  # ✅ 'outbound' si from_me, sino 'inbound'
+                    'source': 'whapi'
+                })
+
+                logger.info(f"✅ Notificación WebSocket enviada para mensaje {direction} de Whapi: {numero_clean}")
+
+                # Solo enviar push notification para mensajes entrantes
                 if not from_me:
-                    # Extraer número limpio
-                    numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
-
-                    # Enviar notificación WebSocket a todos los clientes conectados
-                    broadcast_websocket_event('new_message', {
-                        'numero': numero_clean,
-                        'from': from_number,
-                        'to': WHAPI_PHONE_NUMBER,
-                        'body': body,
-                        'message_id': message_id,
-                        'chat_id': chat_id,
-                        'type': message_type,
-                        'timestamp': timestamp_iso,  # ✅ Usar ISO string
-                        'direction': 'inbound',  # ✅ Mensaje entrante de Whapi
-                        'source': 'whapi'
-                    })
-
-                    logger.info(f"✅ Notificación WebSocket enviada para mensaje de Whapi: {numero_clean}")
-
-                    # Enviar push notification
                     try:
                         send_new_message_notification(
                             sender_name=numero_clean,
