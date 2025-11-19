@@ -22,6 +22,7 @@ import threading
 from do_spaces_uploader import subir_imagen_a_do_spaces
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from push_notifications import register_push_token, send_new_message_notification
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -4893,6 +4894,28 @@ def twilio_get_conversacion(numero):
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/twilio-chat/api/register-push-token', methods=['POST'])
+def register_push_token_endpoint():
+    """Register Expo push notification token"""
+    try:
+        data = request.json
+        token = data.get('token')
+        platform = data.get('platform', 'ios')
+
+        if not token:
+            return jsonify({'success': False, 'error': 'Token is required'}), 400
+
+        success = register_push_token(token, platform)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Token registered successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to register token'}), 500
+
+    except Exception as e:
+        logger.error(f"Error registering push token: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
 def twilio_enviar_mensaje():
     """Envía mensaje WhatsApp - Auto-detecta la línea correcta"""
@@ -4946,6 +4969,25 @@ def twilio_enviar_mensaje():
                 used_source = 'twilio'
 
         if message_id:
+            # ✅ Emitir evento WebSocket para que todos los clientes sepan del mensaje saliente
+            numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
+
+            # Determinar el número "from" según la fuente
+            from_number = WHAPI_PHONE_NUMBER if used_source == 'whapi' else NUMERO_TWILIO
+
+            broadcast_websocket_event('new_message', {
+                'numero': numero_clean,
+                'from': from_number,
+                'to': to_number,
+                'body': message_body,
+                'message_sid': message_id,
+                'direction': 'outbound',  # ← CRÍTICO: Indica mensaje saliente
+                'timestamp': datetime.now().isoformat(),
+                'source': used_source
+            })
+
+            logger.info(f"✅ WebSocket emitido para mensaje saliente a {numero_clean}")
+
             return jsonify({
                 'success': True,
                 'message_id': message_id,
@@ -4995,6 +5037,16 @@ def twilio_webhook():
             'num_media': int(num_media),
             'timestamp': datetime.now().isoformat()
         })
+
+        # Enviar push notification
+        try:
+            send_new_message_notification(
+                sender_name=numero_clean,
+                message_body=body or '(media)',
+                conversation_id=numero_clean
+            )
+        except Exception as push_error:
+            logger.error(f"⚠️ Error enviando push notification: {push_error}")
 
         # NO guardamos en Wix - Twilio ya lo guardó automáticamente
         # El mensaje estará disponible cuando se consulte la API de Twilio
@@ -5075,6 +5127,16 @@ def whapi_webhook():
                     })
 
                     logger.info(f"✅ Notificación WebSocket enviada para mensaje de Whapi: {numero_clean}")
+
+                    # Enviar push notification
+                    try:
+                        send_new_message_notification(
+                            sender_name=numero_clean,
+                            message_body=body or '(media)',
+                            conversation_id=numero_clean
+                        )
+                    except Exception as push_error:
+                        logger.error(f"⚠️ Error enviando push notification: {push_error}")
 
         return jsonify({'success': True}), 200
 
