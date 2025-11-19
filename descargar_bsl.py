@@ -4498,8 +4498,27 @@ def obtener_foto_perfil_whapi(chat_data):
         if foto_url:
             return foto_url
 
-        # Si no está en los datos del chat, retornar None
-        # (La API de Whapi requiere configuración especial para obtener fotos vía /contacts/{id}/profile)
+        # Si no está en los datos del chat, intentar obtener del perfil del contacto
+        chat_id = chat_data.get('id', '')
+        if chat_id:
+            try:
+                url = f"{WHAPI_BASE_URL}/contacts/{chat_id}/profile"
+                headers = {
+                    "accept": "application/json",
+                    "authorization": f"Bearer {WHAPI_TOKEN}"
+                }
+
+                response = requests_session.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    profile_data = response.json()
+                    # Whapi puede devolver la foto en diferentes campos
+                    foto_url = profile_data.get('picture', {}).get('url') or profile_data.get('profile_pic_url')
+                    if foto_url:
+                        logger.info(f"✅ Foto de perfil obtenida de Whapi para {chat_id}: {foto_url[:50]}...")
+                        return foto_url
+            except Exception as api_error:
+                logger.debug(f"No se pudo obtener foto de perfil de API para {chat_id}: {str(api_error)}")
+
         return None
     except Exception as e:
         logger.error(f"❌ Error obteniendo foto de perfil de Whapi: {str(e)}")
