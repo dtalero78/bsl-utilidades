@@ -61,8 +61,19 @@ load_dotenv(override=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# Inicializar SocketIO para WebSockets
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
+# Inicializar SocketIO para WebSockets con configuración de keep-alive
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='threading',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=60,  # Tiempo máximo para esperar pong del cliente
+    ping_interval=25,  # Enviar ping cada 25 segundos
+    max_http_buffer_size=1e8,  # 100 MB buffer
+    always_connect=True,
+    transports=['websocket', 'polling']
+)
 
 # Inicializar compresión gzip automática
 compress = Compress()
