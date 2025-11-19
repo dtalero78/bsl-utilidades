@@ -4492,33 +4492,20 @@ def obtener_conversaciones_whapi():
 def obtener_foto_perfil_whapi(chat_data):
     """Obtiene la URL de la foto de perfil de un contacto de Whapi desde los datos del chat"""
     try:
-        # Primero intentar obtener de los datos del chat (más eficiente)
-        foto_url = chat_data.get('chat_pic_full') or chat_data.get('chat_pic') or chat_data.get('picture')
+        # Solo intentar obtener de los datos del chat (eficiente, no hace llamadas adicionales al API)
+        # Whapi puede incluir la foto en diferentes campos según la configuración
+        foto_url = (
+            chat_data.get('chat_pic_full') or
+            chat_data.get('chat_pic') or
+            chat_data.get('picture') or
+            chat_data.get('image')
+        )
 
         if foto_url:
+            logger.debug(f"✅ Foto de perfil encontrada en datos del chat")
             return foto_url
 
-        # Si no está en los datos del chat, intentar obtener del perfil del contacto
-        chat_id = chat_data.get('id', '')
-        if chat_id:
-            try:
-                url = f"{WHAPI_BASE_URL}/contacts/{chat_id}/profile"
-                headers = {
-                    "accept": "application/json",
-                    "authorization": f"Bearer {WHAPI_TOKEN}"
-                }
-
-                response = requests_session.get(url, headers=headers, timeout=10)
-                if response.status_code == 200:
-                    profile_data = response.json()
-                    # Whapi puede devolver la foto en diferentes campos
-                    foto_url = profile_data.get('picture', {}).get('url') or profile_data.get('profile_pic_url')
-                    if foto_url:
-                        logger.info(f"✅ Foto de perfil obtenida de Whapi para {chat_id}: {foto_url[:50]}...")
-                        return foto_url
-            except Exception as api_error:
-                logger.debug(f"No se pudo obtener foto de perfil de API para {chat_id}: {str(api_error)}")
-
+        # No hacer llamadas adicionales al API para obtener fotos - eso causa lentitud
         return None
     except Exception as e:
         logger.error(f"❌ Error obteniendo foto de perfil de Whapi: {str(e)}")
