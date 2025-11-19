@@ -4,7 +4,7 @@ La aplicación móvil de BSL Chat ha sido movida a un repositorio separado para 
 
 ## Repositorio de la App Móvil
 
-**URL:** (Se creará en GitHub como repositorio separado)
+**URL:** https://github.com/dtalero78/bsl-chat-mobile
 
 **Nombre del repositorio:** `bsl-chat-mobile`
 
