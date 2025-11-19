@@ -4916,6 +4916,26 @@ def register_push_token_endpoint():
         logger.error(f"Error registering push token: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/twilio-chat/api/marcar-leido/<numero>', methods=['POST'])
+def marcar_conversacion_leida(numero):
+    """Marca una conversación como leída"""
+    try:
+        logger.info(f"📖 Marcando conversación como leída: {numero}")
+
+        # Notificar via WebSocket que la conversación fue marcada como leída
+        broadcast_websocket_event('conversation_read', {
+            'numero': numero,
+            'timestamp': datetime.now().isoformat()
+        })
+
+        return jsonify({
+            'success': True,
+            'message': f'Conversación {numero} marcada como leída'
+        })
+    except Exception as e:
+        logger.error(f"❌ Error marcando conversación como leída: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
 def twilio_enviar_mensaje():
     """Envía mensaje WhatsApp - Auto-detecta la línea correcta"""
@@ -5123,6 +5143,7 @@ def whapi_webhook():
                         'chat_id': chat_id,
                         'type': message_type,
                         'timestamp': timestamp,
+                        'direction': 'inbound',  # ✅ Mensaje entrante de Whapi
                         'source': 'whapi'
                     })
 
