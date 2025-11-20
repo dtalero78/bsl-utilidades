@@ -5219,9 +5219,14 @@ def whapi_webhook_statuses():
             # Limpiar el recipient_id para obtener el número
             numero_clean = recipient_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
 
-            # Convertir timestamp UNIX a ISO
+            # Convertir timestamp UNIX a ISO (puede venir como string o int)
             from datetime import datetime
-            timestamp_iso = datetime.fromtimestamp(timestamp).isoformat() if timestamp else None
+            if timestamp:
+                # Convertir a int si es string
+                timestamp_int = int(timestamp) if isinstance(timestamp, str) else timestamp
+                timestamp_iso = datetime.fromtimestamp(timestamp_int).isoformat()
+            else:
+                timestamp_iso = None
 
             logger.info("📱 Procesando cambio de estado:")
             logger.info(f"   Mensaje ID: {message_id}")
@@ -5269,13 +5274,28 @@ def whapi_webhook_chats():
         logger.info(f"   Payload: {json_module.dumps(data, indent=2)}")
         logger.info("="*60)
 
+        # Whapi envía chats_updates (array con before_update y after_update)
+        chats_updates = data.get('chats_updates', [])
+
+        # También soportar formato directo de chats (por si cambia la API)
         chats = data.get('chats', [])
 
-        if not chats:
+        if not chats_updates and not chats:
             return jsonify({'success': True}), 200
 
-        # Procesar cada actualización de chat
-        for chat in chats:
+        # Procesar actualizaciones (usar after_update si existe)
+        chats_to_process = []
+        if chats_updates:
+            for update in chats_updates:
+                # Usar after_update que tiene el estado actual
+                chat_data = update.get('after_update', {})
+                if chat_data:
+                    chats_to_process.append(chat_data)
+        else:
+            chats_to_process = chats
+
+        # Procesar cada chat
+        for chat in chats_to_process:
             chat_id = chat.get('id', '')
             numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
 
