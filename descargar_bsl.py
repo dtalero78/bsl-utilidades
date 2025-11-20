@@ -5006,25 +5006,24 @@ def twilio_enviar_mensaje():
                 used_source = 'twilio'
 
         if message_id:
-            # ❌ NO emitir new_message aquí - Dejar que el webhook de Whapi lo emita cuando confirme
-            # Esto evita mensajes duplicados y asegura que el mensaje se muestre solo cuando Whapi lo confirme
+            # ✅ Emitir evento WebSocket para que todos los clientes sepan del mensaje saliente
             numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
 
             # Determinar el número "from" según la fuente
             from_number = WHAPI_PHONE_NUMBER if used_source == 'whapi' else NUMERO_TWILIO
 
-            # broadcast_websocket_event('new_message', {
-            #     'numero': numero_clean,
-            #     'from': from_number,
-            #     'to': to_number,
-            #     'body': message_body,
-            #     'message_sid': message_id,
-            #     'direction': 'outbound',
-            #     'timestamp': datetime.now().isoformat(),
-            #     'source': used_source
-            # })
+            broadcast_websocket_event('new_message', {
+                'numero': numero_clean,
+                'from': from_number,
+                'to': to_number,
+                'body': message_body,
+                'message_sid': message_id,
+                'direction': 'outbound',  # ← CRÍTICO: Indica mensaje saliente
+                'timestamp': datetime.now().isoformat(),
+                'source': used_source
+            })
 
-            logger.info(f"✅ Mensaje enviado a {numero_clean} via {used_source}. Esperando confirmación de webhook.")
+            logger.info(f"✅ WebSocket emitido para mensaje saliente a {numero_clean}")
 
             return jsonify({
                 'success': True,
@@ -5305,28 +5304,41 @@ def whapi_webhook_chats():
             # Obtener foto de perfil usando la función existente
             foto_url = obtener_foto_perfil_whapi(chat)
 
+            # Obtener información del último mensaje
+            last_msg = chat.get('last_message', {})
+            last_msg_text = ''
+            last_msg_timestamp = None
+
+            if last_msg:
+                if last_msg.get('type') == 'text':
+                    last_msg_text = last_msg.get('text', {}).get('body', '')[:50]
+                else:
+                    last_msg_text = f"({last_msg.get('type', 'media')})"
+
+                last_msg_timestamp = last_msg.get('timestamp', 0)
+                if last_msg_timestamp and isinstance(last_msg_timestamp, int):
+                    from datetime import datetime
+                    last_msg_timestamp = datetime.fromtimestamp(last_msg_timestamp).isoformat()
+
             logger.info("📱 Procesando actualización de chat:")
             logger.info(f"   Chat ID: {chat_id}")
             logger.info(f"   Contacto: {numero_clean}")
             logger.info(f"   Nombre: {nombre}")
             logger.info(f"   Foto: {foto_url is not None}")
+            logger.info(f"   Último mensaje: {last_msg_text}")
 
-            # ⚠️ NO enviar last_message en conversation_update desde webhooks de chat
-            # Razón: Whapi puede enviar webhooks de cambio de foto/nombre con el last_message VIEJO
-            # Esto sobrescribe mensajes recientes en la UI
-            # El last_message se actualiza correctamente desde el webhook de new_message
-
-            # Solo emitir actualización de nombre y foto de perfil
+            # Emitir evento WebSocket para actualizar conversación en la lista
             broadcast_websocket_event('conversation_update', {
                 'numero': numero_clean,
                 'nombre': nombre,
                 'profile_picture': foto_url,
+                'last_message': last_msg_text,
+                'last_message_time': last_msg_timestamp,
                 'event_type': 'chat_update',
                 'source': 'whapi'
-                # ❌ NO incluir 'last_message' ni 'last_message_time' aquí
             })
 
-            logger.info(f"✅ WebSocket event 'conversation_update' enviado (solo nombre/foto): {numero_clean}")
+            logger.info(f"✅ WebSocket event 'conversation_update' enviado: {numero_clean}")
 
         return jsonify({'success': True}), 200
 
