@@ -61,8 +61,19 @@ load_dotenv(override=True)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# Inicializar SocketIO para WebSockets
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
+# Inicializar SocketIO para WebSockets con configuración de keep-alive
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='threading',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=30,  # Reducido de 60s a 30s para detectar desconexiones iOS más rápido
+    ping_interval=25,  # Enviar ping cada 25 segundos
+    max_http_buffer_size=1e8,  # 100 MB buffer
+    always_connect=True,
+    transports=['websocket', 'polling']
+)
 
 # Inicializar compresión gzip automática
 compress = Compress()
@@ -79,6 +90,8 @@ CORS(app, resources={
     r"/generar-certificado-medico": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Permitir cualquier origen para Wix
     r"/generar-certificado-medico-puppeteer": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Endpoint con Puppeteer
     r"/generar-certificado-desde-wix-puppeteer/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Wix con Puppeteer
+    r"/generar-certificado-alegra/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Alegra con iLovePDF
+    r"/api/generar-certificado-alegra/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # API Alegra con iLovePDF
     r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
     r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir archivos HTML temporales para Puppeteer
     r"/api/formularios": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # API para obtener formularios
@@ -139,6 +152,7 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
         f.write(base64.b64decode(TOKEN_B64))
 
 API2PDF_KEY = os.getenv("API2PDF_KEY")
+ILOVEPDF_PUBLIC_KEY = os.getenv("ILOVEPDF_PUBLIC_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
 
 # --- Importar funciones para almacenamiento externo ---
@@ -690,6 +704,129 @@ def descargar_imagen_wix_localmente(wix_url):
     # Fallback: usar URL de Wix directamente (Puppeteer puede cargarla)
     print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
     return wix_url
+
+# ================================================
+# FUNCIONES DE ILOVEPDF PARA PDF (DESCARGAS ALEGRA)
+# ================================================
+
+def ilovepdf_get_token():
+    """
+    Obtiene un token de autenticación de iLovePDF
+
+    Returns:
+        str: Token JWT de autenticación
+
+    Raises:
+        Exception: Si falla la autenticación
+    """
+    try:
+        response = requests.post(
+            'https://api.ilovepdf.com/v1/auth',
+            json={'public_key': ILOVEPDF_PUBLIC_KEY}
+        )
+        response.raise_for_status()
+        token = response.json()['token']
+        print(f"✅ [iLovePDF] Token de autenticación obtenido")
+        return token
+    except Exception as e:
+        print(f"❌ [iLovePDF] Error obteniendo token: {e}")
+        raise
+
+
+def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
+    """
+    Convierte HTML a PDF usando iLovePDF API desde una URL pública
+
+    Workflow completo de 5 pasos:
+    1. Autenticación (obtener token JWT)
+    2. Iniciar tarea (start task)
+    3. Subir URL del HTML (upload cloud_file)
+    4. Procesar conversión (process)
+    5. Descargar PDF generado (download)
+
+    Args:
+        html_url: URL pública del HTML a convertir
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+
+    Raises:
+        Exception: Si falla cualquier paso del proceso
+    """
+    try:
+        # Paso 1: Obtener token
+        token = ilovepdf_get_token()
+        headers = {'Authorization': f'Bearer {token}'}
+
+        # Paso 2: Iniciar tarea
+        print("📄 [iLovePDF] Iniciando tarea HTML→PDF...")
+        start_response = requests.get(
+            'https://api.ilovepdf.com/v1/start/htmlpdf/eu',
+            headers=headers
+        )
+        start_response.raise_for_status()
+        task_data = start_response.json()
+        server = task_data['server']
+        task_id = task_data['task']
+        print(f"✅ [iLovePDF] Tarea iniciada: {task_id} en servidor {server}")
+
+        # Paso 3: Agregar URL del HTML
+        print(f"📤 [iLovePDF] Agregando URL: {html_url}")
+        add_url_response = requests.post(
+            f'https://{server}/v1/upload',
+            json={
+                'task': task_id,
+                'cloud_file': html_url
+            },
+            headers=headers
+        )
+        add_url_response.raise_for_status()
+        server_filename = add_url_response.json()['server_filename']
+        print(f"✅ [iLovePDF] URL agregada: {server_filename}")
+
+        # Paso 4: Procesar
+        print("⚙️ [iLovePDF] Procesando HTML→PDF...")
+        process_payload = {
+            'task': task_id,
+            'tool': 'htmlpdf',
+            'files': [{
+                'server_filename': server_filename,
+                'filename': 'document.html'
+            }],
+            'output_filename': output_filename,
+            'single_page': False,  # Permite PDFs de múltiples páginas
+            'page_size': 'Letter',  # Tamaño de página estándar
+            'page_margin': 20,  # Márgenes en píxeles
+            'view_width': 850,  # Ancho del viewport
+            'page_orientation': 'portrait'  # Orientación vertical
+        }
+        process_response = requests.post(
+            f'https://{server}/v1/process',
+            json=process_payload,
+            headers=headers
+        )
+        process_response.raise_for_status()
+        result = process_response.json()
+        print(f"✅ [iLovePDF] PDF generado: {result.get('download_filename')} ({result.get('filesize')} bytes)")
+
+        # Paso 5: Descargar
+        print("📥 [iLovePDF] Descargando PDF...")
+        download_response = requests.get(
+            f'https://{server}/v1/download/{task_id}',
+            headers=headers
+        )
+        download_response.raise_for_status()
+        pdf_content = download_response.content
+        print(f"✅ [iLovePDF] PDF descargado exitosamente ({len(pdf_content)} bytes)")
+
+        return pdf_content
+
+    except Exception as e:
+        print(f"❌ [iLovePDF] Error en conversión HTML→PDF: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"❌ [iLovePDF] Respuesta del servidor: {e.response.text}")
+        raise
 
 # ================================================
 # FUNCIONES DE PUPPETEER PARA PDF
@@ -3575,6 +3712,119 @@ def api_generar_certificado_pdf(wix_id):
 
         return error_response, 500
 
+
+# ================================================
+# ENDPOINTS PARA DESCARGAS ALEGRA (iLovePDF)
+# ================================================
+
+@app.route("/generar-certificado-alegra/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_alegra(wix_id):
+    """
+    Endpoint que muestra loader mientras se genera el certificado con iLovePDF (Descargas Alegra)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    # Mostrar página de loader (reutiliza el mismo loader que Puppeteer)
+    return render_template('certificado_loader.html', wix_id=wix_id)
+
+
+@app.route("/api/generar-certificado-alegra/<wix_id>", methods=["GET", "OPTIONS"])
+def api_generar_certificado_alegra(wix_id):
+    """
+    Endpoint API que genera el PDF del certificado usando iLovePDF (para Descargas Alegra)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"📋 [ALEGRA/iLovePDF] Generando certificado para Wix ID: {wix_id}")
+
+        # Obtener parámetros opcionales
+        guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
+
+        print(f"🔧 [ALEGRA] Motor de conversión: iLovePDF")
+
+        # Construir URL del preview HTML (reutiliza el mismo endpoint que Puppeteer)
+        import time
+        cache_buster = int(time.time() * 1000)
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
+        print(f"🔗 [ALEGRA] URL del preview: {preview_url}")
+
+        # Generar PDF usando iLovePDF
+        print(f"📄 [ALEGRA] Iniciando generación con iLovePDF...")
+        pdf_content = ilovepdf_html_to_pdf_from_url(
+            html_url=preview_url,
+            output_filename=f"certificado_alegra_{wix_id}"
+        )
+
+        # Guardar PDF localmente
+        print("💾 [ALEGRA] Guardando PDF localmente...")
+        local = f"certificado_alegra_{wix_id}.pdf"
+
+        with open(local, "wb") as f:
+            f.write(pdf_content)
+
+        print(f"✅ [ALEGRA] PDF generado con iLovePDF: {local} ({len(pdf_content)} bytes)")
+
+        # Enviar archivo como descarga
+        response = send_file(
+            local,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"certificado_alegra_{wix_id}.pdf"
+        )
+
+        # Configurar CORS
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        # Limpiar archivo temporal después del envío
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.remove(local)
+                print(f"🗑️  [ALEGRA] Archivo temporal eliminado: {local}")
+            except Exception as e:
+                print(f"⚠️  [ALEGRA] Error al eliminar archivo temporal: {e}")
+
+        return response
+
+    except Exception as e:
+        print(f"❌ [ALEGRA] Error generando certificado con iLovePDF: {e}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": f"Error generando PDF con iLovePDF: {str(e)}",
+            "wix_id": wix_id
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
+
 # --- Endpoint: PREVIEW CERTIFICADO EN HTML (sin generar PDF) ---
 @app.route("/preview-certificado-html/<wix_id>", methods=["GET", "OPTIONS"])
 def preview_certificado_html(wix_id):
@@ -4481,14 +4731,20 @@ def obtener_conversaciones_whapi():
 def obtener_foto_perfil_whapi(chat_data):
     """Obtiene la URL de la foto de perfil de un contacto de Whapi desde los datos del chat"""
     try:
-        # Primero intentar obtener de los datos del chat (más eficiente)
-        foto_url = chat_data.get('chat_pic_full') or chat_data.get('chat_pic') or chat_data.get('picture')
+        # Solo intentar obtener de los datos del chat (eficiente, no hace llamadas adicionales al API)
+        # Whapi puede incluir la foto en diferentes campos según la configuración
+        foto_url = (
+            chat_data.get('chat_pic_full') or
+            chat_data.get('chat_pic') or
+            chat_data.get('picture') or
+            chat_data.get('image')
+        )
 
         if foto_url:
+            logger.debug(f"✅ Foto de perfil encontrada en datos del chat")
             return foto_url
 
-        # Si no está en los datos del chat, retornar None
-        # (La API de Whapi requiere configuración especial para obtener fotos vía /contacts/{id}/profile)
+        # No hacer llamadas adicionales al API para obtener fotos - eso causa lentitud
         return None
     except Exception as e:
         logger.error(f"❌ Error obteniendo foto de perfil de Whapi: {str(e)}")
@@ -4916,6 +5172,26 @@ def register_push_token_endpoint():
         logger.error(f"Error registering push token: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/twilio-chat/api/marcar-leido/<numero>', methods=['POST'])
+def marcar_conversacion_leida(numero):
+    """Marca una conversación como leída"""
+    try:
+        logger.info(f"📖 Marcando conversación como leída: {numero}")
+
+        # Notificar via WebSocket que la conversación fue marcada como leída
+        broadcast_websocket_event('conversation_read', {
+            'numero': numero,
+            'timestamp': datetime.now().isoformat()
+        })
+
+        return jsonify({
+            'success': True,
+            'message': f'Conversación {numero} marcada como leída'
+        })
+    except Exception as e:
+        logger.error(f"❌ Error marcando conversación como leída: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
 def twilio_enviar_mensaje():
     """Envía mensaje WhatsApp - Auto-detecta la línea correcta"""
@@ -4969,24 +5245,25 @@ def twilio_enviar_mensaje():
                 used_source = 'twilio'
 
         if message_id:
-            # ✅ Emitir evento WebSocket para que todos los clientes sepan del mensaje saliente
+            # ❌ NO emitir new_message aquí - Dejar que el webhook de Whapi lo emita cuando confirme
+            # Esto evita mensajes duplicados y asegura que el mensaje se muestre solo cuando Whapi lo confirme
             numero_clean = to_number.replace('whatsapp:', '').replace('+', '')
 
             # Determinar el número "from" según la fuente
             from_number = WHAPI_PHONE_NUMBER if used_source == 'whapi' else NUMERO_TWILIO
 
-            broadcast_websocket_event('new_message', {
-                'numero': numero_clean,
-                'from': from_number,
-                'to': to_number,
-                'body': message_body,
-                'message_sid': message_id,
-                'direction': 'outbound',  # ← CRÍTICO: Indica mensaje saliente
-                'timestamp': datetime.now().isoformat(),
-                'source': used_source
-            })
+            # broadcast_websocket_event('new_message', {
+            #     'numero': numero_clean,
+            #     'from': from_number,
+            #     'to': to_number,
+            #     'body': message_body,
+            #     'message_sid': message_id,
+            #     'direction': 'outbound',
+            #     'timestamp': datetime.now().isoformat(),
+            #     'source': used_source
+            # })
 
-            logger.info(f"✅ WebSocket emitido para mensaje saliente a {numero_clean}")
+            logger.info(f"✅ Mensaje enviado a {numero_clean} via {used_source}. Esperando confirmación de webhook.")
 
             return jsonify({
                 'success': True,
@@ -5100,6 +5377,13 @@ def whapi_webhook():
                 from_me = msg.get('from_me', False)
                 timestamp = msg.get('timestamp', 0)
 
+                # Convertir timestamp UNIX a ISO string para frontend
+                from datetime import datetime
+                if isinstance(timestamp, (int, float)):
+                    timestamp_iso = datetime.fromtimestamp(timestamp).isoformat()
+                else:
+                    timestamp_iso = timestamp  # Ya es string
+
                 logger.info("📱 Procesando mensaje de Whapi:")
                 logger.info(f"   ID: {message_id}")
                 logger.info(f"   Chat ID: {chat_id}")
@@ -5108,27 +5392,30 @@ def whapi_webhook():
                 logger.info(f"   Mensaje: {body}")
                 logger.info(f"   From me: {from_me}")
 
-                # Solo procesar mensajes entrantes (from_me = False)
+                # Extraer número limpio
+                numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+                # Determinar dirección del mensaje
+                direction = 'outbound' if from_me else 'inbound'
+
+                # Enviar notificación WebSocket para TODOS los mensajes (entrantes y salientes)
+                broadcast_websocket_event('new_message', {
+                    'numero': numero_clean,
+                    'from': WHAPI_PHONE_NUMBER if from_me else from_number,
+                    'to': numero_clean if from_me else WHAPI_PHONE_NUMBER,
+                    'body': body,
+                    'message_id': message_id,
+                    'chat_id': chat_id,
+                    'type': message_type,
+                    'timestamp': timestamp_iso,  # ✅ Usar ISO string
+                    'direction': direction,  # ✅ 'outbound' si from_me, sino 'inbound'
+                    'source': 'whapi'
+                })
+
+                logger.info(f"✅ Notificación WebSocket enviada para mensaje {direction} de Whapi: {numero_clean}")
+
+                # Solo enviar push notification para mensajes entrantes
                 if not from_me:
-                    # Extraer número limpio
-                    numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
-
-                    # Enviar notificación WebSocket a todos los clientes conectados
-                    broadcast_websocket_event('new_message', {
-                        'numero': numero_clean,
-                        'from': from_number,
-                        'to': WHAPI_PHONE_NUMBER,
-                        'body': body,
-                        'message_id': message_id,
-                        'chat_id': chat_id,
-                        'type': message_type,
-                        'timestamp': timestamp,
-                        'source': 'whapi'
-                    })
-
-                    logger.info(f"✅ Notificación WebSocket enviada para mensaje de Whapi: {numero_clean}")
-
-                    # Enviar push notification
                     try:
                         send_new_message_notification(
                             sender_name=numero_clean,
@@ -5146,14 +5433,108 @@ def whapi_webhook():
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def whapi_webhook_statuses():
+    """Procesa cambios de estado de mensajes (read receipts, delivery)"""
+    try:
+        data = request.get_json()
+
+        logger.info("="*60)
+        logger.info("📨 EVENTO WHAPI: CAMBIO DE ESTADO DE MENSAJE")
+        logger.info(f"   Payload: {json_module.dumps(data, indent=2)}")
+        logger.info("="*60)
+
+        statuses = data.get('statuses', [])
+
+        if not statuses:
+            return jsonify({'success': True}), 200
+
+        # Procesar cada cambio de estado
+        for status_update in statuses:
+            message_id = status_update.get('id', '')
+            status_code = status_update.get('code', 0)  # 1=sent, 3=delivered, 4=read
+            status_text = status_update.get('status', '')  # 'sent', 'delivered', 'read'
+            recipient_id = status_update.get('recipient_id', '')
+            timestamp = status_update.get('timestamp', 0)
+
+            # Limpiar el recipient_id para obtener el número
+            numero_clean = recipient_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+            # Convertir timestamp UNIX a ISO (puede venir como string o int)
+            from datetime import datetime
+            if timestamp:
+                # Convertir a int si es string
+                timestamp_int = int(timestamp) if isinstance(timestamp, str) else timestamp
+                timestamp_iso = datetime.fromtimestamp(timestamp_int).isoformat()
+            else:
+                timestamp_iso = None
+
+            logger.info("📱 Procesando cambio de estado:")
+            logger.info(f"   Mensaje ID: {message_id}")
+            logger.info(f"   Estado: {status_text} (code: {status_code})")
+            logger.info(f"   Contacto: {numero_clean}")
+            logger.info(f"   Timestamp: {timestamp_iso}")
+
+            # Emitir evento WebSocket para actualizar estado de mensaje individual
+            broadcast_websocket_event('message_status', {
+                'message_id': message_id,
+                'numero': numero_clean,
+                'status': status_text,      # 'sent', 'delivered', 'read'
+                'status_code': status_code,  # 1, 3, 4
+                'timestamp': timestamp_iso,
+                'source': 'whapi'
+            })
+
+            logger.info(f"✅ WebSocket event 'message_status' enviado para {numero_clean}")
+
+            # Si es un mensaje leído, actualizar la conversación
+            if status_text == 'read' or status_code == 4:
+                broadcast_websocket_event('conversation_update', {
+                    'numero': numero_clean,
+                    'last_read_timestamp': timestamp_iso,
+                    'event_type': 'message_read',
+                    'source': 'whapi'
+                })
+                logger.info(f"✅ WebSocket event 'conversation_update' enviado (read): {numero_clean}")
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error procesando cambio de estado Whapi: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def whapi_webhook_chats():
+    """Procesa actualizaciones de chat - DESHABILITADO (fotos de perfil no funcionan correctamente)"""
+    try:
+        # ❌ FUNCIONALIDAD DESHABILITADA
+        # Razón: Whapi envía falsos positivos de cambio de foto y las fotos no se muestran
+        # Solo aceptar el webhook para evitar errores en Whapi
+
+        logger.info("📨 Webhook de chat recibido (ignorado - funcionalidad deshabilitada)")
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error procesando webhook de chat Whapi: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Rutas adicionales de Whapi (envía eventos a diferentes paths)
 @app.route('/twilio-chat/webhook/whapi/messages', methods=['GET', 'POST', 'PATCH'])
 @app.route('/twilio-chat/webhook/whapi/statuses', methods=['GET', 'POST'])
 @app.route('/twilio-chat/webhook/whapi/chats', methods=['GET', 'POST', 'PATCH'])
 def whapi_webhook_events():
     """Webhook para eventos específicos de Whapi (messages, statuses, chats)"""
-    # Redirigir todo al webhook principal
-    return whapi_webhook()
+    # Determinar el tipo de evento según la ruta
+    path = request.path
+
+    if 'messages' in path:
+        return whapi_webhook()  # Procesar mensajes (ya implementado)
+    elif 'statuses' in path:
+        return whapi_webhook_statuses()  # Procesar cambios de estado
+    elif 'chats' in path:
+        return whapi_webhook_chats()  # Procesar actualizaciones de chat
+
+    return jsonify({'error': 'Unknown event type'}), 400
 
 # Servir archivos estáticos de Twilio
 @app.route('/twilio-chat/static/<path:filename>')

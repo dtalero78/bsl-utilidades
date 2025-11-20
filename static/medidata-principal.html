@@ -98,6 +98,33 @@
             cursor: not-allowed;
         }
 
+        .btn-alegra {
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Figtree', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-alegra:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(155, 89, 182, 0.3);
+        }
+
+        .btn-alegra:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .search-container {
             background: white;
             padding: 25px 30px;
@@ -403,6 +430,9 @@
                 <button class="btn-descargar" id="btnDescargarCertificado" disabled>
                     📥 Descargar Certificado
                 </button>
+                <button class="btn-alegra" id="btnDescargarAlegra" disabled>
+                    📊 Descargas Alegra
+                </button>
                 <button class="btn btn-secondary" id="backBtn">← Volver a resultados</button>
             </div>
         </div>
@@ -450,12 +480,21 @@
             resultsContainer.style.display = 'block';
             currentPatientId = null;
             btnDescargarCertificado.disabled = true;
+            btnDescargarAlegra.disabled = true;
             btnSolicitarCertificado.disabled = true;
         });
 
         btnDescargarCertificado.addEventListener('click', () => {
             if (currentPatientId) {
                 const url = `${window.location.origin}/generar-certificado-desde-wix/${currentPatientId}`;
+                window.open(url, '_blank');
+            }
+        });
+
+        const btnDescargarAlegra = document.getElementById('btnDescargarAlegra');
+        btnDescargarAlegra.addEventListener('click', () => {
+            if (currentPatientId) {
+                const url = `${window.location.origin}/generar-certificado-alegra/${currentPatientId}`;
                 window.open(url, '_blank');
             }
         });
@@ -531,6 +570,7 @@
                     currentPatientData = data;
                     currentPatientId = historiaId;
                     btnDescargarCertificado.disabled = false;
+                    btnDescargarAlegra.disabled = false;
                     btnSolicitarCertificado.disabled = false;
                     mostrarDetalles(data);
                 } else {

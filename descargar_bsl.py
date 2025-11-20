@@ -90,6 +90,8 @@ CORS(app, resources={
     r"/generar-certificado-medico": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Permitir cualquier origen para Wix
     r"/generar-certificado-medico-puppeteer": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # Endpoint con Puppeteer
     r"/generar-certificado-desde-wix-puppeteer/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Wix con Puppeteer
+    r"/generar-certificado-alegra/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Endpoint Alegra con iLovePDF
+    r"/api/generar-certificado-alegra/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # API Alegra con iLovePDF
     r"/images/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir imágenes públicamente
     r"/temp-html/*": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # Servir archivos HTML temporales para Puppeteer
     r"/api/formularios": {"origins": "*", "methods": ["GET", "OPTIONS"]},  # API para obtener formularios
@@ -150,6 +152,7 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
         f.write(base64.b64decode(TOKEN_B64))
 
 API2PDF_KEY = os.getenv("API2PDF_KEY")
+ILOVEPDF_PUBLIC_KEY = os.getenv("ILOVEPDF_PUBLIC_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
 
 # --- Importar funciones para almacenamiento externo ---
@@ -701,6 +704,129 @@ def descargar_imagen_wix_localmente(wix_url):
     # Fallback: usar URL de Wix directamente (Puppeteer puede cargarla)
     print(f"⚠️  Usando URL de Wix directamente (fallback): {wix_url}")
     return wix_url
+
+# ================================================
+# FUNCIONES DE ILOVEPDF PARA PDF (DESCARGAS ALEGRA)
+# ================================================
+
+def ilovepdf_get_token():
+    """
+    Obtiene un token de autenticación de iLovePDF
+
+    Returns:
+        str: Token JWT de autenticación
+
+    Raises:
+        Exception: Si falla la autenticación
+    """
+    try:
+        response = requests.post(
+            'https://api.ilovepdf.com/v1/auth',
+            json={'public_key': ILOVEPDF_PUBLIC_KEY}
+        )
+        response.raise_for_status()
+        token = response.json()['token']
+        print(f"✅ [iLovePDF] Token de autenticación obtenido")
+        return token
+    except Exception as e:
+        print(f"❌ [iLovePDF] Error obteniendo token: {e}")
+        raise
+
+
+def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
+    """
+    Convierte HTML a PDF usando iLovePDF API desde una URL pública
+
+    Workflow completo de 5 pasos:
+    1. Autenticación (obtener token JWT)
+    2. Iniciar tarea (start task)
+    3. Subir URL del HTML (upload cloud_file)
+    4. Procesar conversión (process)
+    5. Descargar PDF generado (download)
+
+    Args:
+        html_url: URL pública del HTML a convertir
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+
+    Raises:
+        Exception: Si falla cualquier paso del proceso
+    """
+    try:
+        # Paso 1: Obtener token
+        token = ilovepdf_get_token()
+        headers = {'Authorization': f'Bearer {token}'}
+
+        # Paso 2: Iniciar tarea
+        print("📄 [iLovePDF] Iniciando tarea HTML→PDF...")
+        start_response = requests.get(
+            'https://api.ilovepdf.com/v1/start/htmlpdf/eu',
+            headers=headers
+        )
+        start_response.raise_for_status()
+        task_data = start_response.json()
+        server = task_data['server']
+        task_id = task_data['task']
+        print(f"✅ [iLovePDF] Tarea iniciada: {task_id} en servidor {server}")
+
+        # Paso 3: Agregar URL del HTML
+        print(f"📤 [iLovePDF] Agregando URL: {html_url}")
+        add_url_response = requests.post(
+            f'https://{server}/v1/upload',
+            json={
+                'task': task_id,
+                'cloud_file': html_url
+            },
+            headers=headers
+        )
+        add_url_response.raise_for_status()
+        server_filename = add_url_response.json()['server_filename']
+        print(f"✅ [iLovePDF] URL agregada: {server_filename}")
+
+        # Paso 4: Procesar
+        print("⚙️ [iLovePDF] Procesando HTML→PDF...")
+        process_payload = {
+            'task': task_id,
+            'tool': 'htmlpdf',
+            'files': [{
+                'server_filename': server_filename,
+                'filename': 'document.html'
+            }],
+            'output_filename': output_filename,
+            'single_page': False,  # Permite PDFs de múltiples páginas
+            'page_size': 'Letter',  # Tamaño de página estándar
+            'page_margin': 20,  # Márgenes en píxeles
+            'view_width': 850,  # Ancho del viewport
+            'page_orientation': 'portrait'  # Orientación vertical
+        }
+        process_response = requests.post(
+            f'https://{server}/v1/process',
+            json=process_payload,
+            headers=headers
+        )
+        process_response.raise_for_status()
+        result = process_response.json()
+        print(f"✅ [iLovePDF] PDF generado: {result.get('download_filename')} ({result.get('filesize')} bytes)")
+
+        # Paso 5: Descargar
+        print("📥 [iLovePDF] Descargando PDF...")
+        download_response = requests.get(
+            f'https://{server}/v1/download/{task_id}',
+            headers=headers
+        )
+        download_response.raise_for_status()
+        pdf_content = download_response.content
+        print(f"✅ [iLovePDF] PDF descargado exitosamente ({len(pdf_content)} bytes)")
+
+        return pdf_content
+
+    except Exception as e:
+        print(f"❌ [iLovePDF] Error en conversión HTML→PDF: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"❌ [iLovePDF] Respuesta del servidor: {e.response.text}")
+        raise
 
 # ================================================
 # FUNCIONES DE PUPPETEER PARA PDF
@@ -3585,6 +3711,119 @@ def api_generar_certificado_pdf(wix_id):
         error_response.headers["Access-Control-Allow-Origin"] = "*"
 
         return error_response, 500
+
+
+# ================================================
+# ENDPOINTS PARA DESCARGAS ALEGRA (iLovePDF)
+# ================================================
+
+@app.route("/generar-certificado-alegra/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_alegra(wix_id):
+    """
+    Endpoint que muestra loader mientras se genera el certificado con iLovePDF (Descargas Alegra)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    # Mostrar página de loader (reutiliza el mismo loader que Puppeteer)
+    return render_template('certificado_loader.html', wix_id=wix_id)
+
+
+@app.route("/api/generar-certificado-alegra/<wix_id>", methods=["GET", "OPTIONS"])
+def api_generar_certificado_alegra(wix_id):
+    """
+    Endpoint API que genera el PDF del certificado usando iLovePDF (para Descargas Alegra)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"📋 [ALEGRA/iLovePDF] Generando certificado para Wix ID: {wix_id}")
+
+        # Obtener parámetros opcionales
+        guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
+
+        print(f"🔧 [ALEGRA] Motor de conversión: iLovePDF")
+
+        # Construir URL del preview HTML (reutiliza el mismo endpoint que Puppeteer)
+        import time
+        cache_buster = int(time.time() * 1000)
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
+        print(f"🔗 [ALEGRA] URL del preview: {preview_url}")
+
+        # Generar PDF usando iLovePDF
+        print(f"📄 [ALEGRA] Iniciando generación con iLovePDF...")
+        pdf_content = ilovepdf_html_to_pdf_from_url(
+            html_url=preview_url,
+            output_filename=f"certificado_alegra_{wix_id}"
+        )
+
+        # Guardar PDF localmente
+        print("💾 [ALEGRA] Guardando PDF localmente...")
+        local = f"certificado_alegra_{wix_id}.pdf"
+
+        with open(local, "wb") as f:
+            f.write(pdf_content)
+
+        print(f"✅ [ALEGRA] PDF generado con iLovePDF: {local} ({len(pdf_content)} bytes)")
+
+        # Enviar archivo como descarga
+        response = send_file(
+            local,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"certificado_alegra_{wix_id}.pdf"
+        )
+
+        # Configurar CORS
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        # Limpiar archivo temporal después del envío
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.remove(local)
+                print(f"🗑️  [ALEGRA] Archivo temporal eliminado: {local}")
+            except Exception as e:
+                print(f"⚠️  [ALEGRA] Error al eliminar archivo temporal: {e}")
+
+        return response
+
+    except Exception as e:
+        print(f"❌ [ALEGRA] Error generando certificado con iLovePDF: {e}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": f"Error generando PDF con iLovePDF: {str(e)}",
+            "wix_id": wix_id
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
 
 # --- Endpoint: PREVIEW CERTIFICADO EN HTML (sin generar PDF) ---
 @app.route("/preview-certificado-html/<wix_id>", methods=["GET", "OPTIONS"])
