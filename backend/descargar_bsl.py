@@ -3909,28 +3909,16 @@ def preview_certificado_alegra(wix_id):
             traceback.print_exc()
             # Continuar sin datos de formulario
 
-        # 3. Ahora usar la misma lógica del preview-certificado-html existente
-        # Reutilizar el mismo código para generar el HTML con los datos enriquecidos
-        # (Este sería el mismo código que está en preview-certificado-html pero usando datos_wix enriquecido)
+        # 3. Ahora generar el preview HTML completo con los datos enriquecidos
+        print(f"✅ [ALEGRA] Generando preview HTML completo con datos de FORMULARIO")
 
-        # Por ahora, redirigir al preview normal (luego lo mejoramos)
-        print(f"✅ [ALEGRA] Preview generado con datos de FORMULARIO")
+        # Guardar datos enriquecidos temporalmente en flask.g para que preview_certificado_html los use
+        import flask
+        flask.g.datos_wix_enriquecidos = datos_wix
+        flask.g.usar_datos_formulario = True
 
-        # Aquí debería ir todo el código de renderizado de preview-certificado-html
-        # pero usando los datos_wix enriquecidos con FORMULARIO
-        # Para simplificar, por ahora retornamos un HTML básico
-        return f"""
-        <html>
-            <body>
-                <h1>Preview Alegra (con FORMULARIO)</h1>
-                <p>Paciente: {datos_wix.get('primerNombre')} {datos_wix.get('primerApellido')}</p>
-                <p>Edad: {datos_wix.get('edad', 'N/A')}</p>
-                <p>Género: {datos_wix.get('genero', 'N/A')}</p>
-                <p>Hijos: {datos_wix.get('hijos', 'N/A')}</p>
-                <p>Estado Civil: {datos_wix.get('estadoCivil', 'N/A')}</p>
-            </body>
-        </html>
-        """
+        # Llamar internamente al preview normal que ya tiene toda la lógica de renderizado
+        return preview_certificado_html(wix_id)
 
     except Exception as e:
         print(f"❌ [ALEGRA] Error general: {str(e)}")
@@ -3964,27 +3952,37 @@ def preview_certificado_html(wix_id):
         # Consultar datos desde Wix HTTP Functions
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
 
-        try:
-            wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
-            response = requests.get(wix_url, timeout=10)
+        # Verificar si tenemos datos enriquecidos de Alegra (vienen de flask.g)
+        import flask
+        usar_datos_formulario = getattr(flask.g, 'usar_datos_formulario', False)
 
-            if response.status_code == 200:
-                wix_response = response.json()
-                datos_wix = wix_response.get("data", {})
+        if usar_datos_formulario and hasattr(flask.g, 'datos_wix_enriquecidos'):
+            # Usar datos ya enriquecidos con FORMULARIO (vienen de preview_certificado_alegra)
+            datos_wix = flask.g.datos_wix_enriquecidos
+            print(f"✅ [ALEGRA] Usando datos enriquecidos con FORMULARIO para preview")
+        else:
+            # Consultar normalmente desde Wix (flujo original de Puppeteer)
+            try:
+                wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+                response = requests.get(wix_url, timeout=10)
 
-                if not datos_wix:
-                    print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
-                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
+                if response.status_code == 200:
+                    wix_response = response.json()
+                    datos_wix = wix_response.get("data", {})
 
-                print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
-            else:
-                print(f"❌ Error consultando Wix: {response.status_code}")
-                return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+                    if not datos_wix:
+                        print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
+                        return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
 
-        except Exception as e:
-            print(f"❌ Error de conexión a Wix: {str(e)}")
-            traceback.print_exc()
-            return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
+                    print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
+                else:
+                    print(f"❌ Error consultando Wix: {response.status_code}")
+                    return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+
+            except Exception as e:
+                print(f"❌ Error de conexión a Wix: {str(e)}")
+                traceback.print_exc()
+                return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
 
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
