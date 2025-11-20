@@ -5193,14 +5193,158 @@ def whapi_webhook():
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def whapi_webhook_statuses():
+    """Procesa cambios de estado de mensajes (read receipts, delivery)"""
+    try:
+        data = request.get_json()
+
+        logger.info("="*60)
+        logger.info("📨 EVENTO WHAPI: CAMBIO DE ESTADO DE MENSAJE")
+        logger.info(f"   Payload: {json_module.dumps(data, indent=2)}")
+        logger.info("="*60)
+
+        statuses = data.get('statuses', [])
+
+        if not statuses:
+            return jsonify({'success': True}), 200
+
+        # Procesar cada cambio de estado
+        for status_update in statuses:
+            message_id = status_update.get('id', '')
+            status_code = status_update.get('code', 0)  # 1=sent, 3=delivered, 4=read
+            status_text = status_update.get('status', '')  # 'sent', 'delivered', 'read'
+            recipient_id = status_update.get('recipient_id', '')
+            timestamp = status_update.get('timestamp', 0)
+
+            # Limpiar el recipient_id para obtener el número
+            numero_clean = recipient_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+            # Convertir timestamp UNIX a ISO
+            from datetime import datetime
+            timestamp_iso = datetime.fromtimestamp(timestamp).isoformat() if timestamp else None
+
+            logger.info("📱 Procesando cambio de estado:")
+            logger.info(f"   Mensaje ID: {message_id}")
+            logger.info(f"   Estado: {status_text} (code: {status_code})")
+            logger.info(f"   Contacto: {numero_clean}")
+            logger.info(f"   Timestamp: {timestamp_iso}")
+
+            # Emitir evento WebSocket para actualizar estado de mensaje individual
+            broadcast_websocket_event('message_status', {
+                'message_id': message_id,
+                'numero': numero_clean,
+                'status': status_text,      # 'sent', 'delivered', 'read'
+                'status_code': status_code,  # 1, 3, 4
+                'timestamp': timestamp_iso,
+                'source': 'whapi'
+            })
+
+            logger.info(f"✅ WebSocket event 'message_status' enviado para {numero_clean}")
+
+            # Si es un mensaje leído, actualizar la conversación
+            if status_text == 'read' or status_code == 4:
+                broadcast_websocket_event('conversation_update', {
+                    'numero': numero_clean,
+                    'last_read_timestamp': timestamp_iso,
+                    'event_type': 'message_read',
+                    'source': 'whapi'
+                })
+                logger.info(f"✅ WebSocket event 'conversation_update' enviado (read): {numero_clean}")
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error procesando cambio de estado Whapi: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def whapi_webhook_chats():
+    """Procesa actualizaciones de chat (nombre, foto, último mensaje)"""
+    try:
+        data = request.get_json()
+
+        logger.info("="*60)
+        logger.info("📨 EVENTO WHAPI: ACTUALIZACIÓN DE CHAT")
+        logger.info(f"   Payload: {json_module.dumps(data, indent=2)}")
+        logger.info("="*60)
+
+        chats = data.get('chats', [])
+
+        if not chats:
+            return jsonify({'success': True}), 200
+
+        # Procesar cada actualización de chat
+        for chat in chats:
+            chat_id = chat.get('id', '')
+            numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+            nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
+
+            # Obtener foto de perfil usando la función existente
+            foto_url = obtener_foto_perfil_whapi(chat)
+
+            # Obtener información del último mensaje
+            last_msg = chat.get('last_message', {})
+            last_msg_text = ''
+            last_msg_timestamp = None
+
+            if last_msg:
+                if last_msg.get('type') == 'text':
+                    last_msg_text = last_msg.get('text', {}).get('body', '')[:50]
+                else:
+                    last_msg_text = f"({last_msg.get('type', 'media')})"
+
+                last_msg_timestamp = last_msg.get('timestamp', 0)
+                if last_msg_timestamp and isinstance(last_msg_timestamp, int):
+                    from datetime import datetime
+                    last_msg_timestamp = datetime.fromtimestamp(last_msg_timestamp).isoformat()
+
+            logger.info("📱 Procesando actualización de chat:")
+            logger.info(f"   Chat ID: {chat_id}")
+            logger.info(f"   Contacto: {numero_clean}")
+            logger.info(f"   Nombre: {nombre}")
+            logger.info(f"   Foto: {foto_url is not None}")
+            logger.info(f"   Último mensaje: {last_msg_text}")
+
+            # Emitir evento WebSocket para actualizar conversación en la lista
+            broadcast_websocket_event('conversation_update', {
+                'numero': numero_clean,
+                'nombre': nombre,
+                'profile_picture': foto_url,
+                'last_message': last_msg_text,
+                'last_message_time': last_msg_timestamp,
+                'event_type': 'chat_update',
+                'source': 'whapi'
+            })
+
+            logger.info(f"✅ WebSocket event 'conversation_update' enviado: {numero_clean}")
+
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error procesando actualización de chat Whapi: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Rutas adicionales de Whapi (envía eventos a diferentes paths)
 @app.route('/twilio-chat/webhook/whapi/messages', methods=['GET', 'POST', 'PATCH'])
 @app.route('/twilio-chat/webhook/whapi/statuses', methods=['GET', 'POST'])
 @app.route('/twilio-chat/webhook/whapi/chats', methods=['GET', 'POST', 'PATCH'])
 def whapi_webhook_events():
     """Webhook para eventos específicos de Whapi (messages, statuses, chats)"""
-    # Redirigir todo al webhook principal
-    return whapi_webhook()
+    # Determinar el tipo de evento según la ruta
+    path = request.path
+
+    if 'messages' in path:
+        return whapi_webhook()  # Procesar mensajes (ya implementado)
+    elif 'statuses' in path:
+        return whapi_webhook_statuses()  # Procesar cambios de estado
+    elif 'chats' in path:
+        return whapi_webhook_chats()  # Procesar actualizaciones de chat
+
+    return jsonify({'error': 'Unknown event type'}), 400
 
 # Servir archivos estáticos de Twilio
 @app.route('/twilio-chat/static/<path:filename>')
