@@ -5266,74 +5266,17 @@ def whapi_webhook_statuses():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def whapi_webhook_chats():
-    """Procesa actualizaciones de chat (nombre, foto, último mensaje)"""
+    """Procesa actualizaciones de chat - DESHABILITADO (fotos de perfil no funcionan correctamente)"""
     try:
-        data = request.get_json()
+        # ❌ FUNCIONALIDAD DESHABILITADA
+        # Razón: Whapi envía falsos positivos de cambio de foto y las fotos no se muestran
+        # Solo aceptar el webhook para evitar errores en Whapi
 
-        logger.info("="*60)
-        logger.info("📨 EVENTO WHAPI: ACTUALIZACIÓN DE CHAT")
-        logger.info(f"   Payload: {json_module.dumps(data, indent=2)}")
-        logger.info("="*60)
-
-        # Whapi envía chats_updates (array con before_update y after_update)
-        chats_updates = data.get('chats_updates', [])
-
-        # También soportar formato directo de chats (por si cambia la API)
-        chats = data.get('chats', [])
-
-        if not chats_updates and not chats:
-            return jsonify({'success': True}), 200
-
-        # Procesar actualizaciones (usar after_update si existe)
-        chats_to_process = []
-        if chats_updates:
-            for update in chats_updates:
-                # Usar after_update que tiene el estado actual
-                chat_data = update.get('after_update', {})
-                if chat_data:
-                    chats_to_process.append(chat_data)
-        else:
-            chats_to_process = chats
-
-        # Procesar cada chat
-        for chat in chats_to_process:
-            chat_id = chat.get('id', '')
-            numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
-
-            nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
-
-            # Obtener foto de perfil usando la función existente
-            foto_url = obtener_foto_perfil_whapi(chat)
-
-            logger.info("📱 Procesando actualización de chat:")
-            logger.info(f"   Chat ID: {chat_id}")
-            logger.info(f"   Contacto: {numero_clean}")
-            logger.info(f"   Nombre: {nombre}")
-            logger.info(f"   Foto: {foto_url is not None}")
-
-            # ⚠️ NO enviar last_message en conversation_update desde webhooks de chat
-            # Razón: Whapi puede enviar webhooks de cambio de foto/nombre con el last_message VIEJO
-            # Esto sobrescribe mensajes recientes en la UI
-            # El last_message se actualiza correctamente desde el webhook de new_message
-
-            # Solo emitir actualización de nombre y foto de perfil
-            broadcast_websocket_event('conversation_update', {
-                'numero': numero_clean,
-                'nombre': nombre,
-                'profile_picture': foto_url,
-                'event_type': 'chat_update',
-                'source': 'whapi'
-                # ❌ NO incluir 'last_message' ni 'last_message_time' aquí
-            })
-
-            logger.info(f"✅ WebSocket event 'conversation_update' enviado (solo nombre/foto): {numero_clean}")
-
+        logger.info("📨 Webhook de chat recibido (ignorado - funcionalidad deshabilitada)")
         return jsonify({'success': True}), 200
 
     except Exception as e:
-        logger.error(f"❌ Error procesando actualización de chat Whapi: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"❌ Error procesando webhook de chat Whapi: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Rutas adicionales de Whapi (envía eventos a diferentes paths)
