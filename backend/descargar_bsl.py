@@ -1795,23 +1795,30 @@ def generar_certificado_medico():
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
 
-        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
-        if data.get("wix_id"):
-            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
-            if datos_postgres:
-                # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
-                    if key in datos_postgres:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
-
-        # Asegurar que existan los campos aunque estén vacíos
+        # Asegurar que existan los campos aunque estén vacíos (PRIMERO)
         datos_certificado.setdefault("eps", "")
         datos_certificado.setdefault("arl", "")
         datos_certificado.setdefault("pensiones", "")
         datos_certificado.setdefault("nivel_educativo", "")
+
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        # Esto sobrescribirá los valores vacíos con los datos reales de la BD
+        if data.get("wix_id"):
+            print(f"🔍 Buscando datos adicionales para wix_id: {data.get('wix_id')}")
+            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
+            if datos_postgres:
+                print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
+                # Merge datos de PostgreSQL con datos del certificado
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                    if key in datos_postgres and datos_postgres[key]:
+                        # Mapear nivelEducativo a nivel_educativo para la plantilla
+                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        datos_certificado[template_key] = datos_postgres[key]
+                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                    else:
+                        print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+            else:
+                print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
         # Determinar si mostrar aviso de sin soporte
         mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
@@ -2043,23 +2050,30 @@ def generar_certificado_medico_puppeteer():
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
 
-        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
-        if data.get("wix_id"):
-            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
-            if datos_postgres:
-                # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
-                    if key in datos_postgres:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
-
-        # Asegurar que existan los campos aunque estén vacíos
+        # Asegurar que existan los campos aunque estén vacíos (PRIMERO)
         datos_certificado.setdefault("eps", "")
         datos_certificado.setdefault("arl", "")
         datos_certificado.setdefault("pensiones", "")
         datos_certificado.setdefault("nivel_educativo", "")
+
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        # Esto sobrescribirá los valores vacíos con los datos reales de la BD
+        if data.get("wix_id"):
+            print(f"🔍 Buscando datos adicionales para wix_id: {data.get('wix_id')}")
+            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
+            if datos_postgres:
+                print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
+                # Merge datos de PostgreSQL con datos del certificado
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                    if key in datos_postgres and datos_postgres[key]:
+                        # Mapear nivelEducativo a nivel_educativo para la plantilla
+                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        datos_certificado[template_key] = datos_postgres[key]
+                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                    else:
+                        print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+            else:
+                print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
         # Determinar si mostrar aviso de sin soporte
         mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
