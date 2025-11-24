@@ -3471,7 +3471,21 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix['firma_paciente'] = None
                 print(f"ℹ️  No hay firma disponible en PostgreSQL")
 
-            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
+            # Datos de seguridad social (EPS, ARL, Pensiones, Nivel Educativo)
+            if datos_formulario.get('eps'):
+                datos_wix['eps'] = datos_formulario.get('eps')
+                print(f"✅ EPS de PostgreSQL: {datos_formulario.get('eps')}")
+            if datos_formulario.get('arl'):
+                datos_wix['arl'] = datos_formulario.get('arl')
+                print(f"✅ ARL de PostgreSQL: {datos_formulario.get('arl')}")
+            if datos_formulario.get('pensiones'):
+                datos_wix['pensiones'] = datos_formulario.get('pensiones')
+                print(f"✅ Pensiones de PostgreSQL: {datos_formulario.get('pensiones')}")
+            if datos_formulario.get('nivelEducativo'):
+                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
+                print(f"✅ Nivel Educativo de PostgreSQL: {datos_formulario.get('nivelEducativo')}")
+
+            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}")
         else:
             print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}")
             datos_wix['foto_paciente'] = None
@@ -3663,6 +3677,12 @@ def api_generar_certificado_pdf(wix_id):
             "email": datos_wix.get('email', ''),
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
+
+            # Seguridad social y nivel educativo
+            "eps": datos_wix.get('eps', ''),
+            "arl": datos_wix.get('arl', ''),
+            "pensiones": datos_wix.get('pensiones', ''),
+            "nivel_educativo": datos_wix.get('nivel_educativo', ''),
 
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
