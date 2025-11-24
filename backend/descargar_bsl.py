@@ -3208,11 +3208,15 @@ def api_generar_certificado_pdf(wix_id):
 
         print(f"🔧 Motor de conversión: Puppeteer")
 
-        # Consultar datos desde Wix HTTP Functions
+        # ===== PRIORIDAD 1: CONSULTAR DATOS DESDE POSTGRESQL =====
+        print(f"🔍 [PRIORIDAD 1] Consultando PostgreSQL para wix_id: {wix_id}")
+        datos_postgres = obtener_datos_formulario_postgres(wix_id)
+
+        # ===== PRIORIDAD 2: CONSULTAR DATOS DESDE WIX (COMPLEMENTO) =====
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        print(f"🔍 [PRIORIDAD 2] Consultando Wix HTTP Function: {wix_base_url}/historiaClinicaPorId?_id={wix_id}")
 
-        print(f"🔍 Consultando Wix HTTP Function: {wix_base_url}/historiaClinicaPorId?_id={wix_id}")
-
+        datos_wix = {}
         try:
             # Llamar al endpoint de Wix
             wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
@@ -3225,28 +3229,61 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix = wix_response.get("data", {})
 
                 if not datos_wix:
-                    print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
-                    return jsonify({
-                        "success": False,
-                        "error": "No se encontraron datos del paciente en el sistema"
-                    }), 404
-
-                print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
-                print(f"📋 Paciente: {datos_wix.get('primerNombre', '')} {datos_wix.get('primerApellido', '')}")
+                    print(f"⚠️ Wix retornó respuesta vacía, usando solo datos de PostgreSQL")
+                else:
+                    print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
+                    print(f"📋 Paciente Wix: {datos_wix.get('primerNombre', '')} {datos_wix.get('primerApellido', '')}")
             else:
-                print(f"❌ Error consultando Wix: {response.status_code}")
-                return jsonify({
-                    "success": False,
-                    "error": f"Error al obtener datos del paciente (código {response.status_code})"
-                }), 500
+                print(f"⚠️ Error consultando Wix: {response.status_code}, usando solo PostgreSQL")
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error de conexión con Wix: {e}")
+            print(f"⚠️ Error de conexión con Wix: {e}, usando solo PostgreSQL")
             traceback.print_exc()
-            return jsonify({
-                "success": False,
-                "error": "Error de conexión con el sistema de datos. Intenta nuevamente."
-            }), 500
+
+        # ===== MERGE DE DATOS: PostgreSQL SOBRESCRIBE A WIX =====
+        print(f"🔄 Haciendo merge de datos: PostgreSQL (prioridad) → Wix (complemento)")
+
+        if datos_postgres:
+            print(f"✅ Datos de PostgreSQL disponibles, sobrescribiendo datos de Wix...")
+            # PostgreSQL sobrescribe TODOS los campos que tenga
+            if datos_postgres.get('eps'):
+                datos_wix['eps'] = datos_postgres.get('eps')
+                print(f"  ✓ EPS: {datos_postgres.get('eps')}")
+            if datos_postgres.get('arl'):
+                datos_wix['arl'] = datos_postgres.get('arl')
+                print(f"  ✓ ARL: {datos_postgres.get('arl')}")
+            if datos_postgres.get('pensiones'):
+                datos_wix['pensiones'] = datos_postgres.get('pensiones')
+                print(f"  ✓ Pensiones: {datos_postgres.get('pensiones')}")
+            if datos_postgres.get('nivelEducativo'):
+                datos_wix['nivel_educativo'] = datos_postgres.get('nivelEducativo')
+                print(f"  ✓ Nivel Educativo: {datos_postgres.get('nivelEducativo')}")
+            if datos_postgres.get('edad'):
+                datos_wix['edad'] = datos_postgres.get('edad')
+            if datos_postgres.get('genero'):
+                datos_wix['genero'] = datos_postgres.get('genero')
+            if datos_postgres.get('estadoCivil'):
+                datos_wix['estadoCivil'] = datos_postgres.get('estadoCivil')
+            if datos_postgres.get('hijos'):
+                datos_wix['hijos'] = datos_postgres.get('hijos')
+            if datos_postgres.get('email'):
+                datos_wix['email'] = datos_postgres.get('email')
+            if datos_postgres.get('profesionUOficio'):
+                datos_wix['profesionUOficio'] = datos_postgres.get('profesionUOficio')
+            if datos_postgres.get('ciudadDeResidencia'):
+                datos_wix['ciudadDeResidencia'] = datos_postgres.get('ciudadDeResidencia')
+            if datos_postgres.get('fechaNacimiento'):
+                datos_wix['fechaNacimiento'] = datos_postgres.get('fechaNacimiento')
+            if datos_postgres.get('foto'):
+                datos_wix['foto_paciente'] = datos_postgres.get('foto')
+                print(f"  ✓ Foto: disponible desde PostgreSQL")
+            if datos_postgres.get('firma'):
+                datos_wix['firma_paciente'] = datos_postgres.get('firma')
+                print(f"  ✓ Firma: disponible desde PostgreSQL")
+
+            print(f"📊 Merge completado: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}")
+        else:
+            print(f"⚠️ No hay datos de PostgreSQL, usando solo datos de Wix")
 
         # Transformar datos de Wix al formato del endpoint de certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
@@ -3427,69 +3464,6 @@ def api_generar_certificado_pdf(wix_id):
                     print(f"⚠️ Error al consultar datos de audiometría: {audio_response.status_code}")
             except Exception as e:
                 print(f"❌ Error consultando datos de audiometría: {e}")
-
-        # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
-        wix_id_historia = datos_wix.get('_id', wix_id)
-        print(f"🔍 Consultando datos del formulario desde PostgreSQL para wix_id: {wix_id_historia}")
-
-        datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
-
-        if datos_formulario:
-            print(f"✅ Datos del formulario obtenidos desde PostgreSQL")
-
-            # Sobrescribir los datos de HistoriaClinica con los de PostgreSQL si existen
-            if datos_formulario.get('edad'):
-                datos_wix['edad'] = datos_formulario.get('edad')
-            if datos_formulario.get('genero'):
-                datos_wix['genero'] = datos_formulario.get('genero')
-            if datos_formulario.get('estadoCivil'):
-                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
-            if datos_formulario.get('hijos'):
-                datos_wix['hijos'] = datos_formulario.get('hijos')
-            if datos_formulario.get('email'):
-                datos_wix['email'] = datos_formulario.get('email')
-            if datos_formulario.get('profesionUOficio'):
-                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
-            if datos_formulario.get('ciudadDeResidencia'):
-                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
-            if datos_formulario.get('fechaNacimiento'):
-                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
-
-            # Foto del paciente
-            if datos_formulario.get('foto'):
-                datos_wix['foto_paciente'] = datos_formulario.get('foto')
-                print(f"✅ Usando foto de PostgreSQL (data URI base64)")
-            else:
-                datos_wix['foto_paciente'] = None
-                print(f"ℹ️  No hay foto disponible en PostgreSQL")
-
-            # Firma del paciente
-            if datos_formulario.get('firma'):
-                datos_wix['firma_paciente'] = datos_formulario.get('firma')
-                print(f"✅ Usando firma de PostgreSQL (data URI base64)")
-            else:
-                datos_wix['firma_paciente'] = None
-                print(f"ℹ️  No hay firma disponible en PostgreSQL")
-
-            # Datos de seguridad social (EPS, ARL, Pensiones, Nivel Educativo)
-            if datos_formulario.get('eps'):
-                datos_wix['eps'] = datos_formulario.get('eps')
-                print(f"✅ EPS de PostgreSQL: {datos_formulario.get('eps')}")
-            if datos_formulario.get('arl'):
-                datos_wix['arl'] = datos_formulario.get('arl')
-                print(f"✅ ARL de PostgreSQL: {datos_formulario.get('arl')}")
-            if datos_formulario.get('pensiones'):
-                datos_wix['pensiones'] = datos_formulario.get('pensiones')
-                print(f"✅ Pensiones de PostgreSQL: {datos_formulario.get('pensiones')}")
-            if datos_formulario.get('nivelEducativo'):
-                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
-                print(f"✅ Nivel Educativo de PostgreSQL: {datos_formulario.get('nivelEducativo')}")
-
-            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}")
-        else:
-            print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}")
-            datos_wix['foto_paciente'] = None
-            datos_wix['firma_paciente'] = None
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         textos_examenes = {
