@@ -305,7 +305,11 @@ def obtener_datos_formulario_postgres(wix_id):
                 fecha_nacimiento,
                 primer_nombre,
                 primer_apellido,
-                firma
+                firma,
+                eps,
+                arl,
+                pensiones,
+                nivel_educativo
             FROM formularios
             WHERE wix_id = %s
             LIMIT 1;
@@ -319,7 +323,7 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
@@ -386,6 +390,23 @@ def obtener_datos_formulario_postgres(wix_id):
         else:
             print(f"ℹ️  [PostgreSQL] Sin firma válida")
             datos_formulario['firma'] = None
+
+        # Campos de seguridad social
+        if eps:
+            datos_formulario['eps'] = eps
+            print(f"🏥 [PostgreSQL] EPS: {eps}")
+
+        if arl:
+            datos_formulario['arl'] = arl
+            print(f"🛡️  [PostgreSQL] ARL: {arl}")
+
+        if pensiones:
+            datos_formulario['pensiones'] = pensiones
+            print(f"💰 [PostgreSQL] Pensiones: {pensiones}")
+
+        if nivel_educativo:
+            datos_formulario['nivelEducativo'] = nivel_educativo
+            print(f"🎓 [PostgreSQL] Nivel educativo: {nivel_educativo}")
 
         return datos_formulario
 
@@ -1774,6 +1795,24 @@ def generar_certificado_medico():
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
 
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        if data.get("wix_id"):
+            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
+            if datos_postgres:
+                # Merge datos de PostgreSQL con datos del certificado
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                    if key in datos_postgres:
+                        # Mapear nivelEducativo a nivel_educativo para la plantilla
+                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        datos_certificado[template_key] = datos_postgres[key]
+                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+
+        # Asegurar que existan los campos aunque estén vacíos
+        datos_certificado.setdefault("eps", "")
+        datos_certificado.setdefault("arl", "")
+        datos_certificado.setdefault("pensiones", "")
+        datos_certificado.setdefault("nivel_educativo", "")
+
         # Determinar si mostrar aviso de sin soporte
         mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
         datos_certificado["mostrar_sin_soporte"] = mostrar_aviso
@@ -2003,6 +2042,24 @@ def generar_certificado_medico_puppeteer():
             # Logo URL
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
         }
+
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        if data.get("wix_id"):
+            datos_postgres = obtener_datos_formulario_postgres(data.get("wix_id"))
+            if datos_postgres:
+                # Merge datos de PostgreSQL con datos del certificado
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                    if key in datos_postgres:
+                        # Mapear nivelEducativo a nivel_educativo para la plantilla
+                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        datos_certificado[template_key] = datos_postgres[key]
+                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+
+        # Asegurar que existan los campos aunque estén vacíos
+        datos_certificado.setdefault("eps", "")
+        datos_certificado.setdefault("arl", "")
+        datos_certificado.setdefault("pensiones", "")
+        datos_certificado.setdefault("nivel_educativo", "")
 
         # Determinar si mostrar aviso de sin soporte
         mostrar_aviso, texto_aviso = determinar_mostrar_sin_soporte(data)
@@ -3879,13 +3936,19 @@ def preview_certificado_alegra(wix_id):
         print(f"📋 [ALEGRA] Consultando FORMULARIO con idGeneral={wix_id}")
         try:
             formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id}"
+            print(f"🔗 [ALEGRA] URL de consulta: {formulario_url}")
             formulario_response = requests.get(formulario_url, timeout=10)
+
+            print(f"📡 [ALEGRA] Status code de FORMULARIO: {formulario_response.status_code}")
 
             if formulario_response.status_code == 200:
                 formulario_data = formulario_response.json()
+                print(f"📦 [ALEGRA] Response completo de FORMULARIO: {json_module.dumps(formulario_data, indent=2)}")
+
                 if formulario_data.get('success') and formulario_data.get('item'):
                     formulario = formulario_data['item']
                     print(f"✅ [ALEGRA] Datos demográficos obtenidos de FORMULARIO")
+                    print(f"📝 [ALEGRA] Campos en formulario: {list(formulario.keys())}")
 
                     # Agregar datos demográficos a datos_wix
                     datos_wix['edad'] = formulario.get('edad')
@@ -3902,8 +3965,10 @@ def preview_certificado_alegra(wix_id):
                     print(f"📊 [ALEGRA] Datos demográficos integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
                 else:
                     print(f"⚠️ [ALEGRA] No se encontró formulario para idGeneral: {wix_id}")
+                    print(f"⚠️ [ALEGRA] Response data: success={formulario_data.get('success')}, has_item={bool(formulario_data.get('item'))}")
             else:
                 print(f"⚠️ [ALEGRA] Error al consultar FORMULARIO: {formulario_response.status_code}")
+                print(f"⚠️ [ALEGRA] Response text: {formulario_response.text}")
         except Exception as e:
             print(f"❌ [ALEGRA] Error consultando FORMULARIO: {e}")
             traceback.print_exc()
