@@ -4271,6 +4271,20 @@ def preview_certificado_html(wix_id):
             if datos_formulario.get('fechaNacimiento'):
                 datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
 
+            # ===== MERGE DE NUEVOS CAMPOS: EPS, ARL, PENSIONES, NIVEL EDUCATIVO =====
+            if datos_formulario.get('eps'):
+                datos_wix['eps'] = datos_formulario.get('eps')
+                print(f"  ✓ EPS: {datos_formulario.get('eps')}", flush=True)
+            if datos_formulario.get('arl'):
+                datos_wix['arl'] = datos_formulario.get('arl')
+                print(f"  ✓ ARL: {datos_formulario.get('arl')}", flush=True)
+            if datos_formulario.get('pensiones'):
+                datos_wix['pensiones'] = datos_formulario.get('pensiones')
+                print(f"  ✓ Pensiones: {datos_formulario.get('pensiones')}", flush=True)
+            if datos_formulario.get('nivelEducativo'):
+                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
+                print(f"  ✓ Nivel Educativo: {datos_formulario.get('nivelEducativo')}", flush=True)
+
             # Foto del paciente
             if datos_formulario.get('foto'):
                 datos_wix['foto_paciente'] = datos_formulario.get('foto')
@@ -4287,7 +4301,7 @@ def preview_certificado_html(wix_id):
                 datos_wix['firma_paciente'] = None
                 print(f"ℹ️  No hay firma disponible en PostgreSQL", flush=True)
 
-            print(f"📊 Datos del formulario integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}", flush=True)
+            print(f"📊 Merge completado (preview): edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}", flush=True)
         else:
             print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}", flush=True)
             datos_wix['foto_paciente'] = None
@@ -4503,7 +4517,12 @@ def preview_certificado_html(wix_id):
             "optometra_registro": "Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
             "examenes_detallados": [],
-            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
+            # ===== NUEVOS CAMPOS DESDE POSTGRESQL =====
+            "eps": datos_wix.get('eps', ''),
+            "arl": datos_wix.get('arl', ''),
+            "pensiones": datos_wix.get('pensiones', ''),
+            "nivel_educativo": datos_wix.get('nivel_educativo', '')
         }
 
         # Determinar si mostrar aviso de sin soporte
