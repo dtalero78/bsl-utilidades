@@ -7,9 +7,7 @@ import { twiml, validateRequest } from 'twilio';
 import { fetch } from 'wix-fetch';
 import wixData from 'wix-data';
 import { sendmessage } from 'backend/realtime.jsw';
-import { enviarCertificadosProgramados } from 'backend/BotLinks';
-import { barridoYEnvioMensajesConDelay } from 'backend/BotLinks';
-import { envioLinkMedicoVirtual } from 'backend/BotLinks';
+import { enviarCertificadosProgramados, barridoYEnvioMensajesConDelay, envioLinkMedicoVirtual, testSincronizarPostgres } from 'backend/BotLinks';
 import { actualizarResumenConversacion } from 'backend/exposeDataBase';
 import { obtenerHorasOcupadas } from 'backend/exposeDataBase';
 import { crearRegistroAgente } from 'backend/exposeDataBase';
@@ -19,7 +17,7 @@ import { obtenerFormularios, actualizarFormulario, obtenerFormularioPorIdGeneral
 import { obtenerAudiometrias, actualizarAudiometria, crearAudiometria } from 'backend/exposeDataBase';
 import { obtenerVisuales, actualizarVisual, crearVisual } from 'backend/exposeDataBase';
 import { obtenerAdcTests, actualizarAdcTest, crearAdcTest } from 'backend/exposeDataBase';
-import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente, actualizarHistoriaClinica } from 'backend/exposeDataBase';
+import { obtenerEstadisticasConsultas, buscarPacientesMediData, obtenerDatosCompletosPaciente } from 'backend/exposeDataBase';
 import {
   obtenerEstadisticasMedico,
   obtenerPacientesPendientes,
@@ -29,7 +27,8 @@ import {
   obtenerTodosProgramadosHoy,
   obtenerDatosFormularioPorHistoriaId,
   obtenerDatosCompletosParaFormulario,
-  obtenerHistoriaClinica
+  obtenerHistoriaClinica,
+  actualizarHistoriaClinica
 } from 'backend/integracionPanelMedico';
 import { handleWhatsAppButtonClick, generateSuccessPage, generateErrorPage } from 'backend/twilioWhatsApp';
 import { enviarPreguntasTrasRespuesta } from 'backend/automaticWhp';
@@ -2662,3 +2661,50 @@ export async function post_twilioWhatsAppWebhook(request) {
         });
     }
 }
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════
+ * ENDPOINT DE PRUEBA - SINCRONIZACIÓN CON POSTGRESQL
+ * ════════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * GET: Probar sincronización con PostgreSQL
+ * URL: /_functions/testPostgres?wixId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ */
+export async function get_testPostgres(request) {
+    const { wixId } = request.query;
+
+    if (!wixId) {
+        return badRequest({
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: { success: false, error: "El parámetro 'wixId' es requerido" }
+        });
+    }
+
+    try {
+        console.log(`[testPostgres] Iniciando prueba para wixId: ${wixId}`);
+        const resultado = await testSincronizarPostgres(wixId);
+
+        return ok({
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: resultado
+        });
+    } catch (error) {
+        console.error("[testPostgres] Error:", error);
+        return serverError({
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: { success: false, error: error.message }
+        });
+    }
+}
+

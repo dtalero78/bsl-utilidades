@@ -3940,47 +3940,95 @@ def preview_certificado_alegra(wix_id):
             traceback.print_exc()
             return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
 
-        # 2. Consultar FORMULARIO con el wix_id (idGeneral)
-        print(f"📋 [ALEGRA] Consultando FORMULARIO con idGeneral={wix_id}")
-        try:
-            formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id}"
-            print(f"🔗 [ALEGRA] URL de consulta: {formulario_url}")
-            formulario_response = requests.get(formulario_url, timeout=10)
+        # 2. Consultar FORMULARIO desde PostgreSQL (fuente principal, igual que Puppeteer)
+        print(f"📋 [ALEGRA] Consultando FORMULARIO desde PostgreSQL con wix_id={wix_id}")
 
-            print(f"📡 [ALEGRA] Status code de FORMULARIO: {formulario_response.status_code}")
+        datos_formulario = obtener_datos_formulario_postgres(wix_id)
 
-            if formulario_response.status_code == 200:
-                formulario_data = formulario_response.json()
-                print(f"📦 [ALEGRA] Response completo de FORMULARIO: {json_module.dumps(formulario_data, indent=2)}")
+        if datos_formulario:
+            print(f"✅ [ALEGRA] Datos del formulario obtenidos desde PostgreSQL")
 
-                if formulario_data.get('success') and formulario_data.get('item'):
-                    formulario = formulario_data['item']
-                    print(f"✅ [ALEGRA] Datos demográficos obtenidos de FORMULARIO")
-                    print(f"📝 [ALEGRA] Campos en formulario: {list(formulario.keys())}")
+            # Agregar datos demográficos a datos_wix
+            if datos_formulario.get('edad'):
+                datos_wix['edad'] = datos_formulario.get('edad')
+            if datos_formulario.get('genero'):
+                datos_wix['genero'] = datos_formulario.get('genero')
+            if datos_formulario.get('estadoCivil'):
+                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+            if datos_formulario.get('hijos'):
+                datos_wix['hijos'] = datos_formulario.get('hijos')
+            if datos_formulario.get('email'):
+                datos_wix['email'] = datos_formulario.get('email')
+            if datos_formulario.get('profesionUOficio'):
+                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+            if datos_formulario.get('ciudadDeResidencia'):
+                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+            if datos_formulario.get('fechaNacimiento'):
+                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
 
-                    # Agregar datos demográficos a datos_wix
-                    datos_wix['edad'] = formulario.get('edad')
-                    datos_wix['genero'] = formulario.get('genero')
-                    datos_wix['estadoCivil'] = formulario.get('estadoCivil')
-                    datos_wix['hijos'] = formulario.get('hijos')
-                    datos_wix['email'] = formulario.get('email')
-                    datos_wix['profesionUOficio'] = formulario.get('profesionUOficio')
-                    datos_wix['ciudadDeResidencia'] = formulario.get('ciudadDeResidencia')
-                    datos_wix['fechaNacimiento'] = formulario.get('fechaNacimiento')
-                    datos_wix['foto_paciente'] = formulario.get('foto')  # Foto del formulario
-                    datos_wix['firma_paciente'] = formulario.get('firma')  # Firma del paciente
-
-                    print(f"📊 [ALEGRA] Datos demográficos integrados: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, hijos={datos_wix.get('hijos')}")
-                else:
-                    print(f"⚠️ [ALEGRA] No se encontró formulario para idGeneral: {wix_id}")
-                    print(f"⚠️ [ALEGRA] Response data: success={formulario_data.get('success')}, has_item={bool(formulario_data.get('item'))}")
+            # Foto y firma del paciente
+            if datos_formulario.get('foto'):
+                datos_wix['foto_paciente'] = datos_formulario.get('foto')
+                print(f"✅ [ALEGRA] Foto obtenida de PostgreSQL")
             else:
-                print(f"⚠️ [ALEGRA] Error al consultar FORMULARIO: {formulario_response.status_code}")
-                print(f"⚠️ [ALEGRA] Response text: {formulario_response.text}")
-        except Exception as e:
-            print(f"❌ [ALEGRA] Error consultando FORMULARIO: {e}")
-            traceback.print_exc()
-            # Continuar sin datos de formulario
+                datos_wix['foto_paciente'] = None
+
+            if datos_formulario.get('firma'):
+                datos_wix['firma_paciente'] = datos_formulario.get('firma')
+                print(f"✅ [ALEGRA] Firma obtenida de PostgreSQL")
+            else:
+                datos_wix['firma_paciente'] = None
+
+            # Campos de seguridad social
+            if datos_formulario.get('eps'):
+                datos_wix['eps'] = datos_formulario.get('eps')
+            if datos_formulario.get('arl'):
+                datos_wix['arl'] = datos_formulario.get('arl')
+            if datos_formulario.get('pensiones'):
+                datos_wix['pensiones'] = datos_formulario.get('pensiones')
+            if datos_formulario.get('nivelEducativo'):
+                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
+
+            print(f"📊 [ALEGRA] Datos integrados desde PostgreSQL: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}")
+        else:
+            print(f"⚠️ [ALEGRA] No se encontró formulario en PostgreSQL, intentando Wix como fallback...")
+
+            # Fallback: Consultar FORMULARIO desde Wix
+            try:
+                formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id}"
+                print(f"🔗 [ALEGRA] URL de consulta Wix: {formulario_url}")
+                formulario_response = requests.get(formulario_url, timeout=10)
+
+                if formulario_response.status_code == 200:
+                    formulario_data = formulario_response.json()
+
+                    if formulario_data.get('success') and formulario_data.get('item'):
+                        formulario = formulario_data['item']
+                        print(f"✅ [ALEGRA] Datos demográficos obtenidos de Wix FORMULARIO (fallback)")
+
+                        # Agregar datos demográficos a datos_wix
+                        datos_wix['edad'] = formulario.get('edad')
+                        datos_wix['genero'] = formulario.get('genero')
+                        datos_wix['estadoCivil'] = formulario.get('estadoCivil')
+                        datos_wix['hijos'] = formulario.get('hijos')
+                        datos_wix['email'] = formulario.get('email')
+                        datos_wix['profesionUOficio'] = formulario.get('profesionUOficio')
+                        datos_wix['ciudadDeResidencia'] = formulario.get('ciudadDeResidencia')
+                        datos_wix['fechaNacimiento'] = formulario.get('fechaNacimiento')
+                        datos_wix['foto_paciente'] = formulario.get('foto')
+                        datos_wix['firma_paciente'] = formulario.get('firma')
+                    else:
+                        print(f"⚠️ [ALEGRA] No se encontró formulario en Wix para idGeneral: {wix_id}")
+                        datos_wix['foto_paciente'] = None
+                        datos_wix['firma_paciente'] = None
+                else:
+                    print(f"⚠️ [ALEGRA] Error al consultar FORMULARIO en Wix: {formulario_response.status_code}")
+                    datos_wix['foto_paciente'] = None
+                    datos_wix['firma_paciente'] = None
+            except Exception as e:
+                print(f"❌ [ALEGRA] Error consultando FORMULARIO en Wix: {e}")
+                datos_wix['foto_paciente'] = None
+                datos_wix['firma_paciente'] = None
 
         # 3. Ahora generar el preview HTML completo con los datos enriquecidos
         print(f"✅ [ALEGRA] Generando preview HTML completo con datos de FORMULARIO")

@@ -338,22 +338,49 @@ export async function buscarPacientesMediData(termino) {
 
         let result;
 
-        // Si el término es numérico, buscar por numeroId o celular
-        if (/^\d+$/.test(termino)) {
-            // Buscar por numeroId
-            const resultNumeroId = await wixData.query("HistoriaClinica")
+        // Detectar si parece un documento (números puros, o números con guión/letras como 1234789639-P)
+        const esDocumento = /^\d+(-[A-Za-z0-9]+)?$/.test(termino) || /^\d+$/.test(termino);
+        const esSoloNumeros = /^\d+$/.test(termino);
+
+        if (esDocumento) {
+            // Buscar por numeroId (coincidencia exacta)
+            const resultNumeroIdExacto = await wixData.query("HistoriaClinica")
                 .eq("numeroId", termino)
                 .limit(50)
                 .find();
 
-            // Buscar por celular
-            const resultCelular = await wixData.query("HistoriaClinica")
-                .eq("celular", termino)
+            // También buscar si el término está contenido en numeroId (para IDs alfanuméricos)
+            const resultNumeroIdContains = await wixData.query("HistoriaClinica")
+                .contains("numeroId", termino)
                 .limit(50)
                 .find();
 
+            // Si tiene guión, también buscar por la parte numérica antes del guión
+            let resultNumeroIdParcial = { items: [] };
+            if (termino.includes('-')) {
+                const parteNumerica = termino.split('-')[0];
+                resultNumeroIdParcial = await wixData.query("HistoriaClinica")
+                    .startsWith("numeroId", parteNumerica)
+                    .limit(50)
+                    .find();
+            }
+
+            // Buscar por celular (solo si es puramente numérico)
+            let resultCelular = { items: [] };
+            if (esSoloNumeros) {
+                resultCelular = await wixData.query("HistoriaClinica")
+                    .eq("celular", termino)
+                    .limit(50)
+                    .find();
+            }
+
             // Combinar resultados y eliminar duplicados
-            const combinedItems = [...resultNumeroId.items, ...resultCelular.items];
+            const combinedItems = [
+                ...resultNumeroIdExacto.items,
+                ...resultNumeroIdContains.items,
+                ...resultNumeroIdParcial.items,
+                ...resultCelular.items
+            ];
             const uniqueItems = Array.from(new Map(combinedItems.map(item => [item._id, item])).values());
 
             result = {
@@ -361,7 +388,7 @@ export async function buscarPacientesMediData(termino) {
                 totalCount: uniqueItems.length
             };
         } else {
-            // Si es texto, buscar por apellidos
+            // Si es texto puro, buscar por apellidos
             const resultPrimerApellido = await wixData.query("HistoriaClinica")
                 .contains("primerApellido", termino.toUpperCase())
                 .limit(50)
