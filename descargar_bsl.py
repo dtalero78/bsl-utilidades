@@ -6964,6 +6964,418 @@ def ver_formularios_page():
     return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
+# ================================================
+# ENDPOINTS V2: PUPPETEER + POSTGRESQL → WIX FALLBACK
+# (Reemplazo de endpoints Alegra que usaban iLovePDF)
+# ================================================
+
+@app.route("/preview-certificado-v2/<wix_id>", methods=["GET", "OPTIONS"])
+def preview_certificado_v2(wix_id):
+    """
+    Endpoint para previsualizar el certificado en HTML con lógica:
+    1. PostgreSQL FORMULARIO (prioridad)
+    2. Wix FORMULARIO (fallback si PostgreSQL no tiene datos)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Returns:
+        HTML renderizado del certificado con datos demográficos
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"🔍 [V2] Previsualizando certificado HTML para Wix ID: {wix_id}")
+
+        # Consultar datos desde Wix HTTP Functions
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+
+        # 1. Obtener datos de HistoriaClinica
+        try:
+            wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+            response = requests.get(wix_url, timeout=10)
+
+            if response.status_code == 200:
+                wix_response = response.json()
+                datos_wix = wix_response.get("data", {})
+
+                if not datos_wix:
+                    print(f"❌ [V2] Error: Wix retornó respuesta vacía para ID: {wix_id}")
+                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
+
+                print(f"✅ [V2] Datos obtenidos de HistoriaClinica para ID: {wix_id}")
+            else:
+                print(f"❌ [V2] Error consultando Wix: {response.status_code}")
+                return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+
+        except Exception as e:
+            print(f"❌ [V2] Error de conexión a Wix: {str(e)}")
+            traceback.print_exc()
+            return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
+
+        # 2. Consultar FORMULARIO desde PostgreSQL (fuente principal)
+        print(f"📋 [V2] Consultando FORMULARIO desde PostgreSQL con wix_id={wix_id}")
+
+        datos_formulario = obtener_datos_formulario_postgres(wix_id)
+
+        if datos_formulario:
+            print(f"✅ [V2] Datos del formulario obtenidos desde PostgreSQL")
+
+            # Agregar datos demográficos a datos_wix
+            if datos_formulario.get('edad'):
+                datos_wix['edad'] = datos_formulario.get('edad')
+            if datos_formulario.get('genero'):
+                datos_wix['genero'] = datos_formulario.get('genero')
+            if datos_formulario.get('estadoCivil'):
+                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+            if datos_formulario.get('hijos'):
+                datos_wix['hijos'] = datos_formulario.get('hijos')
+            if datos_formulario.get('email'):
+                datos_wix['email'] = datos_formulario.get('email')
+            if datos_formulario.get('profesionUOficio'):
+                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+            if datos_formulario.get('ciudadDeResidencia'):
+                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+            if datos_formulario.get('fechaNacimiento'):
+                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
+
+            # Foto y firma del paciente
+            if datos_formulario.get('foto'):
+                datos_wix['foto_paciente'] = datos_formulario.get('foto')
+                print(f"✅ [V2] Foto obtenida de PostgreSQL")
+            else:
+                datos_wix['foto_paciente'] = None
+
+            if datos_formulario.get('firma'):
+                datos_wix['firma_paciente'] = datos_formulario.get('firma')
+                print(f"✅ [V2] Firma obtenida de PostgreSQL")
+            else:
+                datos_wix['firma_paciente'] = None
+
+            # Campos de seguridad social
+            if datos_formulario.get('eps'):
+                datos_wix['eps'] = datos_formulario.get('eps')
+            if datos_formulario.get('arl'):
+                datos_wix['arl'] = datos_formulario.get('arl')
+            if datos_formulario.get('pensiones'):
+                datos_wix['pensiones'] = datos_formulario.get('pensiones')
+            if datos_formulario.get('nivelEducativo'):
+                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
+
+            print(f"📊 [V2] Datos integrados desde PostgreSQL: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}")
+        else:
+            print(f"⚠️ [V2] No se encontró formulario en PostgreSQL, intentando Wix como fallback...")
+
+            # Fallback: Consultar FORMULARIO desde Wix
+            try:
+                formulario_url = f"{wix_base_url}/formularioPorIdGeneral?idGeneral={wix_id}"
+                print(f"🔗 [V2] URL de consulta Wix: {formulario_url}")
+                formulario_response = requests.get(formulario_url, timeout=10)
+
+                if formulario_response.status_code == 200:
+                    formulario_data = formulario_response.json()
+
+                    if formulario_data.get('success') and formulario_data.get('item'):
+                        formulario = formulario_data['item']
+                        print(f"✅ [V2] Datos demográficos obtenidos de Wix FORMULARIO (fallback)")
+
+                        # Agregar datos demográficos a datos_wix
+                        datos_wix['edad'] = formulario.get('edad')
+                        datos_wix['genero'] = formulario.get('genero')
+                        datos_wix['estadoCivil'] = formulario.get('estadoCivil')
+                        datos_wix['hijos'] = formulario.get('hijos')
+                        datos_wix['email'] = formulario.get('email')
+                        datos_wix['profesionUOficio'] = formulario.get('profesionUOficio')
+                        datos_wix['ciudadDeResidencia'] = formulario.get('ciudadDeResidencia')
+                        datos_wix['fechaNacimiento'] = formulario.get('fechaNacimiento')
+                        datos_wix['foto_paciente'] = formulario.get('foto')
+                        datos_wix['firma_paciente'] = formulario.get('firma')
+
+                        # Campos de seguridad social desde Wix
+                        if formulario.get('eps'):
+                            datos_wix['eps'] = formulario.get('eps')
+                        if formulario.get('arl'):
+                            datos_wix['arl'] = formulario.get('arl')
+                        if formulario.get('pensiones'):
+                            datos_wix['pensiones'] = formulario.get('pensiones')
+                        if formulario.get('nivelEducativo'):
+                            datos_wix['nivel_educativo'] = formulario.get('nivelEducativo')
+                    else:
+                        print(f"⚠️ [V2] No se encontró formulario en Wix para idGeneral: {wix_id}")
+                        datos_wix['foto_paciente'] = None
+                        datos_wix['firma_paciente'] = None
+                else:
+                    print(f"⚠️ [V2] Error al consultar FORMULARIO en Wix: {formulario_response.status_code}")
+                    datos_wix['foto_paciente'] = None
+                    datos_wix['firma_paciente'] = None
+            except Exception as e:
+                print(f"❌ [V2] Error consultando FORMULARIO en Wix: {e}")
+                datos_wix['foto_paciente'] = None
+                datos_wix['firma_paciente'] = None
+
+        # 3. Ahora generar el preview HTML completo con los datos enriquecidos
+        print(f"✅ [V2] Generando preview HTML completo con datos de FORMULARIO")
+
+        # Guardar datos enriquecidos temporalmente en flask.g para que preview_certificado_html los use
+        import flask
+        flask.g.datos_wix_enriquecidos = datos_wix
+        flask.g.usar_datos_formulario = True
+
+        # Llamar internamente al preview normal que ya tiene toda la lógica de renderizado
+        return preview_certificado_html(wix_id)
+
+    except Exception as e:
+        print(f"❌ [V2] Error general: {str(e)}")
+        traceback.print_exc()
+        return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>", 500
+
+
+@app.route("/generar-certificado-v2/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_v2(wix_id):
+    """
+    Endpoint que muestra loader mientras se genera el certificado con Puppeteer V2
+    (Usa la lógica de fallback PostgreSQL → Wix FORMULARIO)
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    # Mostrar página de loader (reutiliza el mismo loader que Puppeteer)
+    # Pero con endpoint API diferente
+    loader_html = f'''<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generando Certificado...</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        .logo {{
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }}
+        @keyframes pulse {{
+            0%, 100% {{ opacity: 1; transform: scale(1); }}
+            50% {{ opacity: 0.7; transform: scale(0.95); }}
+        }}
+        h2 {{
+            color: #333;
+            margin-bottom: 10px;
+        }}
+        p {{
+            color: #666;
+        }}
+        .spinner {{
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        .error {{
+            color: #e74c3c;
+            display: none;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://static.wixstatic.com/media/e09c3b_93e0f27ed89a4f3a9d10cdeb0d0a4186~mv2.png"
+             alt="BSL Logo" class="logo">
+        <h2 id="status-text">Generando su certificado...</h2>
+        <div class="spinner" id="spinner"></div>
+        <p id="status-detail">Por favor espere mientras preparamos su documento</p>
+        <p class="error" id="error-msg"></p>
+    </div>
+    <script>
+        async function generarPDF() {{
+            try {{
+                const response = await fetch('/api/generar-certificado-pdf-v2/{wix_id}');
+
+                if (response.ok) {{
+                    // Si es exitoso, descargar el PDF
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'certificado_medico.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+
+                    // Mostrar éxito
+                    document.getElementById('status-text').textContent = '¡Certificado generado!';
+                    document.getElementById('status-detail').textContent = 'La descarga debería comenzar automáticamente';
+                    document.getElementById('spinner').style.display = 'none';
+                }} else {{
+                    const error = await response.json();
+                    throw new Error(error.error || 'Error desconocido');
+                }}
+            }} catch (error) {{
+                document.getElementById('status-text').textContent = 'Error al generar certificado';
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('error-msg').style.display = 'block';
+                document.getElementById('error-msg').textContent = error.message;
+            }}
+        }}
+
+        // Iniciar generación al cargar
+        generarPDF();
+    </script>
+</body>
+</html>'''
+    return loader_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route("/api/generar-certificado-pdf-v2/<wix_id>", methods=["GET", "OPTIONS"])
+def api_generar_certificado_pdf_v2(wix_id):
+    """
+    Endpoint API que genera el PDF del certificado usando Puppeteer
+    con lógica de fallback: PostgreSQL FORMULARIO → Wix FORMULARIO
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Query params opcionales:
+        guardar_drive: true/false (default: false)
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"📋 [V2/Puppeteer] Generando certificado para Wix ID: {wix_id}")
+
+        # Obtener parámetros opcionales
+        guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
+
+        print(f"🔧 [V2] Motor de conversión: Puppeteer")
+        print(f"🔧 [V2] Lógica de datos: PostgreSQL → Wix FORMULARIO fallback")
+
+        # Construir URL del preview HTML V2 (con fallback PostgreSQL → Wix)
+        import time
+        cache_buster = int(time.time() * 1000)
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-v2/{wix_id}?v={cache_buster}"
+        print(f"🔗 [V2] URL del preview: {preview_url}")
+
+        # Obtener numeroId para el nombre del archivo
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        numero_id = wix_id  # fallback
+        try:
+            wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+            response = requests.get(wix_url, timeout=10)
+            if response.status_code == 200:
+                wix_response = response.json()
+                datos_wix = wix_response.get("data", {})
+                numero_id = datos_wix.get('numeroId', wix_id)
+        except:
+            pass
+
+        # Generar PDF usando Puppeteer
+        print(f"🎭 [V2] Iniciando generación con Puppeteer...")
+        try:
+            pdf_content = puppeteer_html_to_pdf_from_url(
+                html_url=preview_url,
+                output_filename=f"certificado_v2_{numero_id}"
+            )
+
+            # Guardar PDF localmente
+            print("💾 [V2] Guardando PDF localmente...")
+            documento_sanitized = str(numero_id).replace(" ", "_").replace("/", "_").replace("\\", "_")
+            local = f"certificado_v2_{documento_sanitized}.pdf"
+
+            with open(local, "wb") as f:
+                f.write(pdf_content)
+
+            print(f"✅ [V2] PDF generado con Puppeteer: {local} ({len(pdf_content)} bytes)")
+
+            # Enviar archivo como descarga
+            response = send_file(
+                local,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"certificado_medico_{documento_sanitized}.pdf"
+            )
+
+            # Configurar CORS
+            response.headers["Access-Control-Allow-Origin"] = "*"
+
+            # Limpiar archivo temporal después del envío
+            @response.call_on_close
+            def cleanup():
+                try:
+                    os.remove(local)
+                    print(f"🗑️  [V2] Archivo temporal eliminado: {local}")
+                except Exception as e:
+                    print(f"⚠️  [V2] Error al eliminar archivo temporal: {e}")
+
+            return response
+
+        except Exception as e:
+            print(f"❌ [V2] Error generando PDF con Puppeteer: {e}")
+            traceback.print_exc()
+            error_response = jsonify({
+                "success": False,
+                "error": f"Error generando PDF con Puppeteer: {str(e)}"
+            })
+            error_response.headers["Access-Control-Allow-Origin"] = "*"
+            return error_response, 500
+
+    except Exception as e:
+        print(f"❌ [V2] Error general: {e}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e),
+            "wix_id": wix_id
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
+
 if __name__ == "__main__":
     # Usar socketio.run() en lugar de app.run() para soportar WebSockets
     socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
