@@ -4293,67 +4293,71 @@ def preview_certificado_html(wix_id):
                 datos_audiometria = None
 
         # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
-        wix_id_historia = datos_wix.get('_id', wix_id)
-        print(f"🔍 Consultando datos del formulario desde PostgreSQL para wix_id: {wix_id_historia}", flush=True)
+        # Solo consultar PostgreSQL si NO venimos de Alegra con datos ya cargados
+        if not usar_datos_formulario:
+            wix_id_historia = datos_wix.get('_id', wix_id)
+            print(f"🔍 Consultando datos del formulario desde PostgreSQL para wix_id: {wix_id_historia}", flush=True)
 
-        datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
+            datos_formulario = obtener_datos_formulario_postgres(wix_id_historia)
 
-        if datos_formulario:
-            print(f"✅ Datos del formulario obtenidos desde PostgreSQL", flush=True)
+            if datos_formulario:
+                print(f"✅ Datos del formulario obtenidos desde PostgreSQL", flush=True)
 
-            # Sobrescribir los datos de HistoriaClinica con los de PostgreSQL si existen
-            if datos_formulario.get('edad'):
-                datos_wix['edad'] = datos_formulario.get('edad')
-            if datos_formulario.get('genero'):
-                datos_wix['genero'] = datos_formulario.get('genero')
-            if datos_formulario.get('estadoCivil'):
-                datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
-            if datos_formulario.get('hijos'):
-                datos_wix['hijos'] = datos_formulario.get('hijos')
-            if datos_formulario.get('email'):
-                datos_wix['email'] = datos_formulario.get('email')
-            if datos_formulario.get('profesionUOficio'):
-                datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
-            if datos_formulario.get('ciudadDeResidencia'):
-                datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
-            if datos_formulario.get('fechaNacimiento'):
-                datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
+                # Sobrescribir los datos de HistoriaClinica con los de PostgreSQL si existen
+                if datos_formulario.get('edad'):
+                    datos_wix['edad'] = datos_formulario.get('edad')
+                if datos_formulario.get('genero'):
+                    datos_wix['genero'] = datos_formulario.get('genero')
+                if datos_formulario.get('estadoCivil'):
+                    datos_wix['estadoCivil'] = datos_formulario.get('estadoCivil')
+                if datos_formulario.get('hijos'):
+                    datos_wix['hijos'] = datos_formulario.get('hijos')
+                if datos_formulario.get('email'):
+                    datos_wix['email'] = datos_formulario.get('email')
+                if datos_formulario.get('profesionUOficio'):
+                    datos_wix['profesionUOficio'] = datos_formulario.get('profesionUOficio')
+                if datos_formulario.get('ciudadDeResidencia'):
+                    datos_wix['ciudadDeResidencia'] = datos_formulario.get('ciudadDeResidencia')
+                if datos_formulario.get('fechaNacimiento'):
+                    datos_wix['fechaNacimiento'] = datos_formulario.get('fechaNacimiento')
 
-            # ===== MERGE DE NUEVOS CAMPOS: EPS, ARL, PENSIONES, NIVEL EDUCATIVO =====
-            if datos_formulario.get('eps'):
-                datos_wix['eps'] = datos_formulario.get('eps')
-                print(f"  ✓ EPS: {datos_formulario.get('eps')}", flush=True)
-            if datos_formulario.get('arl'):
-                datos_wix['arl'] = datos_formulario.get('arl')
-                print(f"  ✓ ARL: {datos_formulario.get('arl')}", flush=True)
-            if datos_formulario.get('pensiones'):
-                datos_wix['pensiones'] = datos_formulario.get('pensiones')
-                print(f"  ✓ Pensiones: {datos_formulario.get('pensiones')}", flush=True)
-            if datos_formulario.get('nivelEducativo'):
-                datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
-                print(f"  ✓ Nivel Educativo: {datos_formulario.get('nivelEducativo')}", flush=True)
+                # ===== MERGE DE NUEVOS CAMPOS: EPS, ARL, PENSIONES, NIVEL EDUCATIVO =====
+                if datos_formulario.get('eps'):
+                    datos_wix['eps'] = datos_formulario.get('eps')
+                    print(f"  ✓ EPS: {datos_formulario.get('eps')}", flush=True)
+                if datos_formulario.get('arl'):
+                    datos_wix['arl'] = datos_formulario.get('arl')
+                    print(f"  ✓ ARL: {datos_formulario.get('arl')}", flush=True)
+                if datos_formulario.get('pensiones'):
+                    datos_wix['pensiones'] = datos_formulario.get('pensiones')
+                    print(f"  ✓ Pensiones: {datos_formulario.get('pensiones')}", flush=True)
+                if datos_formulario.get('nivelEducativo'):
+                    datos_wix['nivel_educativo'] = datos_formulario.get('nivelEducativo')
+                    print(f"  ✓ Nivel Educativo: {datos_formulario.get('nivelEducativo')}", flush=True)
 
-            # Foto del paciente
-            if datos_formulario.get('foto'):
-                datos_wix['foto_paciente'] = datos_formulario.get('foto')
-                print(f"✅ Usando foto de PostgreSQL (data URI base64)", flush=True)
+                # Foto del paciente
+                if datos_formulario.get('foto'):
+                    datos_wix['foto_paciente'] = datos_formulario.get('foto')
+                    print(f"✅ Usando foto de PostgreSQL (data URI base64)", flush=True)
+                else:
+                    datos_wix['foto_paciente'] = None
+                    print(f"ℹ️  No hay foto disponible en PostgreSQL", flush=True)
+
+                # Firma del paciente
+                if datos_formulario.get('firma'):
+                    datos_wix['firma_paciente'] = datos_formulario.get('firma')
+                    print(f"✅ Usando firma de PostgreSQL (data URI base64)", flush=True)
+                else:
+                    datos_wix['firma_paciente'] = None
+                    print(f"ℹ️  No hay firma disponible en PostgreSQL", flush=True)
+
+                print(f"📊 Merge completado (preview): edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}", flush=True)
             else:
+                print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}", flush=True)
                 datos_wix['foto_paciente'] = None
-                print(f"ℹ️  No hay foto disponible en PostgreSQL", flush=True)
-
-            # Firma del paciente
-            if datos_formulario.get('firma'):
-                datos_wix['firma_paciente'] = datos_formulario.get('firma')
-                print(f"✅ Usando firma de PostgreSQL (data URI base64)", flush=True)
-            else:
                 datos_wix['firma_paciente'] = None
-                print(f"ℹ️  No hay firma disponible en PostgreSQL", flush=True)
-
-            print(f"📊 Merge completado (preview): edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}", flush=True)
         else:
-            print(f"⚠️ No se encontraron datos del formulario en PostgreSQL para wix_id: {wix_id_historia}", flush=True)
-            datos_wix['foto_paciente'] = None
-            datos_wix['firma_paciente'] = None
+            print(f"✅ [ALEGRA] Usando datos de formulario ya cargados (PostgreSQL o Wix fallback)", flush=True)
 
         # Textos dinámicos según exámenes
         textos_examenes = {
