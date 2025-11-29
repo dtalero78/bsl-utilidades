@@ -762,7 +762,7 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
     Workflow completo de 5 pasos:
     1. Autenticación (obtener token JWT)
     2. Iniciar tarea (start task)
-    3. Subir URL del HTML (upload cloud_file)
+    3. Descargar HTML y subirlo como archivo (no cloud_file para evitar UrlError)
     4. Procesar conversión (process)
     5. Descargar PDF generado (download)
 
@@ -793,19 +793,26 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
         task_id = task_data['task']
         print(f"✅ [iLovePDF] Tarea iniciada: {task_id} en servidor {server}")
 
-        # Paso 3: Agregar URL del HTML
-        print(f"📤 [iLovePDF] Agregando URL: {html_url}")
-        add_url_response = requests.post(
+        # Paso 3: Descargar HTML localmente y subirlo como archivo
+        print(f"📥 [iLovePDF] Descargando HTML desde: {html_url}")
+        html_response = requests.get(html_url, timeout=30)
+        html_response.raise_for_status()
+        html_content = html_response.text
+        print(f"✅ [iLovePDF] HTML descargado ({len(html_content)} caracteres)")
+
+        # Subir HTML como archivo
+        print("📤 [iLovePDF] Subiendo HTML como archivo...")
+        html_bytes = html_content.encode('utf-8')
+        files = {'file': ('document.html', html_bytes, 'text/html')}
+        upload_response = requests.post(
             f'https://{server}/v1/upload',
-            json={
-                'task': task_id,
-                'cloud_file': html_url
-            },
+            files=files,
+            data={'task': task_id},
             headers=headers
         )
-        add_url_response.raise_for_status()
-        server_filename = add_url_response.json()['server_filename']
-        print(f"✅ [iLovePDF] URL agregada: {server_filename}")
+        upload_response.raise_for_status()
+        server_filename = upload_response.json()['server_filename']
+        print(f"✅ [iLovePDF] HTML subido: {server_filename}")
 
         # Paso 4: Procesar
         print("⚙️ [iLovePDF] Procesando HTML→PDF...")
