@@ -7329,9 +7329,8 @@ def api_generar_certificado_pdf_v2(wix_id):
         print(f"🔧 [V2] Lógica de datos: PostgreSQL → Wix FORMULARIO fallback")
 
         # Construir URL del preview HTML V2 (con fallback PostgreSQL → Wix)
-        import time
-        cache_buster = int(time.time() * 1000)
-        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-v2/{wix_id}?v={cache_buster}"
+        # NOTA: No usar cache buster (?v=) porque iLovePDF puede tener problemas con query params
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-v2/{wix_id}"
         print(f"🔗 [V2] URL del preview: {preview_url}")
 
         # Obtener numeroId para el nombre del archivo
