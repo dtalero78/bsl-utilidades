@@ -7285,12 +7285,12 @@ def api_generar_certificado_pdf_v2(wix_id):
         return ("", 204, response_headers)
 
     try:
-        print(f"📋 [V2/Puppeteer] Generando certificado para Wix ID: {wix_id}")
+        print(f"📋 [V2/iLovePDF] Generando certificado para Wix ID: {wix_id}")
 
         # Obtener parámetros opcionales
         guardar_drive = request.args.get('guardar_drive', 'false').lower() == 'true'
 
-        print(f"🔧 [V2] Motor de conversión: Puppeteer")
+        print(f"🔧 [V2] Motor de conversión: iLovePDF")
         print(f"🔧 [V2] Lógica de datos: PostgreSQL → Wix FORMULARIO fallback")
 
         # Construir URL del preview HTML V2 (con fallback PostgreSQL → Wix)
@@ -7312,10 +7312,10 @@ def api_generar_certificado_pdf_v2(wix_id):
         except:
             pass
 
-        # Generar PDF usando Puppeteer
-        print(f"🎭 [V2] Iniciando generación con Puppeteer...")
+        # Generar PDF usando iLovePDF
+        print(f"📄 [V2] Iniciando generación con iLovePDF...")
         try:
-            pdf_content = puppeteer_html_to_pdf_from_url(
+            pdf_content = ilovepdf_html_to_pdf_from_url(
                 html_url=preview_url,
                 output_filename=f"certificado_v2_{numero_id}"
             )
@@ -7328,7 +7328,7 @@ def api_generar_certificado_pdf_v2(wix_id):
             with open(local, "wb") as f:
                 f.write(pdf_content)
 
-            print(f"✅ [V2] PDF generado con Puppeteer: {local} ({len(pdf_content)} bytes)")
+            print(f"✅ [V2] PDF generado con iLovePDF: {local} ({len(pdf_content)} bytes)")
 
             # Enviar archivo como descarga
             response = send_file(
@@ -7353,11 +7353,11 @@ def api_generar_certificado_pdf_v2(wix_id):
             return response
 
         except Exception as e:
-            print(f"❌ [V2] Error generando PDF con Puppeteer: {e}")
+            print(f"❌ [V2] Error generando PDF con iLovePDF: {e}")
             traceback.print_exc()
             error_response = jsonify({
                 "success": False,
-                "error": f"Error generando PDF con Puppeteer: {str(e)}"
+                "error": f"Error generando PDF con iLovePDF: {str(e)}"
             })
             error_response.headers["Access-Control-Allow-Origin"] = "*"
             return error_response, 500
