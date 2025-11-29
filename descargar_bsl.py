@@ -793,21 +793,14 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
         task_id = task_data['task']
         print(f"✅ [iLovePDF] Tarea iniciada: {task_id} en servidor {server}")
 
-        # Paso 3: Descargar HTML localmente y subirlo como archivo
-        print(f"📥 [iLovePDF] Descargando HTML desde: {html_url}")
-        html_response = requests.get(html_url, timeout=60)
-        html_response.raise_for_status()
-        html_content = html_response.text
-        print(f"✅ [iLovePDF] HTML descargado ({len(html_content)} caracteres)")
-
-        # Subir HTML como archivo
-        print("📤 [iLovePDF] Subiendo HTML como archivo...")
-        html_bytes = html_content.encode('utf-8')
-        files = {'file': ('document.html', html_bytes, 'text/html')}
+        # Paso 3: Subir HTML usando cloud_file (URL pública)
+        print(f"📤 [iLovePDF] Subiendo HTML desde URL: {html_url}")
         upload_response = requests.post(
             f'https://{server}/v1/upload',
-            files=files,
-            data={'task': task_id},
+            data={
+                'task': task_id,
+                'cloud_file': html_url
+            },
             headers=headers
         )
         upload_response.raise_for_status()
