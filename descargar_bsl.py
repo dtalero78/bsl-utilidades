@@ -795,7 +795,7 @@ def ilovepdf_html_to_pdf_from_url(html_url, output_filename="certificado"):
 
         # Paso 3: Descargar HTML localmente y subirlo como archivo
         print(f"📥 [iLovePDF] Descargando HTML desde: {html_url}")
-        html_response = requests.get(html_url, timeout=30)
+        html_response = requests.get(html_url, timeout=60)
         html_response.raise_for_status()
         html_content = html_response.text
         print(f"✅ [iLovePDF] HTML descargado ({len(html_content)} caracteres)")
@@ -7055,19 +7055,15 @@ def preview_certificado_v2(wix_id):
             # Foto y firma del paciente
             if datos_formulario.get('foto'):
                 foto_pg = datos_formulario.get('foto')
-                # Si es un URI de Wix, convertir a URL pública y subir a DO Spaces
+                # Si es un URI de Wix, convertir a URL pública (iLovePDF puede cargarla directamente)
                 if foto_pg and foto_pg.startswith('wix:image://v1/'):
                     print(f"🔄 [V2] Convirtiendo URI de Wix (PostgreSQL) a URL pública...")
                     parts = foto_pg.replace('wix:image://v1/', '').split('/')
                     if len(parts) > 0:
                         image_id = parts[0]
                         foto_url_publica = f"https://static.wixstatic.com/media/{image_id}"
-                        do_spaces_url = descargar_imagen_wix_a_do_spaces(foto_url_publica)
-                        if do_spaces_url:
-                            datos_wix['foto_paciente'] = do_spaces_url
-                            print(f"✅ [V2] Foto subida a DO Spaces: {do_spaces_url}")
-                        else:
-                            datos_wix['foto_paciente'] = foto_url_publica
+                        datos_wix['foto_paciente'] = foto_url_publica
+                        print(f"✅ [V2] URL pública de foto: {foto_url_publica}")
                 else:
                     datos_wix['foto_paciente'] = foto_pg
                 print(f"✅ [V2] Foto obtenida de PostgreSQL")
@@ -7117,23 +7113,16 @@ def preview_certificado_v2(wix_id):
                         datos_wix['ciudadDeResidencia'] = formulario.get('ciudadDeResidencia')
                         datos_wix['fechaNacimiento'] = formulario.get('fechaNacimiento')
                         # Procesar foto de Wix (convertir wix:image:// a URL pública)
+                        # iLovePDF usa Puppeteer/Chromium que puede cargar URLs de Wix directamente
                         foto_wix = formulario.get('foto')
                         if foto_wix and foto_wix.startswith('wix:image://v1/'):
                             print(f"🔄 [V2] Convirtiendo URI de Wix a URL pública...")
                             parts = foto_wix.replace('wix:image://v1/', '').split('/')
                             if len(parts) > 0:
                                 image_id = parts[0]
-                                filename = parts[1].split('#')[0] if len(parts) > 1 else 'image.jpg'
                                 foto_url_publica = f"https://static.wixstatic.com/media/{image_id}"
+                                datos_wix['foto_paciente'] = foto_url_publica
                                 print(f"✅ [V2] URL pública de foto: {foto_url_publica}")
-                                # Intentar subir a DO Spaces para que iLovePDF pueda accederla
-                                do_spaces_url = descargar_imagen_wix_a_do_spaces(foto_url_publica)
-                                if do_spaces_url:
-                                    datos_wix['foto_paciente'] = do_spaces_url
-                                    print(f"✅ [V2] Foto subida a DO Spaces: {do_spaces_url}")
-                                else:
-                                    datos_wix['foto_paciente'] = foto_url_publica
-                                    print(f"⚠️ [V2] Usando URL de Wix directa: {foto_url_publica}")
                         else:
                             datos_wix['foto_paciente'] = foto_wix
 
