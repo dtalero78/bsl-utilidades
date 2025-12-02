@@ -19,6 +19,19 @@ import json as json_module
 import time
 import queue
 import threading
+import locale
+
+# Configurar locale español para fechas
+try:
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_TIME, 'es_CO.UTF-8')
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_TIME, 'Spanish_Spain.1252')  # Windows
+        except locale.Error:
+            pass  # Fallback: usar diccionario manual
 from do_spaces_uploader import subir_imagen_a_do_spaces
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -27,6 +40,34 @@ from push_notifications import register_push_token, send_new_message_notificatio
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Diccionario de meses en español (fallback si locale no está disponible)
+MESES_ESPANOL = {
+    1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
+    5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
+    9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
+}
+
+def formatear_fecha_espanol(fecha):
+    """
+    Formatea una fecha en español: '02 de diciembre de 2025'
+    Funciona independientemente del locale del sistema.
+
+    Args:
+        fecha: objeto datetime o string ISO format
+    Returns:
+        String con fecha formateada en español
+    """
+    if isinstance(fecha, str):
+        try:
+            fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
+        except ValueError:
+            return fecha  # Retornar original si no se puede parsear
+
+    dia = fecha.day
+    mes = MESES_ESPANOL.get(fecha.month, fecha.strftime('%B'))
+    anio = fecha.year
+    return f"{dia:02d} de {mes} de {anio}"
 
 # Configurar sesión de requests con retry automático
 def crear_sesion_con_retry():
@@ -374,12 +415,12 @@ def obtener_datos_formulario_postgres(wix_id):
                 try:
                     from datetime import datetime
                     fecha_obj = datetime.fromisoformat(fecha_nacimiento.replace('Z', '+00:00'))
-                    datos_formulario['fechaNacimiento'] = fecha_obj.strftime('%d de %B de %Y')
+                    datos_formulario['fechaNacimiento'] = formatear_fecha_espanol(fecha_obj)
                 except:
                     datos_formulario['fechaNacimiento'] = fecha_nacimiento
             else:
                 # Si es un objeto datetime de PostgreSQL
-                datos_formulario['fechaNacimiento'] = fecha_nacimiento.strftime('%d de %B de %Y')
+                datos_formulario['fechaNacimiento'] = formatear_fecha_espanol(fecha_nacimiento)
             print(f"🎂 [PostgreSQL] Fecha de nacimiento: {datos_formulario['fechaNacimiento']}")
 
         # Firma del paciente (validar que sea data URI)
@@ -1719,7 +1760,7 @@ def generar_certificado_medico():
         datos_certificado = {
             "codigo_seguridad": codigo_seguridad,
             "logo_bsl_url": logo_bsl_base64,
-            "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
+            "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": data.get("ciudad", "Bogotá"),
             "vigencia": data.get("vigencia", "Tres años"),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
@@ -1741,9 +1782,9 @@ def generar_certificado_medico():
 
             # Exámenes realizados
             "examenes_realizados": data.get("examenes_realizados", [
-                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")},
-                {"nombre": "Audiometría", "fecha": fecha_actual.strftime("%d de %B de %Y")},
-                {"nombre": "Optometría", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+                {"nombre": "Examen Médico Osteomuscular", "fecha": formatear_fecha_espanol(fecha_actual)},
+                {"nombre": "Audiometría", "fecha": formatear_fecha_espanol(fecha_actual)},
+                {"nombre": "Optometría", "fecha": formatear_fecha_espanol(fecha_actual)}
             ]),
 
             # Concepto médico
@@ -1974,7 +2015,7 @@ def generar_certificado_medico_puppeteer():
         datos_certificado = {
             "codigo_seguridad": codigo_seguridad,
             "logo_bsl_url": logo_bsl_base64,
-            "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
+            "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": data.get("ciudad", "Bogotá"),
             "vigencia": data.get("vigencia", "Tres años"),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
@@ -1996,9 +2037,9 @@ def generar_certificado_medico_puppeteer():
 
             # Exámenes realizados
             "examenes_realizados": data.get("examenes_realizados", [
-                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")},
-                {"nombre": "Audiometría", "fecha": fecha_actual.strftime("%d de %B de %Y")},
-                {"nombre": "Optometría", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+                {"nombre": "Examen Médico Osteomuscular", "fecha": formatear_fecha_espanol(fecha_actual)},
+                {"nombre": "Audiometría", "fecha": formatear_fecha_espanol(fecha_actual)},
+                {"nombre": "Optometría", "fecha": formatear_fecha_espanol(fecha_actual)}
             ]),
 
             # Concepto médico
@@ -2548,7 +2589,7 @@ def test_certificado_postgres(wix_id):
             "tipo_examen": "Prueba PostgreSQL",
 
             "examenes_realizados": [
-                {"nombre": "Examen Médico Osteomuscular", "fecha": fecha_actual.strftime("%d de %B de %Y")}
+                {"nombre": "Examen Médico Osteomuscular", "fecha": formatear_fecha_espanol(fecha_actual)}
             ],
 
             "resultados_generales": [{
@@ -2565,7 +2606,7 @@ def test_certificado_postgres(wix_id):
             "medico_registro": "RM 12345",
 
             "codigo_seguridad": f"TEST-PG-{wix_id[:8]}",
-            "fecha_emision": fecha_actual.strftime("%d de %B de %Y"),
+            "fecha_emision": formatear_fecha_espanol(fecha_actual),
             "mostrar_sin_soporte": False,
 
             "qr_code_base64": None  # Por ahora sin QR
@@ -3290,16 +3331,16 @@ def api_generar_certificado_pdf(wix_id):
 
         fecha_consulta = datos_wix.get('fechaConsulta')
         if isinstance(fecha_consulta, datetime):
-            fecha_formateada = fecha_consulta.strftime('%d de %B de %Y')
+            fecha_formateada = formatear_fecha_espanol(fecha_consulta)
         elif isinstance(fecha_consulta, str):
             # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
             try:
                 fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
-                fecha_formateada = fecha_obj.strftime('%d de %B de %Y')
+                fecha_formateada = formatear_fecha_espanol(fecha_obj)
             except (ValueError, AttributeError):
-                fecha_formateada = datetime.now().strftime('%d de %B de %Y')
+                fecha_formateada = formatear_fecha_espanol(datetime.now())
         else:
-            fecha_formateada = datetime.now().strftime('%d de %B de %Y')
+            fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
         examenes_realizados = []
@@ -4110,16 +4151,16 @@ def preview_certificado_html(wix_id):
 
         fecha_consulta = datos_wix.get('fechaConsulta')
         if isinstance(fecha_consulta, datetime):
-            fecha_formateada = fecha_consulta.strftime('%d de %B de %Y')
+            fecha_formateada = formatear_fecha_espanol(fecha_consulta)
         elif isinstance(fecha_consulta, str):
             # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
             try:
                 fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
-                fecha_formateada = fecha_obj.strftime('%d de %B de %Y')
+                fecha_formateada = formatear_fecha_espanol(fecha_obj)
             except (ValueError, AttributeError):
-                fecha_formateada = datetime.now().strftime('%d de %B de %Y')
+                fecha_formateada = formatear_fecha_espanol(datetime.now())
         else:
-            fecha_formateada = datetime.now().strftime('%d de %B de %Y')
+            fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
         examenes_realizados = []
