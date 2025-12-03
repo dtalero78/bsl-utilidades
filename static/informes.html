@@ -83,6 +83,51 @@
             .recomendacion-box {
                 page-break-inside: avoid;
             }
+            /* Encabezado minimalista que aparece en cada salto de página */
+            .page-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                padding: 8px 0 !important;
+                margin-bottom: 12px !important;
+                border-bottom: 1px solid #e0e0e0 !important;
+            }
+            .page-header-left {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+            .page-header-left img {
+                height: 28px !important;
+                width: auto !important;
+            }
+            .page-header-empresa {
+                font-size: 10pt !important;
+                color: var(--bahama-blue) !important;
+                font-weight: 600 !important;
+            }
+            .page-header-titulo {
+                font-size: 9pt !important;
+                color: var(--abbey) !important;
+                font-weight: 400 !important;
+            }
+            /* Header principal de la primera página */
+            .print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid var(--green-haze);
+            }
+            .print-header h1 {
+                color: var(--bahama-blue);
+                font-size: 20pt;
+                margin-bottom: 5px;
+            }
+            .print-header p {
+                color: var(--abbey);
+                font-size: 11pt;
+            }
         }
 
         /* Botón de recomendaciones */
@@ -167,57 +212,9 @@
             display: none;
         }
 
-        /* Encabezado minimalista para páginas internas */
+        /* Encabezado minimalista para páginas internas - oculto por defecto */
         .page-header {
             display: none;
-        }
-
-        @media print {
-            .print-header {
-                display: block;
-                text-align: center;
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid var(--green-haze);
-            }
-            .print-header h1 {
-                color: var(--bahama-blue);
-                font-size: 20pt;
-                margin-bottom: 5px;
-            }
-            .print-header p {
-                color: var(--abbey);
-                font-size: 11pt;
-            }
-
-            /* Encabezado minimalista que aparece en cada salto de página */
-            .page-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 8px 0;
-                margin-bottom: 12px;
-                border-bottom: 1px solid #e0e0e0;
-            }
-            .page-header-left {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .page-header-left img {
-                height: 28px;
-                width: auto;
-            }
-            .page-header-empresa {
-                font-size: 10pt;
-                color: var(--bahama-blue);
-                font-weight: 600;
-            }
-            .page-header-titulo {
-                font-size: 9pt;
-                color: var(--abbey);
-                font-weight: 400;
-            }
         }
     </style>
 </head>
