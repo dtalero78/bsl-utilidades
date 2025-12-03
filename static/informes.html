@@ -48,6 +48,58 @@
             .no-print { display: none !important; }
             .print-break { page-break-before: always; }
         }
+        .ia-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ia-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .ia-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .ia-btn .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .recomendacion-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            margin-top: 16px;
+            border-radius: 0 8px 8px 0;
+        }
+        .recomendacion-box h4 {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .recomendacion-text {
+            white-space: pre-wrap;
+            color: #374151;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -128,7 +180,16 @@
 
         <!-- Género -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Género</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Género</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('genero')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+                        <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/>
+                    </svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="chart-container">
                     <canvas id="chartGenero"></canvas>
@@ -146,11 +207,21 @@
                     </div>
                 </div>
             </div>
+            <div id="recomendacion-genero" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Edad -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Edad</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Edad</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('edad')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="chart-container">
                     <canvas id="chartEdad"></canvas>
@@ -178,11 +249,21 @@
                     </div>
                 </div>
             </div>
+            <div id="recomendacion-edad" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Estado Civil -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Estado Civil</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Estado Civil</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('estadoCivil')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="chart-container">
                     <canvas id="chartEstadoCivil"></canvas>
@@ -210,11 +291,21 @@
                     </div>
                 </div>
             </div>
+            <div id="recomendacion-estadoCivil" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Nivel Educativo -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Nivel Educativo</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Nivel Educativo</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('nivelEducativo')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="chart-container">
                     <canvas id="chartNivelEducativo"></canvas>
@@ -238,11 +329,21 @@
                     </div>
                 </div>
             </div>
+            <div id="recomendacion-nivelEducativo" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Hijos -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Número de Hijos</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Número de Hijos</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('hijos')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="chart-container">
                     <canvas id="chartHijos"></canvas>
@@ -266,11 +367,21 @@
                     </div>
                 </div>
             </div>
+            <div id="recomendacion-hijos" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Ciudad de Residencia -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Ciudad de Residencia</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Ciudad de Residencia</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('ciudad')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full" id="tablaCiudad">
                     <thead class="bg-gray-50">
@@ -283,11 +394,21 @@
                     <tbody class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
+            <div id="recomendacion-ciudad" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Profesión u Oficio -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Profesión u Oficio</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Distribución por Profesión u Oficio</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('profesion')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full" id="tablaProfesion">
                     <thead class="bg-gray-50">
@@ -300,11 +421,21 @@
                     <tbody class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
+            <div id="recomendacion-profesion" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Encuesta de Salud -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Resultados Encuesta de Salud</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Resultados Encuesta de Salud</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('encuestaSalud')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full" id="tablaEncuestaSalud">
                     <thead class="bg-gray-50">
@@ -317,11 +448,21 @@
                     <tbody class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
+            <div id="recomendacion-encuestaSalud" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
+            </div>
         </section>
 
         <!-- Diagnósticos -->
         <section class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 class="text-xl font-semibold mb-4 text-gray-800">Diagnósticos Principales (mdDx1)</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">Diagnósticos Principales (mdDx1)</h3>
+                <button class="ia-btn no-print" onclick="generarRecomendacionIA('diagnosticos')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>
+                    Generar Recomendación IA
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full" id="tablaDiagnosticos">
                     <thead class="bg-gray-50">
@@ -333,6 +474,10 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200"></tbody>
                 </table>
+            </div>
+            <div id="recomendacion-diagnosticos" class="recomendacion-box hidden">
+                <h4><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg> Recomendaciones de IA</h4>
+                <p class="recomendacion-text"></p>
             </div>
         </section>
 
@@ -682,6 +827,95 @@
             a.download = `informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.json`;
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // Generar recomendaciones con IA
+        async function generarRecomendacionIA(tipo) {
+            if (!datosInforme) {
+                alert('Primero genera el informe para obtener recomendaciones de IA');
+                return;
+            }
+
+            const btn = event.target;
+            const recomendacionBox = document.getElementById(`recomendacion-${tipo}`);
+            const recomendacionText = recomendacionBox.querySelector('.recomendacion-text');
+
+            // Mostrar estado de carga
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Generando...';
+            recomendacionBox.classList.remove('hidden');
+            recomendacionText.innerHTML = '<em>Analizando datos y generando recomendaciones...</em>';
+
+            // Preparar datos según el tipo
+            let datos = {};
+            switch(tipo) {
+                case 'genero':
+                    datos = datosInforme.estadisticas?.genero || [];
+                    break;
+                case 'edad':
+                    datos = datosInforme.estadisticas?.edad || [];
+                    break;
+                case 'estadoCivil':
+                    datos = datosInforme.estadisticas?.estadoCivil || [];
+                    break;
+                case 'nivelEducativo':
+                    datos = datosInforme.estadisticas?.nivelEducativo || [];
+                    break;
+                case 'hijos':
+                    datos = datosInforme.estadisticas?.hijos || [];
+                    break;
+                case 'ciudad':
+                    datos = datosInforme.estadisticas?.ciudad || [];
+                    break;
+                case 'profesion':
+                    datos = datosInforme.estadisticas?.profesion || [];
+                    break;
+                case 'encuestaSalud':
+                    datos = datosInforme.estadisticas?.encuestaSalud || {};
+                    break;
+                case 'diagnosticos':
+                    datos = datosInforme.estadisticas?.diagnosticos || [];
+                    break;
+                default:
+                    alert('Tipo de recomendación no válido');
+                    btn.disabled = false;
+                    btn.innerHTML = '🤖 Generar Recomendación IA';
+                    return;
+            }
+
+            try {
+                const response = await fetch('/api/informe-recomendaciones-ia', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tipo: tipo,
+                        datos: datos,
+                        empresa: datosInforme.empresa || datosInforme.codEmpresa,
+                        totalPacientes: datosInforme.totalRegistros || 0
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Formatear el texto de la recomendación con saltos de línea
+                    const textoFormateado = result.recomendacion
+                        .replace(/\n/g, '<br>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    recomendacionText.innerHTML = textoFormateado;
+                } else {
+                    recomendacionText.innerHTML = `<span style="color: #e53e3e;">Error: ${result.error || 'No se pudo generar la recomendación'}</span>`;
+                }
+            } catch (error) {
+                console.error('Error al generar recomendación IA:', error);
+                recomendacionText.innerHTML = `<span style="color: #e53e3e;">Error de conexión: ${error.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🤖 Generar Recomendación IA';
+            }
         }
     </script>
 </body>

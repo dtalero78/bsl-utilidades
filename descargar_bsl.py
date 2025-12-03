@@ -36,6 +36,7 @@ from do_spaces_uploader import subir_imagen_a_do_spaces
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from push_notifications import register_push_token, send_new_message_notification
+from openai import OpenAI
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -196,6 +197,15 @@ if TOKEN_B64 and not os.path.exists(TOKEN_PATH):
 API2PDF_KEY = os.getenv("API2PDF_KEY")
 ILOVEPDF_PUBLIC_KEY = os.getenv("ILOVEPDF_PUBLIC_KEY")
 DEST = os.getenv("STORAGE_DESTINATION", "drive")  # drive, drive-oauth, gcs
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    logger.info("✅ OpenAI client inicializado correctamente")
+else:
+    logger.warning("⚠️ OPENAI_API_KEY no configurada - las recomendaciones de IA no estarán disponibles")
 
 # --- Importar funciones para almacenamiento externo ---
 if DEST == "drive":
@@ -8176,6 +8186,267 @@ def generar_sve(items):
 def serve_informes():
     """Sirve la página de informes"""
     return send_from_directory('static', 'informes.html')
+
+
+# ============================================================================
+# FUNCIONES DE OPENAI PARA RECOMENDACIONES
+# ============================================================================
+
+def call_openai(prompt, max_tokens=1500):
+    """
+    Llama a la API de OpenAI para generar recomendaciones médico-laborales.
+    Similar a la función callOpenAI de Wix.
+    """
+    if not openai_client:
+        logger.warning("⚠️ OpenAI client no disponible")
+        return None
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un médico laboral experto en salud ocupacional. Generas recomendaciones concisas y profesionales para informes de condiciones de salud empresariales. No uses markdown ni introducciones."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+
+        return {
+            'success': True,
+            'content': response.choices[0].message.content,
+            'usage': {
+                'prompt_tokens': response.usage.prompt_tokens,
+                'completion_tokens': response.usage.completion_tokens,
+                'total_tokens': response.usage.total_tokens
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error llamando a OpenAI: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def generar_prompt_genero(cod_empresa, porcentaje_masculino, porcentaje_femenino):
+    """Genera prompt para recomendaciones por género"""
+    return f"""Según los porcentajes de población de la empresa {cod_empresa},
+el {porcentaje_masculino:.2f}% son hombres y el {porcentaje_femenino:.2f}% son mujeres.
+Sugiere dos recomendaciones DE UNA FRASE médico-laborales para cada grupo dirigidas a LA EMPRESA. No hagas introducciones."""
+
+
+def generar_prompt_edad(cod_empresa, rangos):
+    """Genera prompt para recomendaciones por edad"""
+    return f"""Según los porcentajes de población de la empresa {cod_empresa},
+hay un {rangos['15-20']:.2f}% de personas entre 15-20 años,
+un {rangos['21-30']:.2f}% entre 21-30 años,
+un {rangos['31-40']:.2f}% entre 31-40 años,
+un {rangos['41-50']:.2f}% entre 41-50 años y
+un {rangos['mayor50']:.2f}% mayores a 50 años.
+Eres médico laboral y estás elaborando el informe de condiciones de salud.
+Sugiere exactamente dos recomendaciones breves (una frase cada una) para cada grupo de edad.
+No incluyas introducciones. No uses markdown."""
+
+
+def generar_prompt_estado_civil(cod_empresa, porcentajes):
+    """Genera prompt para recomendaciones por estado civil"""
+    return f"""Según los porcentajes de población de la empresa {cod_empresa},
+hay un {porcentajes['soltero']:.2f}% de personas solteras,
+un {porcentajes['casado']:.2f}% casadas,
+un {porcentajes['divorciado']:.2f}% divorciadas,
+un {porcentajes['viudo']:.2f}% viudas y
+un {porcentajes['unionLibre']:.2f}% en unión libre.
+Eres médico laboral y estás elaborando el informe de condiciones de salud.
+Sugiere exactamente a la empresa dos recomendaciones breves (una frase cada una) para cada grupo.
+No incluyas introducciones. No uses markdown."""
+
+
+def generar_prompt_nivel_educativo(cod_empresa, porcentajes):
+    """Genera prompt para recomendaciones por nivel educativo"""
+    return f"""Según los porcentajes de población de la empresa {cod_empresa},
+hay un {porcentajes['primaria']:.2f}% de personas con nivel educativo de Primaria,
+un {porcentajes['secundaria']:.2f}% con nivel de Secundaria,
+un {porcentajes['universitario']:.2f}% con nivel Universitario,
+y un {porcentajes['postgrado']:.2f}% con nivel de Postgrado.
+Eres médico laboral y estás elaborando el informe de condiciones de salud.
+Sugiere exactamente dos recomendaciones breves (una frase cada una) para cada grupo.
+No incluyas introducciones. No uses markdown."""
+
+
+def generar_prompt_hijos(cod_empresa, porcentajes):
+    """Genera prompt para recomendaciones por número de hijos"""
+    return f"""Según los porcentajes de población de la empresa {cod_empresa},
+hay un {porcentajes['sinHijos']:.2f}% de personas sin hijos,
+un {porcentajes['unHijo']:.2f}% con 1 hijo,
+un {porcentajes['dosHijos']:.2f}% con 2 hijos,
+y un {porcentajes['tresOMas']:.2f}% con 3 o más hijos.
+Eres médico laboral y estás elaborando el informe de condiciones de salud.
+Sugiere exactamente dos recomendaciones breves (una frase cada una) para cada grupo.
+No incluyas introducciones. No uses markdown."""
+
+
+def generar_prompt_ciudad(cod_empresa, ciudades):
+    """Genera prompt para recomendaciones por ciudad"""
+    prompt = f"Según los porcentajes de población de la empresa {cod_empresa}, la distribución por ciudad de residencia es:\n"
+    for ciudad in ciudades[:10]:  # Limitar a las 10 principales
+        prompt += f"- {ciudad['nombre']}: {ciudad['porcentaje']:.2f}%\n"
+    prompt += "Sugiere una recomendación médico-laboral para cada grupo dirigidas a LA EMPRESA. No hagas introducciones. No uses markdowns"
+    return prompt
+
+
+def generar_prompt_profesion(cod_empresa, profesiones):
+    """Genera prompt para recomendaciones por profesión"""
+    prompt = f"Según los porcentajes de población de la empresa {cod_empresa}, la distribución por profesión u oficio es:\n"
+    for prof in profesiones[:10]:  # Limitar a las 10 principales
+        prompt += f"- {prof['nombre']}: {prof['porcentaje']:.2f}%\n"
+    prompt += "Sugiere dos recomendaciones DE UNA FRASE médico-laborales para cada grupo dirigidas a LA EMPRESA. No hagas introducciones ni uses markdown"
+    return prompt
+
+
+def generar_prompt_encuesta_salud(cod_empresa, respuestas):
+    """Genera prompt para recomendaciones basadas en encuesta de salud"""
+    prompt = f"Según los resultados de la encuesta de salud en la empresa {cod_empresa}, las respuestas más frecuentes fueron:\n"
+    for resp in respuestas[:15]:  # Limitar a las 15 principales
+        prompt += f"- {resp['nombre']}: {resp['porcentaje']:.2f}%\n"
+    prompt += """Sugiere dos recomendaciones DE UNA FRASE médico-laborales para cada grupo dirigidas a LA EMPRESA. No hagas introducciones ni uses markdown. Al finalizar las recomendaciones provee un análisis de salud de la población basado en la información de la encuesta teniendo en cuenta que es una empresa con cargos administrativos"""
+    return prompt
+
+
+def generar_prompt_diagnosticos(cod_empresa, diagnosticos):
+    """Genera prompt para recomendaciones basadas en diagnósticos"""
+    prompt = f"Según los diagnósticos más comunes en la empresa {cod_empresa}, la distribución es:\n"
+    for dx in diagnosticos[:15]:  # Limitar a los 15 principales
+        prompt += f"- {dx['nombre']}: {dx['porcentaje']:.2f}%\n"
+    prompt += """Explica y sugiere dos recomendaciones DE UNA FRASE médico-laborales para cada grupo dirigidas a LA EMPRESA. No hagas introducciones ni uses markdown. Al finalizar las recomendaciones provee un análisis detallado de salud de la población basado en la información de la encuesta teniendo en cuenta que es una empresa con cargos administrativos"""
+    return prompt
+
+
+@app.route('/api/informe-recomendaciones-ia', methods=['POST', 'OPTIONS'])
+def generar_recomendaciones_ia():
+    """
+    Genera recomendaciones de IA para un tipo específico de estadística.
+    Body: { tipo: string, codEmpresa: string, datos: object }
+    Tipos válidos: genero, edad, estadoCivil, nivelEducativo, hijos, ciudad, profesion, encuestaSalud, diagnosticos
+    """
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    if not openai_client:
+        return jsonify({
+            'success': False,
+            'error': 'OpenAI no está configurado. Configure la variable de entorno OPENAI_API_KEY'
+        }), 503
+
+    try:
+        data = request.get_json()
+        tipo = data.get('tipo')
+        cod_empresa = data.get('codEmpresa', 'N/A')
+        datos = data.get('datos', {})
+
+        if not tipo:
+            return jsonify({
+                'success': False,
+                'error': 'El parámetro "tipo" es requerido'
+            }), 400
+
+        prompt = None
+
+        # Generar el prompt según el tipo de estadística
+        if tipo == 'genero':
+            prompt = generar_prompt_genero(
+                cod_empresa,
+                datos.get('masculino', {}).get('porcentaje', 0),
+                datos.get('femenino', {}).get('porcentaje', 0)
+            )
+        elif tipo == 'edad':
+            rangos = datos.get('rangos', {})
+            prompt = generar_prompt_edad(cod_empresa, {
+                '15-20': rangos.get('15-20', {}).get('porcentaje', 0),
+                '21-30': rangos.get('21-30', {}).get('porcentaje', 0),
+                '31-40': rangos.get('31-40', {}).get('porcentaje', 0),
+                '41-50': rangos.get('41-50', {}).get('porcentaje', 0),
+                'mayor50': rangos.get('mayor50', {}).get('porcentaje', 0)
+            })
+        elif tipo == 'estadoCivil':
+            prompt = generar_prompt_estado_civil(cod_empresa, {
+                'soltero': datos.get('soltero', {}).get('porcentaje', 0),
+                'casado': datos.get('casado', {}).get('porcentaje', 0),
+                'divorciado': datos.get('divorciado', {}).get('porcentaje', 0),
+                'viudo': datos.get('viudo', {}).get('porcentaje', 0),
+                'unionLibre': datos.get('unionLibre', {}).get('porcentaje', 0)
+            })
+        elif tipo == 'nivelEducativo':
+            prompt = generar_prompt_nivel_educativo(cod_empresa, {
+                'primaria': datos.get('primaria', {}).get('porcentaje', 0),
+                'secundaria': datos.get('secundaria', {}).get('porcentaje', 0),
+                'universitario': datos.get('universitario', {}).get('porcentaje', 0),
+                'postgrado': datos.get('postgrado', {}).get('porcentaje', 0)
+            })
+        elif tipo == 'hijos':
+            prompt = generar_prompt_hijos(cod_empresa, {
+                'sinHijos': datos.get('sinHijos', {}).get('porcentaje', 0),
+                'unHijo': datos.get('unHijo', {}).get('porcentaje', 0),
+                'dosHijos': datos.get('dosHijos', {}).get('porcentaje', 0),
+                'tresOMas': datos.get('tresOMas', {}).get('porcentaje', 0)
+            })
+        elif tipo == 'ciudad':
+            ciudades = datos.get('ciudades', [])
+            prompt = generar_prompt_ciudad(cod_empresa, ciudades)
+        elif tipo == 'profesion':
+            profesiones = datos.get('profesiones', [])
+            prompt = generar_prompt_profesion(cod_empresa, profesiones)
+        elif tipo == 'encuestaSalud':
+            respuestas = datos.get('respuestas', [])
+            prompt = generar_prompt_encuesta_salud(cod_empresa, respuestas)
+        elif tipo == 'diagnosticos':
+            diagnosticos = datos.get('diagnosticos', [])
+            prompt = generar_prompt_diagnosticos(cod_empresa, diagnosticos)
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Tipo "{tipo}" no válido. Tipos permitidos: genero, edad, estadoCivil, nivelEducativo, hijos, ciudad, profesion, encuestaSalud, diagnosticos'
+            }), 400
+
+        logger.info(f"🤖 Generando recomendación IA para tipo: {tipo}, empresa: {cod_empresa}")
+
+        # Llamar a OpenAI
+        resultado = call_openai(prompt)
+
+        if resultado and resultado.get('success'):
+            response = jsonify({
+                'success': True,
+                'tipo': tipo,
+                'recomendacion': resultado['content'],
+                'usage': resultado.get('usage')
+            })
+        else:
+            response = jsonify({
+                'success': False,
+                'error': resultado.get('error', 'Error desconocido al llamar a OpenAI')
+            })
+
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ Error generando recomendaciones IA: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 if __name__ == "__main__":

@@ -90,6 +90,56 @@ export async function consultarPorDocumento(numeroId) {
     }
 }
 
+// FUNCIÓN PARA CONSULTAR POR CELULAR (BOT DIGITALOCEAN)
+export async function consultarPorCelular(celular) {
+    try {
+        // Limpiar el número: quitar código de país y caracteres no numéricos
+        const celularLimpio = celular.replace(/\D/g, '').replace(/^57/, '');
+
+        const result = await wixData.query("HistoriaClinica")
+            .eq("celular", celularLimpio)
+            .descending("fechaAtencion") // Obtener el más reciente primero
+            .find();
+
+        if (result.items.length === 0) {
+            return { success: false, message: "No se encontró paciente con ese celular" };
+        }
+
+        // Retornar el registro más reciente
+        const item = result.items[0];
+        return {
+            success: true,
+            _id: item._id,
+            numeroId: item.numeroId,
+            primerNombre: item.primerNombre,
+            segundoNombre: item.segundoNombre,
+            primerApellido: item.primerApellido,
+            segundoApellido: item.segundoApellido,
+            celular: item.celular,
+            fechaConsulta: item.fechaConsulta ? item.fechaConsulta.toISOString() : null,
+            fechaAtencion: item.fechaAtencion ? item.fechaAtencion.toISOString() : null,
+            pvEstado: item.pvEstado,
+            atendido: item.atendido,
+            empresa: item.empresa,
+            codEmpresa: item.codEmpresa
+        };
+    } catch (error) {
+        console.error("Error consultando información por celular:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+// FUNCIÓN PARA CREAR NUEVA HISTORIA CLÍNICA (ORDEN)
+export async function crearHistoriaClinica(datos) {
+    try {
+        const result = await wixData.insert("HistoriaClinica", datos);
+        return { success: true, item: result };
+    } catch (error) {
+        console.error("Error creando historia clínica:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 // FUNCIÓN PARA ACTUALIZAR HISTORIA CLÍNICA
 export async function actualizarHistoriaClinica(_id, datos) {
     try {
@@ -639,6 +689,125 @@ export async function obtenerConversacionesTwilioPorCelular(celular) {
 
     } catch (error) {
         console.error("❌ Error obteniendo conversaciones:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FUNCIONES PARA INFORME DE CONDICIONES DE SALUD
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Obtiene registros de HistoriaClinica por codEmpresa y rango de fechas
+ * @param {string} codEmpresa - Código de la empresa
+ * @param {string} fechaInicio - Fecha de inicio en formato YYYY-MM-DD
+ * @param {string} fechaFin - Fecha de fin en formato YYYY-MM-DD
+ * @returns {Promise<Object>} - Lista de IDs de HistoriaClinica
+ */
+export async function obtenerHistoriaClinicaPorEmpresa(codEmpresa, fechaInicio, fechaFin) {
+    try {
+        console.log(`📊 Obteniendo HistoriaClinica para empresa: ${codEmpresa}, desde ${fechaInicio} hasta ${fechaFin}`);
+
+        // Crear fechas en hora local de Colombia (UTC-5)
+        const inicio = new Date(`${fechaInicio}T00:00:00-05:00`);
+        const fin = new Date(`${fechaFin}T23:59:59-05:00`);
+
+        console.log(`🕐 Rango UTC: ${inicio.toISOString()} hasta ${fin.toISOString()}`);
+
+        // Paginación para obtener TODOS los registros (Wix tiene límite de 1000 por query)
+        let allItems = [];
+        let hasMore = true;
+        let skip = 0;
+        const pageSize = 1000;
+
+        while (hasMore) {
+            const result = await wixData.query("HistoriaClinica")
+                .eq("codEmpresa", codEmpresa)
+                .ge("fechaAtencion", inicio)
+                .le("fechaAtencion", fin)
+                .limit(pageSize)
+                .skip(skip)
+                .find();
+
+            allItems = allItems.concat(result.items);
+            console.log(`📄 Página obtenida: ${result.items.length} registros (skip: ${skip})`);
+
+            hasMore = result.items.length === pageSize;
+            skip += pageSize;
+
+            // Seguridad: evitar loops infinitos
+            if (skip > 50000) {
+                console.warn("⚠️ Límite de seguridad alcanzado (50000 registros)");
+                break;
+            }
+        }
+
+        console.log(`✅ Total de registros de HistoriaClinica obtenidos: ${allItems.length}`);
+
+        // Extraer solo los _id para usar en la consulta de FORMULARIO
+        const historiaIds = allItems.map(item => item._id);
+
+        return {
+            success: true,
+            total: allItems.length,
+            historiaIds: historiaIds,
+            items: allItems
+        };
+    } catch (error) {
+        console.error("❌ Error obteniendo HistoriaClinica por empresa:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Obtiene registros de FORMULARIO por array de IDs usando hasSome
+ * @param {Array<string>} ids - Array de IDs de HistoriaClinica (idGeneral)
+ * @returns {Promise<Object>} - Lista de formularios
+ */
+export async function obtenerFormulariosPorIds(ids) {
+    try {
+        console.log(`📋 Obteniendo FORMULARIO para ${ids.length} IDs`);
+
+        if (!ids || ids.length === 0) {
+            return {
+                success: true,
+                total: 0,
+                items: []
+            };
+        }
+
+        // Wix hasSome tiene un límite de 100 valores por consulta
+        // Dividir en chunks de 100
+        const chunkSize = 100;
+        let allItems = [];
+
+        for (let i = 0; i < ids.length; i += chunkSize) {
+            const chunk = ids.slice(i, i + chunkSize);
+
+            const result = await wixData.query("FORMULARIO")
+                .hasSome("idGeneral", chunk)
+                .limit(1000)
+                .find();
+
+            allItems = allItems.concat(result.items);
+            console.log(`📄 Chunk ${Math.floor(i / chunkSize) + 1}: ${result.items.length} formularios encontrados`);
+        }
+
+        console.log(`✅ Total de FORMULARIO obtenidos: ${allItems.length}`);
+
+        return {
+            success: true,
+            total: allItems.length,
+            items: allItems
+        };
+    } catch (error) {
+        console.error("❌ Error obteniendo FORMULARIO por IDs:", error);
         return {
             success: false,
             error: error.message
