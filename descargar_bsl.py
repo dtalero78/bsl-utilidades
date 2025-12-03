@@ -8402,16 +8402,20 @@ def generar_recomendaciones_ia():
                 'tresOMas': datos.get('tresOMas', {}).get('porcentaje', 0)
             })
         elif tipo == 'ciudad':
-            ciudades = datos.get('ciudades', [])
+            # datos puede ser un array directamente o un objeto con propiedad 'ciudades'
+            ciudades = datos if isinstance(datos, list) else datos.get('ciudades', [])
             prompt = generar_prompt_ciudad(cod_empresa, ciudades)
         elif tipo == 'profesion':
-            profesiones = datos.get('profesiones', [])
+            # datos puede ser un array directamente o un objeto con propiedad 'profesiones'
+            profesiones = datos if isinstance(datos, list) else datos.get('profesiones', [])
             prompt = generar_prompt_profesion(cod_empresa, profesiones)
         elif tipo == 'encuestaSalud':
-            respuestas = datos.get('respuestas', [])
+            # datos puede ser un array/objeto directamente o un objeto con propiedad 'respuestas'
+            respuestas = datos if isinstance(datos, (list, dict)) and 'respuestas' not in datos else datos.get('respuestas', datos)
             prompt = generar_prompt_encuesta_salud(cod_empresa, respuestas)
         elif tipo == 'diagnosticos':
-            diagnosticos = datos.get('diagnosticos', [])
+            # datos puede ser un array directamente o un objeto con propiedad 'diagnosticos'
+            diagnosticos = datos if isinstance(datos, list) else datos.get('diagnosticos', [])
             prompt = generar_prompt_diagnosticos(cod_empresa, diagnosticos)
         else:
             return jsonify({
