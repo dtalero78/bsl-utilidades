@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Condiciones de Salud - BSL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-overlay.active { display: flex; }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stat-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+        <div class="bg-white p-8 rounded-lg shadow-xl flex flex-col items-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-gray-700 font-medium">Cargando datos...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white py-6 shadow-lg no-print">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl font-bold">Informe de Condiciones de Salud</h1>
+            <p class="text-blue-200 mt-1">Sistema de Vigilancia Epidemiológica Ocupacional</p>
+        </div>
+    </header>
+
+    <!-- Search Section -->
+    <section id="searchSection" class="container mx-auto px-4 py-8 no-print">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Parámetros de Búsqueda</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Código Empresa</label>
+                    <input type="text" id="codEmpresa" placeholder="Ej: SANITHELP-JJ"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                    <input type="date" id="fechaInicio"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                    <input type="date" id="fechaFin"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="buscarDatos()"
+                            class="w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                        Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Report Content (Hidden until search) -->
+    <main id="reportContent" class="container mx-auto px-4 pb-8 hidden">
+        <!-- Portada -->
+        <section id="portada" class="bg-white rounded-lg shadow-md p-8 mb-6">
+            <div class="text-center">
+                <img src="/images/logo_bsl.png" alt="BSL Logo" class="h-20 mx-auto mb-4" onerror="this.style.display='none'">
+                <h2 class="text-2xl font-bold text-gray-800" id="empresaName">-</h2>
+                <p class="text-gray-600" id="empresaNit">NIT: -</p>
+                <p class="text-lg text-blue-600 font-medium mt-4" id="periodoInforme">Período: -</p>
+                <p class="text-sm text-gray-500 mt-2">Fecha de elaboración: <span id="fechaElaboracion">-</span></p>
+            </div>
+
+            <!-- Resumen General -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                <div class="bg-blue-50 rounded-lg p-4 text-center stat-card">
+                    <p class="text-3xl font-bold text-blue-600" id="totalAtenciones">0</p>
+                    <p class="text-gray-600">Total Atenciones</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 text-center stat-card">
+                    <p class="text-3xl font-bold text-green-600" id="totalFormularios">0</p>
+                    <p class="text-gray-600">Formularios Procesados</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4 text-center stat-card">
+                    <p class="text-3xl font-bold text-purple-600" id="totalDiagnosticos">0</p>
+                    <p class="text-gray-600">Diagnósticos Registrados</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Género -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Género</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-container">
+                    <canvas id="chartGenero"></canvas>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50 rounded-lg p-4 text-center">
+                            <p class="text-2xl font-bold text-blue-600" id="porcentajeMasculino">0%</p>
+                            <p class="text-gray-600">Masculino</p>
+                        </div>
+                        <div class="bg-pink-50 rounded-lg p-4 text-center">
+                            <p class="text-2xl font-bold text-pink-600" id="porcentajeFemenino">0%</p>
+                            <p class="text-gray-600">Femenino</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Edad -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Edad</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-container">
+                    <canvas id="chartEdad"></canvas>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="rangoEdad1">0%</p>
+                        <p class="text-sm text-gray-600">15-20 años</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="rangoEdad2">0%</p>
+                        <p class="text-sm text-gray-600">21-30 años</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="rangoEdad3">0%</p>
+                        <p class="text-sm text-gray-600">31-40 años</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="rangoEdad4">0%</p>
+                        <p class="text-sm text-gray-600">41-50 años</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="rangoEdad5">0%</p>
+                        <p class="text-sm text-gray-600">&gt;50 años</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Estado Civil -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Estado Civil</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-container">
+                    <canvas id="chartEstadoCivil"></canvas>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="soltero">0%</p>
+                        <p class="text-sm text-gray-600">Soltero</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="casado">0%</p>
+                        <p class="text-sm text-gray-600">Casado</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="unionLibre">0%</p>
+                        <p class="text-sm text-gray-600">Unión Libre</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="divorciado">0%</p>
+                        <p class="text-sm text-gray-600">Divorciado</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="viudo">0%</p>
+                        <p class="text-sm text-gray-600">Viudo</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nivel Educativo -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Nivel Educativo</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-container">
+                    <canvas id="chartNivelEducativo"></canvas>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajePrimaria">0%</p>
+                        <p class="text-sm text-gray-600">Primaria</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeSecundaria">0%</p>
+                        <p class="text-sm text-gray-600">Secundaria</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeUniversitario">0%</p>
+                        <p class="text-sm text-gray-600">Universitario</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajePostgrado">0%</p>
+                        <p class="text-sm text-gray-600">Postgrado</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hijos -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Número de Hijos</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="chart-container">
+                    <canvas id="chartHijos"></canvas>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeSinHijos">0%</p>
+                        <p class="text-sm text-gray-600">Sin hijos</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeUnHijo">0%</p>
+                        <p class="text-sm text-gray-600">1 hijo</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeDosHijos">0%</p>
+                        <p class="text-sm text-gray-600">2 hijos</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <p class="text-xl font-bold text-gray-700" id="porcentajeTresOMasHijos">0%</p>
+                        <p class="text-sm text-gray-600">3+ hijos</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ciudad de Residencia -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Ciudad de Residencia</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full" id="tablaCiudad">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ciudad</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cantidad</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Profesión u Oficio -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Distribución por Profesión u Oficio</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full" id="tablaProfesion">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Profesión</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cantidad</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Encuesta de Salud -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Resultados Encuesta de Salud</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full" id="tablaEncuestaSalud">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Condición</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cantidad</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Diagnósticos -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Diagnósticos Principales (mdDx1)</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full" id="tablaDiagnosticos">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Diagnóstico</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cantidad</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SVE - Sistema de Vigilancia Epidemiológica -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
+            <h3 class="text-xl font-semibold mb-4 text-gray-800">Sistema de Vigilancia Epidemiológica (SVE)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-blue-600" id="sveVisual">0</p>
+                    <p class="text-gray-600">Visual</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-yellow-600" id="sveAuditivo">0</p>
+                    <p class="text-gray-600">Auditivo</p>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4 text-center">
+                    <p class="text-2xl font-bold text-red-600" id="sveControlPeso">0</p>
+                    <p class="text-gray-600">Control de Peso</p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full" id="tablaSVE">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nombres</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Documento</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Sistema</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Diagnóstico</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Botones de Acción -->
+        <section class="no-print flex justify-center gap-4 mb-8">
+            <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">
+                Imprimir Informe
+            </button>
+            <button onclick="exportarJSON()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
+                Exportar JSON
+            </button>
+        </section>
+    </main>
+
+    <script>
+        // Variables globales
+        let datosInforme = null;
+        let charts = {};
+        const WIX_BASE_URL = 'https://www.bsl.com.co/_functions';
+
+        // Inicializar fechas por defecto (mes actual)
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoy = new Date();
+            const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            document.getElementById('fechaInicio').value = primerDiaMes.toISOString().split('T')[0];
+            document.getElementById('fechaFin').value = hoy.toISOString().split('T')[0];
+        });
+
+        // Función principal de búsqueda
+        async function buscarDatos() {
+            const codEmpresa = document.getElementById('codEmpresa').value.trim();
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const fechaFin = document.getElementById('fechaFin').value;
+
+            if (!codEmpresa || !fechaInicio || !fechaFin) {
+                alert('Por favor complete todos los campos');
+                return;
+            }
+
+            mostrarLoading(true);
+
+            try {
+                // Llamar al endpoint de Flask que obtiene los datos de Wix
+                const response = await fetch(`/api/informe-condiciones-salud?codEmpresa=${encodeURIComponent(codEmpresa)}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`);
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                datosInforme = await response.json();
+                console.log('Datos recibidos:', datosInforme);
+
+                if (!datosInforme.success) {
+                    alert(datosInforme.message || 'Error al obtener los datos');
+                    return;
+                }
+
+                // Mostrar el reporte
+                document.getElementById('reportContent').classList.remove('hidden');
+                renderizarInforme(datosInforme);
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al obtener los datos: ' + error.message);
+            } finally {
+                mostrarLoading(false);
+            }
+        }
+
+        // Renderizar todo el informe
+        function renderizarInforme(datos) {
+            // Portada
+            document.getElementById('empresaName').textContent = datos.empresaInfo?.empresa || datos.codEmpresa;
+            document.getElementById('empresaNit').textContent = datos.empresaInfo?.nit ? `NIT: ${datos.empresaInfo.nit}` : '';
+            document.getElementById('periodoInforme').textContent = `Período: ${formatearFecha(datos.fechaInicio)} - ${formatearFecha(datos.fechaFin)}`;
+            document.getElementById('fechaElaboracion').textContent = new Date().toLocaleDateString('es-CO');
+            document.getElementById('totalAtenciones').textContent = datos.totalAtenciones || 0;
+            document.getElementById('totalFormularios').textContent = datos.totalFormularios || 0;
+            document.getElementById('totalDiagnosticos').textContent = datos.estadisticas?.diagnosticos?.diagnosticos?.length || 0;
+
+            // Renderizar cada sección
+            renderizarGenero(datos.estadisticas?.genero);
+            renderizarEdad(datos.estadisticas?.edad);
+            renderizarEstadoCivil(datos.estadisticas?.estadoCivil);
+            renderizarNivelEducativo(datos.estadisticas?.nivelEducativo);
+            renderizarHijos(datos.estadisticas?.hijos);
+            renderizarTabla('tablaCiudad', datos.estadisticas?.ciudadResidencia?.ciudades, ['nombre', 'cantidad', 'porcentaje']);
+            renderizarTabla('tablaProfesion', datos.estadisticas?.profesionUOficio?.profesiones, ['nombre', 'cantidad', 'porcentaje']);
+            renderizarTabla('tablaEncuestaSalud', datos.estadisticas?.encuestaSalud?.respuestas, ['nombre', 'cantidad', 'porcentaje']);
+            renderizarTabla('tablaDiagnosticos', datos.estadisticas?.diagnosticos?.diagnosticos, ['nombre', 'cantidad', 'porcentaje']);
+            renderizarSVE(datos.estadisticas?.sve);
+        }
+
+        // Renderizar gráfico de género
+        function renderizarGenero(data) {
+            if (!data) return;
+
+            document.getElementById('porcentajeMasculino').textContent = `${Math.round(data.masculino?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeFemenino').textContent = `${Math.round(data.femenino?.porcentaje || 0)}%`;
+
+            if (charts.genero) charts.genero.destroy();
+            charts.genero = new Chart(document.getElementById('chartGenero'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Masculino', 'Femenino'],
+                    datasets: [{
+                        data: [data.masculino?.cantidad || 0, data.femenino?.cantidad || 0],
+                        backgroundColor: ['#3B82F6', '#EC4899']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Renderizar gráfico de edad
+        function renderizarEdad(data) {
+            if (!data?.rangos) return;
+
+            document.getElementById('rangoEdad1').textContent = `${Math.round(data.rangos['15-20']?.porcentaje || 0)}%`;
+            document.getElementById('rangoEdad2').textContent = `${Math.round(data.rangos['21-30']?.porcentaje || 0)}%`;
+            document.getElementById('rangoEdad3').textContent = `${Math.round(data.rangos['31-40']?.porcentaje || 0)}%`;
+            document.getElementById('rangoEdad4').textContent = `${Math.round(data.rangos['41-50']?.porcentaje || 0)}%`;
+            document.getElementById('rangoEdad5').textContent = `${Math.round(data.rangos['mayor50']?.porcentaje || 0)}%`;
+
+            if (charts.edad) charts.edad.destroy();
+            charts.edad = new Chart(document.getElementById('chartEdad'), {
+                type: 'bar',
+                data: {
+                    labels: ['15-20', '21-30', '31-40', '41-50', '>50'],
+                    datasets: [{
+                        label: 'Cantidad',
+                        data: [
+                            data.rangos['15-20']?.cantidad || 0,
+                            data.rangos['21-30']?.cantidad || 0,
+                            data.rangos['31-40']?.cantidad || 0,
+                            data.rangos['41-50']?.cantidad || 0,
+                            data.rangos['mayor50']?.cantidad || 0
+                        ],
+                        backgroundColor: '#3B82F6'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Renderizar estado civil
+        function renderizarEstadoCivil(data) {
+            if (!data?.estados) return;
+
+            document.getElementById('soltero').textContent = `${Math.round(data.estados.soltero?.porcentaje || 0)}%`;
+            document.getElementById('casado').textContent = `${Math.round(data.estados.casado?.porcentaje || 0)}%`;
+            document.getElementById('unionLibre').textContent = `${Math.round(data.estados.unionLibre?.porcentaje || 0)}%`;
+            document.getElementById('divorciado').textContent = `${Math.round(data.estados.divorciado?.porcentaje || 0)}%`;
+            document.getElementById('viudo').textContent = `${Math.round(data.estados.viudo?.porcentaje || 0)}%`;
+
+            if (charts.estadoCivil) charts.estadoCivil.destroy();
+            charts.estadoCivil = new Chart(document.getElementById('chartEstadoCivil'), {
+                type: 'pie',
+                data: {
+                    labels: ['Soltero', 'Casado', 'Unión Libre', 'Divorciado', 'Viudo'],
+                    datasets: [{
+                        data: [
+                            data.estados.soltero?.cantidad || 0,
+                            data.estados.casado?.cantidad || 0,
+                            data.estados.unionLibre?.cantidad || 0,
+                            data.estados.divorciado?.cantidad || 0,
+                            data.estados.viudo?.cantidad || 0
+                        ],
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Renderizar nivel educativo
+        function renderizarNivelEducativo(data) {
+            if (!data?.niveles) return;
+
+            document.getElementById('porcentajePrimaria').textContent = `${Math.round(data.niveles.primaria?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeSecundaria').textContent = `${Math.round(data.niveles.secundaria?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeUniversitario').textContent = `${Math.round(data.niveles.universitario?.porcentaje || 0)}%`;
+            document.getElementById('porcentajePostgrado').textContent = `${Math.round(data.niveles.postgrado?.porcentaje || 0)}%`;
+
+            if (charts.nivelEducativo) charts.nivelEducativo.destroy();
+            charts.nivelEducativo = new Chart(document.getElementById('chartNivelEducativo'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Primaria', 'Secundaria', 'Universitario', 'Postgrado'],
+                    datasets: [{
+                        data: [
+                            data.niveles.primaria?.cantidad || 0,
+                            data.niveles.secundaria?.cantidad || 0,
+                            data.niveles.universitario?.cantidad || 0,
+                            data.niveles.postgrado?.cantidad || 0
+                        ],
+                        backgroundColor: ['#EF4444', '#F59E0B', '#10B981', '#3B82F6']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Renderizar hijos
+        function renderizarHijos(data) {
+            if (!data?.grupos) return;
+
+            document.getElementById('porcentajeSinHijos').textContent = `${Math.round(data.grupos.sinHijos?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeUnHijo').textContent = `${Math.round(data.grupos.unHijo?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeDosHijos').textContent = `${Math.round(data.grupos.dosHijos?.porcentaje || 0)}%`;
+            document.getElementById('porcentajeTresOMasHijos').textContent = `${Math.round(data.grupos.tresOMas?.porcentaje || 0)}%`;
+
+            if (charts.hijos) charts.hijos.destroy();
+            charts.hijos = new Chart(document.getElementById('chartHijos'), {
+                type: 'bar',
+                data: {
+                    labels: ['Sin hijos', '1 hijo', '2 hijos', '3+ hijos'],
+                    datasets: [{
+                        label: 'Cantidad',
+                        data: [
+                            data.grupos.sinHijos?.cantidad || 0,
+                            data.grupos.unHijo?.cantidad || 0,
+                            data.grupos.dosHijos?.cantidad || 0,
+                            data.grupos.tresOMas?.cantidad || 0
+                        ],
+                        backgroundColor: '#8B5CF6'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Renderizar tabla genérica
+        function renderizarTabla(tableId, data, fields) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Sin datos</td></tr>';
+                return;
+            }
+
+            data.slice(0, 20).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+
+                fields.forEach(field => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-3 text-sm text-gray-700';
+
+                    if (field === 'porcentaje') {
+                        td.textContent = `${(item[field] || 0).toFixed(1)}%`;
+                    } else {
+                        td.textContent = item[field] || '-';
+                    }
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Renderizar SVE
+        function renderizarSVE(data) {
+            if (!data) return;
+
+            document.getElementById('sveVisual').textContent = data.resumen?.visual || 0;
+            document.getElementById('sveAuditivo').textContent = data.resumen?.auditivo || 0;
+            document.getElementById('sveControlPeso').textContent = data.resumen?.controlPeso || 0;
+
+            const tbody = document.querySelector('#tablaSVE tbody');
+            tbody.innerHTML = '';
+
+            if (!data.pacientes || data.pacientes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500">Sin pacientes en vigilancia</td></tr>';
+                return;
+            }
+
+            data.pacientes.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+
+                ['nombres', 'documento', 'sistema', 'diagnostico'].forEach(field => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-3 text-sm text-gray-700';
+                    td.textContent = item[field] || '-';
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Utilidades
+        function mostrarLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return '-';
+            const fecha = new Date(fechaStr + 'T00:00:00');
+            return fecha.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function exportarJSON() {
+            if (!datosInforme) {
+                alert('No hay datos para exportar');
+                return;
+            }
+
+            const blob = new Blob([JSON.stringify(datosInforme, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

@@ -7685,6 +7685,499 @@ def api_generar_certificado_pdf_v2_drive(wix_id):
         return error_response, 500
 
 
+# ============================================================================
+# ENDPOINT PARA INFORME DE CONDICIONES DE SALUD
+# ============================================================================
+
+# Condiciones para SVE (Sistema de Vigilancia Epidemiológica)
+SVE_VISUAL_CONDITIONS = [
+    'ASTIGMATISMO H522',
+    "ALTERACION VISUAL  NO ESPECIFICADA H539",
+    'ALTERACIONES VISUALES SUBJETIVAS H531',
+    'CONJUNTIVITIS  NO ESPECIFICADA H109',
+    'DISMINUCION DE LA AGUDEZA VISUAL SIN ESPECIFICACION H547',
+    'DISMINUCION INDETERMINADA DE LA AGUDEZA VISUAL EN AMBOS OJOS (AMETROPÍA) H543',
+    'MIOPIA H521',
+    'PRESBICIA H524',
+    'VISION SUBNORMAL DE AMBOS OJOS H542',
+    'DEFECTOS DEL CAMPO VISUAL H534'
+]
+
+SVE_AUDITORY_CONDITIONS = [
+    'EFECTOS DEL RUIDO SOBRE EL OIDO INTERNO H833',
+    'PRESBIACUSIA H911',
+    'HIPOACUSIA  NO ESPECIFICADA H919',
+    'OTITIS MEDIA  NO ESPECIFICADA H669',
+    'OTRAS ENFERMEDADES DE LAS CUERDAS VOCALES J383',
+    'OTROS TRASTORNOS DE LA VISION BINOCULAR H533'
+]
+
+SVE_WEIGHT_CONDITIONS = [
+    'AUMENTO ANORMAL DE PESO',
+    'OBESIDAD ALIMENTARIA, E66.0',
+    'OBESIDAD CONSTITUCIONAL, E66.8',
+    'HIPOTIROIDISMO  NO ESPECIFICADO E039'
+]
+
+
+@app.route('/api/informe-condiciones-salud', methods=['GET', 'OPTIONS'])
+def informe_condiciones_salud():
+    """
+    Genera un informe de condiciones de salud obteniendo datos de Wix.
+    Parámetros: codEmpresa, fechaInicio, fechaFin
+    """
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    try:
+        cod_empresa = request.args.get('codEmpresa')
+        fecha_inicio = request.args.get('fechaInicio')
+        fecha_fin = request.args.get('fechaFin')
+
+        if not cod_empresa or not fecha_inicio or not fecha_fin:
+            return jsonify({
+                'success': False,
+                'error': 'Parámetros requeridos: codEmpresa, fechaInicio, fechaFin'
+            }), 400
+
+        logger.info(f"📊 Generando informe para empresa: {cod_empresa}, período: {fecha_inicio} - {fecha_fin}")
+
+        # Paso 1: Obtener datos de HistoriaClinica desde Wix
+        historia_clinica_items = obtener_historia_clinica_wix(cod_empresa, fecha_inicio, fecha_fin)
+        total_atenciones = len(historia_clinica_items)
+
+        logger.info(f"✅ Total atenciones encontradas: {total_atenciones}")
+
+        if total_atenciones == 0:
+            return jsonify({
+                'success': True,
+                'totalAtenciones': 0,
+                'totalFormularios': 0,
+                'message': 'No se encontraron registros para los criterios dados',
+                'codEmpresa': cod_empresa,
+                'fechaInicio': fecha_inicio,
+                'fechaFin': fecha_fin
+            })
+
+        # Obtener IDs para cruzar con FORMULARIO
+        historia_ids = [item.get('_id') for item in historia_clinica_items if item.get('_id')]
+
+        # Paso 2: Obtener datos de la empresa
+        empresa_info = obtener_empresa_wix(cod_empresa)
+
+        # Paso 3: Obtener datos de FORMULARIO
+        formulario_items = obtener_formularios_por_ids_wix(historia_ids)
+        total_formularios = len(formulario_items)
+
+        logger.info(f"✅ Total formularios encontrados: {total_formularios}")
+
+        # Paso 4: Generar estadísticas
+        estadisticas = {
+            'genero': contar_genero(formulario_items),
+            'edad': contar_edad(formulario_items),
+            'estadoCivil': contar_estado_civil(formulario_items),
+            'nivelEducativo': contar_nivel_educativo(formulario_items),
+            'hijos': contar_hijos(formulario_items),
+            'ciudadResidencia': contar_ciudad_residencia(formulario_items),
+            'profesionUOficio': contar_profesion(formulario_items),
+            'encuestaSalud': contar_encuesta_salud(formulario_items),
+            'diagnosticos': contar_diagnosticos(historia_clinica_items),
+            'sve': generar_sve(historia_clinica_items)
+        }
+
+        response_data = {
+            'success': True,
+            'totalAtenciones': total_atenciones,
+            'totalFormularios': total_formularios,
+            'empresaInfo': empresa_info,
+            'codEmpresa': cod_empresa,
+            'fechaInicio': fecha_inicio,
+            'fechaFin': fecha_fin,
+            'estadisticas': estadisticas
+        }
+
+        response = jsonify(response_data)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ Error generando informe: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def obtener_historia_clinica_wix(cod_empresa, fecha_inicio, fecha_fin):
+    """Obtiene registros de HistoriaClinica desde Wix API"""
+    try:
+        # Usar el endpoint existente de estadísticas o crear consulta directa
+        url = f"https://www.bsl.com.co/_functions/historiaClinicaPorEmpresa"
+        params = {
+            'codEmpresa': cod_empresa,
+            'fechaInicio': fecha_inicio,
+            'fechaFin': fecha_fin
+        }
+
+        response = requests_session.get(url, params=params, timeout=60)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                return data.get('items', [])
+
+        # Si el endpoint no existe, usar consulta alternativa
+        logger.warning(f"⚠️ Endpoint historiaClinicaPorEmpresa no disponible, usando alternativa")
+        return consultar_historia_clinica_directo(cod_empresa, fecha_inicio, fecha_fin)
+
+    except Exception as e:
+        logger.error(f"Error obteniendo HistoriaClinica: {e}")
+        return []
+
+
+def consultar_historia_clinica_directo(cod_empresa, fecha_inicio, fecha_fin):
+    """
+    Consulta directa a Wix para obtener HistoriaClinica.
+    """
+    try:
+        url = f"https://www.bsl.com.co/_functions/pacientesPorEmpresa"
+        params = {
+            'codEmpresa': cod_empresa,
+            'fechaInicio': fecha_inicio,
+            'fechaFin': fecha_fin,
+            'limit': 1000
+        }
+
+        response = requests_session.get(url, params=params, timeout=60)
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('items', data.get('data', []))
+
+        logger.warning(f"⚠️ No se pudo obtener datos de HistoriaClinica: {response.status_code}")
+        return []
+
+    except Exception as e:
+        logger.error(f"Error en consulta directa: {e}")
+        return []
+
+
+def obtener_empresa_wix(cod_empresa):
+    """Obtiene información de la empresa desde Wix"""
+    try:
+        return {
+            'codEmpresa': cod_empresa,
+            'empresa': cod_empresa,
+            'nit': None
+        }
+    except Exception as e:
+        logger.error(f"Error obteniendo empresa: {e}")
+        return None
+
+
+def obtener_formularios_por_ids_wix(historia_ids):
+    """Obtiene formularios por IDs de HistoriaClinica desde Wix"""
+    try:
+        if not historia_ids:
+            return []
+
+        all_formularios = []
+        batch_size = 50
+
+        for i in range(0, len(historia_ids), batch_size):
+            batch_ids = historia_ids[i:i + batch_size]
+
+            url = f"https://www.bsl.com.co/_functions/formulariosPorIds"
+            response = requests_session.post(url, json={'ids': batch_ids}, timeout=60)
+
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('items', data.get('data', []))
+                all_formularios.extend(items)
+
+        return all_formularios
+
+    except Exception as e:
+        logger.error(f"Error obteniendo formularios: {e}")
+        return []
+
+
+# Funciones de conteo de estadísticas
+def contar_genero(items):
+    total = len(items)
+    masculino = sum(1 for item in items if str(item.get('genero', '')).upper().strip() == 'MASCULINO')
+    femenino = sum(1 for item in items if str(item.get('genero', '')).upper().strip() == 'FEMENINO')
+
+    return {
+        'total': total,
+        'masculino': {
+            'cantidad': masculino,
+            'porcentaje': (masculino / total * 100) if total > 0 else 0
+        },
+        'femenino': {
+            'cantidad': femenino,
+            'porcentaje': (femenino / total * 100) if total > 0 else 0
+        }
+    }
+
+
+def contar_edad(items):
+    total = len(items)
+    rangos = {'15-20': 0, '21-30': 0, '31-40': 0, '41-50': 0, 'mayor50': 0}
+
+    for item in items:
+        try:
+            edad = int(item.get('edad', 0))
+            if 15 <= edad <= 20:
+                rangos['15-20'] += 1
+            elif 21 <= edad <= 30:
+                rangos['21-30'] += 1
+            elif 31 <= edad <= 40:
+                rangos['31-40'] += 1
+            elif 41 <= edad <= 50:
+                rangos['41-50'] += 1
+            elif edad > 50:
+                rangos['mayor50'] += 1
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        'total': total,
+        'rangos': {
+            key: {
+                'cantidad': value,
+                'porcentaje': (value / total * 100) if total > 0 else 0
+            } for key, value in rangos.items()
+        }
+    }
+
+
+def contar_estado_civil(items):
+    total = len(items)
+    estados = {'soltero': 0, 'casado': 0, 'divorciado': 0, 'viudo': 0, 'unionLibre': 0}
+
+    for item in items:
+        estado = str(item.get('estadoCivil', '')).upper().strip()
+        if estado == 'SOLTERO':
+            estados['soltero'] += 1
+        elif estado == 'CASADO':
+            estados['casado'] += 1
+        elif estado == 'DIVORCIADO':
+            estados['divorciado'] += 1
+        elif estado == 'VIUDO':
+            estados['viudo'] += 1
+        elif estado in ['UNIÓN LIBRE', 'UNION LIBRE']:
+            estados['unionLibre'] += 1
+
+    return {
+        'total': total,
+        'estados': {
+            key: {
+                'cantidad': value,
+                'porcentaje': (value / total * 100) if total > 0 else 0
+            } for key, value in estados.items()
+        }
+    }
+
+
+def contar_nivel_educativo(items):
+    total = len(items)
+    niveles = {'primaria': 0, 'secundaria': 0, 'universitario': 0, 'postgrado': 0}
+
+    for item in items:
+        nivel = str(item.get('nivelEducativo', '')).upper().strip()
+        if nivel == 'PRIMARIA':
+            niveles['primaria'] += 1
+        elif nivel == 'SECUNDARIA':
+            niveles['secundaria'] += 1
+        elif nivel == 'UNIVERSITARIO':
+            niveles['universitario'] += 1
+        elif nivel == 'POSTGRADO':
+            niveles['postgrado'] += 1
+
+    return {
+        'total': total,
+        'niveles': {
+            key: {
+                'cantidad': value,
+                'porcentaje': (value / total * 100) if total > 0 else 0
+            } for key, value in niveles.items()
+        }
+    }
+
+
+def contar_hijos(items):
+    total = len(items)
+    grupos = {'sinHijos': 0, 'unHijo': 0, 'dosHijos': 0, 'tresOMas': 0}
+
+    for item in items:
+        try:
+            hijos = int(item.get('hijos', 0))
+            if hijos == 0:
+                grupos['sinHijos'] += 1
+            elif hijos == 1:
+                grupos['unHijo'] += 1
+            elif hijos == 2:
+                grupos['dosHijos'] += 1
+            elif hijos >= 3:
+                grupos['tresOMas'] += 1
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        'total': total,
+        'grupos': {
+            key: {
+                'cantidad': value,
+                'porcentaje': (value / total * 100) if total > 0 else 0
+            } for key, value in grupos.items()
+        }
+    }
+
+
+def contar_ciudad_residencia(items):
+    total = len(items)
+    ciudades_map = {}
+
+    for item in items:
+        ciudad = str(item.get('ciudadDeResidencia', '')).upper().strip()
+        if ciudad:
+            ciudades_map[ciudad] = ciudades_map.get(ciudad, 0) + 1
+
+    ciudades = sorted([
+        {
+            'nombre': ciudad,
+            'cantidad': cantidad,
+            'porcentaje': (cantidad / total * 100) if total > 0 else 0
+        }
+        for ciudad, cantidad in ciudades_map.items()
+    ], key=lambda x: x['cantidad'], reverse=True)
+
+    return {'total': total, 'ciudades': ciudades}
+
+
+def contar_profesion(items):
+    total = len(items)
+    profesiones_map = {}
+
+    for item in items:
+        profesion = str(item.get('profesionUOficio', '')).upper().strip()
+        if profesion:
+            profesiones_map[profesion] = profesiones_map.get(profesion, 0) + 1
+
+    profesiones = sorted([
+        {
+            'nombre': profesion,
+            'cantidad': cantidad,
+            'porcentaje': (cantidad / total * 100) if total > 0 else 0
+        }
+        for profesion, cantidad in profesiones_map.items()
+    ], key=lambda x: x['cantidad'], reverse=True)
+
+    return {'total': total, 'profesiones': profesiones}
+
+
+def contar_encuesta_salud(items):
+    total = len(items)
+    respuestas_map = {}
+
+    for item in items:
+        encuesta = item.get('encuestaSalud', [])
+        if isinstance(encuesta, list):
+            for respuesta in encuesta:
+                resp = str(respuesta).upper().strip()
+                if resp:
+                    respuestas_map[resp] = respuestas_map.get(resp, 0) + 1
+
+    respuestas = sorted([
+        {
+            'nombre': respuesta,
+            'cantidad': cantidad,
+            'porcentaje': (cantidad / total * 100) if total > 0 else 0
+        }
+        for respuesta, cantidad in respuestas_map.items()
+    ], key=lambda x: x['cantidad'], reverse=True)
+
+    return {'total': total, 'respuestas': respuestas}
+
+
+def contar_diagnosticos(items):
+    total = len(items)
+    diagnosticos_map = {}
+
+    for item in items:
+        md_dx1 = str(item.get('mdDx1', '')).strip()
+        if md_dx1:
+            for dx in md_dx1.replace(';', ',').split(','):
+                dx_clean = dx.strip().upper()
+                if dx_clean:
+                    diagnosticos_map[dx_clean] = diagnosticos_map.get(dx_clean, 0) + 1
+
+    diagnosticos = sorted([
+        {
+            'nombre': dx,
+            'cantidad': cantidad,
+            'porcentaje': (cantidad / total * 100) if total > 0 else 0
+        }
+        for dx, cantidad in diagnosticos_map.items()
+    ], key=lambda x: x['cantidad'], reverse=True)
+
+    return {'total': total, 'diagnosticos': diagnosticos}
+
+
+def generar_sve(items):
+    """Genera datos del Sistema de Vigilancia Epidemiológica"""
+    pacientes = []
+    resumen = {'visual': 0, 'auditivo': 0, 'controlPeso': 0}
+
+    for item in items:
+        nombres = f"{item.get('primerNombre', '')} {item.get('primerApellido', '')}".strip()
+        documento = item.get('numeroId', '')
+
+        all_dx = []
+        for dx_field in ['mdDx1', 'mdDx2']:
+            dx_value = str(item.get(dx_field, '')).strip()
+            if dx_value:
+                all_dx.extend([d.strip().upper() for d in dx_value.replace(';', ',').split(',')])
+
+        for dx in all_dx:
+            sistema = None
+            if dx in SVE_VISUAL_CONDITIONS:
+                sistema = 'Visual'
+                resumen['visual'] += 1
+            elif dx in SVE_AUDITORY_CONDITIONS:
+                sistema = 'Auditivo'
+                resumen['auditivo'] += 1
+            elif dx in SVE_WEIGHT_CONDITIONS:
+                sistema = 'Control de Peso'
+                resumen['controlPeso'] += 1
+
+            if sistema:
+                pacientes.append({
+                    'nombres': nombres,
+                    'documento': documento,
+                    'sistema': sistema,
+                    'diagnostico': dx
+                })
+
+    return {
+        'pacientes': pacientes,
+        'resumen': resumen,
+        'totalPacientesAfectados': len(pacientes)
+    }
+
+
+@app.route('/informes.html', methods=['GET'])
+def serve_informes():
+    """Sirve la página de informes"""
+    return send_from_directory('static', 'informes.html')
+
+
 if __name__ == "__main__":
     # Usar socketio.run() en lugar de app.run() para soportar WebSockets
     socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
