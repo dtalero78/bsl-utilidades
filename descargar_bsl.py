@@ -8453,6 +8453,195 @@ def generar_recomendaciones_ia():
         }), 500
 
 
+# ================================================
+# ENDPOINT PARA GENERAR PDF DEL INFORME CON PUPPETEER
+# ================================================
+
+@app.route('/api/informe-pdf', methods=['POST', 'OPTIONS'])
+def generar_informe_pdf():
+    """
+    Genera un PDF del informe de condiciones de salud usando Puppeteer.
+    Recibe la URL del informe y genera el PDF con saltos de página correctos.
+    Body: { url: string } - URL completa del informe a convertir
+    Returns: PDF file
+    """
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    try:
+        data = request.get_json()
+        html_content = data.get('html')
+        filename = data.get('filename', 'informe-condiciones-salud')
+
+        if not html_content:
+            return jsonify({
+                'success': False,
+                'error': 'El parámetro "html" es requerido'
+            }), 400
+
+        logger.info(f"📄 Generando PDF del informe: {filename}")
+
+        # Generar PDF usando Puppeteer
+        pdf_content = puppeteer_informe_to_pdf(html_content, filename)
+
+        if pdf_content:
+            # Retornar el PDF directamente
+            response = make_response(pdf_content)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            return response
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Error generando el PDF'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"❌ Error generando PDF del informe: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def puppeteer_informe_to_pdf(html_content, output_filename="informe"):
+    """
+    Convierte HTML del informe a PDF usando Puppeteer con saltos de página correctos.
+
+    Args:
+        html_content: Contenido HTML a convertir
+        output_filename: Nombre del archivo de salida (sin extensión)
+
+    Returns:
+        bytes: Contenido del PDF generado
+    """
+    try:
+        print("🎭 Iniciando conversión Informe HTML→PDF con Puppeteer...")
+
+        # Crear archivo temporal para el PDF de salida
+        temp_pdf = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+        temp_pdf_path = temp_pdf.name
+        temp_pdf.close()
+
+        # Crear archivo temporal para el HTML
+        temp_html = tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8')
+        temp_html.write(html_content)
+        temp_html_path = temp_html.name
+        temp_html.close()
+
+        print(f"📄 HTML temporal: {temp_html_path}")
+        print(f"📄 PDF de salida: {temp_pdf_path}")
+
+        # Obtener directorio actual del proyecto
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Script de Node.js para ejecutar Puppeteer
+        puppeteer_script = f"""
+const puppeteer = require('{project_dir}/node_modules/puppeteer');
+
+(async () => {{
+    const browser = await puppeteer.launch({{
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
+        ]
+    }});
+
+    const page = await browser.newPage();
+
+    console.log('🌐 Cargando HTML del informe...');
+
+    // Cargar el archivo HTML local
+    await page.goto('file://{temp_html_path}', {{
+        waitUntil: ['load', 'networkidle0'],
+        timeout: 60000
+    }});
+
+    console.log('✅ HTML cargado, esperando renderizado...');
+
+    // Esperar a que los gráficos de Chart.js se rendericen
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Generar PDF con configuración para saltos de página
+    console.log('📄 Generando PDF...');
+    await page.pdf({{
+        path: '{temp_pdf_path}',
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: {{
+            top: '15mm',
+            right: '15mm',
+            bottom: '15mm',
+            left: '15mm'
+        }}
+    }});
+
+    await browser.close();
+    console.log('✅ PDF del informe generado exitosamente');
+}})();
+"""
+
+        # Guardar script temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_script:
+            temp_script.write(puppeteer_script)
+            temp_script_path = temp_script.name
+
+        print(f"🚀 Ejecutando Puppeteer para informe...")
+
+        # Configurar variables de entorno
+        node_modules_path = os.path.join(project_dir, 'node_modules')
+        env = os.environ.copy()
+        env['NODE_PATH'] = node_modules_path
+
+        # Ejecutar Node.js con el script
+        result = subprocess.run(
+            ['node', temp_script_path],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env
+        )
+
+        if result.returncode != 0:
+            print(f"❌ Error en Puppeteer: {result.stderr}")
+            raise Exception(f"Puppeteer falló: {result.stderr}")
+
+        print(f"✅ Puppeteer stdout: {result.stdout}")
+
+        # Leer el PDF generado
+        with open(temp_pdf_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+
+        print(f"✅ PDF del informe generado ({len(pdf_content)} bytes)")
+
+        # Limpiar archivos temporales
+        try:
+            os.unlink(temp_pdf_path)
+            os.unlink(temp_html_path)
+            os.unlink(temp_script_path)
+        except Exception as cleanup_error:
+            print(f"⚠️ Error limpiando archivos temporales: {cleanup_error}")
+
+        return pdf_content
+
+    except subprocess.TimeoutExpired:
+        print("❌ Timeout ejecutando Puppeteer para informe")
+        raise Exception("Timeout en la conversión del informe")
+    except Exception as e:
+        print(f"❌ Error en puppeteer_informe_to_pdf: {e}")
+        raise
+
+
 if __name__ == "__main__":
     # Usar socketio.run() en lugar de app.run() para soportar WebSockets
     socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
