@@ -7440,6 +7440,248 @@ def api_generar_certificado_pdf_v2(wix_id):
         return error_response, 500
 
 
+# =====================================================
+# ENDPOINT V2 CON SUBIDA A GOOGLE DRIVE
+# =====================================================
+
+# Carpeta de Google Drive para certificados V2
+GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2 = os.getenv(
+    "GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2",
+    "1gUOuJdmS38bSk7cqu5evXOl9PdZ17HTJ"  # valor por defecto
+)
+
+
+@app.route("/generar-certificado-v2-drive/<wix_id>", methods=["GET", "OPTIONS"])
+def generar_certificado_v2_drive(wix_id):
+    """
+    Endpoint que muestra loader mientras se genera el certificado V2 y lo sube a Drive
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    loader_html = f'''<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generando Certificado...</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        .logo {{
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }}
+        @keyframes pulse {{
+            0%, 100% {{ opacity: 1; transform: scale(1); }}
+            50% {{ opacity: 0.7; transform: scale(0.95); }}
+        }}
+        h2 {{
+            color: #333;
+            margin-bottom: 10px;
+        }}
+        p {{
+            color: #666;
+        }}
+        .spinner {{
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        .error {{
+            color: #e74c3c;
+            display: none;
+        }}
+        .success-link {{
+            display: none;
+            margin-top: 20px;
+        }}
+        .success-link a {{
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }}
+        .success-link a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://static.wixstatic.com/media/e09c3b_93e0f27ed89a4f3a9d10cdeb0d0a4186~mv2.png"
+             alt="BSL Logo" class="logo">
+        <h2 id="status-text">Generando su certificado...</h2>
+        <div class="spinner" id="spinner"></div>
+        <p id="status-detail">Por favor espere mientras preparamos su documento</p>
+        <p class="error" id="error-msg"></p>
+        <div class="success-link" id="success-link">
+            <a id="drive-link" href="#" target="_blank">📄 Abrir certificado en Google Drive</a>
+        </div>
+    </div>
+    <script>
+        async function generarPDF() {{
+            try {{
+                const response = await fetch('/api/generar-certificado-pdf-v2-drive/{wix_id}');
+                const data = await response.json();
+
+                if (data.success) {{
+                    document.getElementById('status-text').textContent = '¡Certificado generado!';
+                    document.getElementById('status-detail').textContent = 'El certificado ha sido guardado en Google Drive';
+                    document.getElementById('spinner').style.display = 'none';
+                    document.getElementById('drive-link').href = data.drive_link;
+                    document.getElementById('success-link').style.display = 'block';
+                }} else {{
+                    throw new Error(data.error || 'Error desconocido');
+                }}
+            }} catch (error) {{
+                document.getElementById('status-text').textContent = 'Error al generar certificado';
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('error-msg').style.display = 'block';
+                document.getElementById('error-msg').textContent = error.message;
+            }}
+        }}
+
+        generarPDF();
+    </script>
+</body>
+</html>'''
+    return loader_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route("/api/generar-certificado-pdf-v2-drive/<wix_id>", methods=["GET", "OPTIONS"])
+def api_generar_certificado_pdf_v2_drive(wix_id):
+    """
+    Endpoint API que genera el PDF del certificado V2 y lo sube a Google Drive
+
+    Args:
+        wix_id: ID del registro en la colección HistoriaClinica de Wix
+
+    Returns:
+        JSON con success, drive_link, file_name
+    """
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print(f"📋 [V2-Drive] Generando certificado para Wix ID: {wix_id}")
+        print(f"🔧 [V2-Drive] Motor de conversión: iLovePDF")
+        print(f"🔧 [V2-Drive] Destino: Google Drive (carpeta: {GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2})")
+
+        # Construir URL del preview HTML V2
+        preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-v2/{wix_id}"
+        print(f"🔗 [V2-Drive] URL del preview: {preview_url}")
+
+        # Obtener numeroId para el nombre del archivo
+        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        numero_id = wix_id  # fallback
+        try:
+            wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
+            response = requests.get(wix_url, timeout=10)
+            if response.status_code == 200:
+                wix_response = response.json()
+                datos_wix = wix_response.get("data", {})
+                numero_id = datos_wix.get('numeroId', wix_id)
+        except:
+            pass
+
+        # Generar PDF usando iLovePDF
+        print(f"📄 [V2-Drive] Iniciando generación con iLovePDF...")
+        pdf_content = ilovepdf_html_to_pdf_from_url(
+            html_url=preview_url,
+            output_filename=f"certificado_v2_{numero_id}"
+        )
+
+        # Guardar PDF localmente
+        documento_sanitized = str(numero_id).replace(" ", "_").replace("/", "_").replace("\\", "_")
+        local_filename = f"certificado_v2_{documento_sanitized}.pdf"
+
+        with open(local_filename, "wb") as f:
+            f.write(pdf_content)
+
+        print(f"✅ [V2-Drive] PDF generado: {local_filename} ({len(pdf_content)} bytes)")
+
+        # Subir a Google Drive
+        print(f"☁️ [V2-Drive] Subiendo a Google Drive...")
+        nombre_drive = f"certificado_medico_{documento_sanitized}.pdf"
+
+        if DEST == "drive":
+            drive_link = subir_pdf_a_drive(local_filename, nombre_drive, GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2)
+        elif DEST == "drive-oauth":
+            drive_link = subir_pdf_a_drive_oauth(local_filename, nombre_drive, GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2)
+        else:
+            # Fallback a drive normal si el destino es GCS u otro
+            from drive_uploader import subir_pdf_a_drive
+            drive_link = subir_pdf_a_drive(local_filename, nombre_drive, GOOGLE_DRIVE_FOLDER_ID_CERTIFICADOS_V2)
+
+        print(f"✅ [V2-Drive] Subido a Drive: {drive_link}")
+
+        # Limpiar archivo temporal
+        try:
+            os.remove(local_filename)
+            print(f"🗑️ [V2-Drive] Archivo temporal eliminado: {local_filename}")
+        except Exception as e:
+            print(f"⚠️ [V2-Drive] Error al eliminar archivo temporal: {e}")
+
+        # Respuesta exitosa
+        response_data = jsonify({
+            "success": True,
+            "drive_link": drive_link,
+            "file_name": nombre_drive,
+            "wix_id": wix_id
+        })
+        response_data.headers["Access-Control-Allow-Origin"] = "*"
+        return response_data
+
+    except Exception as e:
+        print(f"❌ [V2-Drive] Error: {e}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e),
+            "wix_id": wix_id
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+        return error_response, 500
+
+
 if __name__ == "__main__":
     # Usar socketio.run() en lugar de app.run() para soportar WebSockets
     socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
