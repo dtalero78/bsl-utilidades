@@ -83,51 +83,6 @@
             .recomendacion-box {
                 page-break-inside: avoid;
             }
-            /* Encabezado minimalista que aparece en cada salto de página */
-            .page-header {
-                display: flex !important;
-                align-items: center !important;
-                justify-content: space-between !important;
-                padding: 8px 0 !important;
-                margin-bottom: 12px !important;
-                border-bottom: 1px solid #e0e0e0 !important;
-            }
-            .page-header-left {
-                display: flex !important;
-                align-items: center !important;
-                gap: 10px !important;
-            }
-            .page-header-left img {
-                height: 28px !important;
-                width: auto !important;
-            }
-            .page-header-empresa {
-                font-size: 10pt !important;
-                color: var(--bahama-blue) !important;
-                font-weight: 600 !important;
-            }
-            .page-header-titulo {
-                font-size: 9pt !important;
-                color: var(--abbey) !important;
-                font-weight: 400 !important;
-            }
-            /* Header principal de la primera página */
-            .print-header {
-                display: block !important;
-                text-align: center;
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid var(--green-haze);
-            }
-            .print-header h1 {
-                color: var(--bahama-blue);
-                font-size: 20pt;
-                margin-bottom: 5px;
-            }
-            .print-header p {
-                color: var(--abbey);
-                font-size: 11pt;
-            }
         }
 
         /* Botón de recomendaciones */
@@ -207,14 +162,27 @@
         .stat-tertiary { background: linear-gradient(135deg, #e3f2fd 0%, #d1e9fc 100%); }
         .stat-tertiary .stat-value { color: var(--bondi-blue); }
 
-        /* Header imprimible - página principal */
+        /* Header imprimible */
         .print-header {
             display: none;
         }
-
-        /* Encabezado minimalista para páginas internas - oculto por defecto */
-        .page-header {
-            display: none;
+        @media print {
+            .print-header {
+                display: block;
+                text-align: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid var(--green-haze);
+            }
+            .print-header h1 {
+                color: var(--bahama-blue);
+                font-size: 20pt;
+                margin-bottom: 5px;
+            }
+            .print-header p {
+                color: var(--abbey);
+                font-size: 11pt;
+            }
         }
     </style>
 </head>
@@ -331,13 +299,6 @@
         </section>
 
         <!-- Edad -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <img src="/static/logo-bsl.png" alt="BSL">
-                <span class="page-header-empresa" id="pageHeaderEmpresa1">-</span>
-            </div>
-            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
-        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Edad</h3>
@@ -416,13 +377,6 @@
         </section>
 
         <!-- Nivel Educativo -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <img src="/static/logo-bsl.png" alt="BSL">
-                <span class="page-header-empresa" id="pageHeaderEmpresa2">-</span>
-            </div>
-            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
-        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Nivel Educativo</h3>
@@ -493,13 +447,6 @@
         </section>
 
         <!-- Ciudad de Residencia -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <img src="/static/logo-bsl.png" alt="BSL">
-                <span class="page-header-empresa" id="pageHeaderEmpresa3">-</span>
-            </div>
-            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
-        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Ciudad de Residencia</h3>
@@ -548,13 +495,6 @@
         </section>
 
         <!-- Encuesta de Salud -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <img src="/static/logo-bsl.png" alt="BSL">
-                <span class="page-header-empresa" id="pageHeaderEmpresa4">-</span>
-            </div>
-            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
-        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Resultados Encuesta de Salud</h3>
@@ -603,13 +543,6 @@
         </section>
 
         <!-- SVE - Sistema de Vigilancia Epidemiológica -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <img src="/static/logo-bsl.png" alt="BSL">
-                <span class="page-header-empresa" id="pageHeaderEmpresa5">-</span>
-            </div>
-            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
-        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <h3 class="text-xl font-semibold mb-4 text-gray-800">Sistema de Vigilancia Epidemiológica (SVE)</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -643,10 +576,10 @@
 
         <!-- Botones de Acción -->
         <section class="no-print flex justify-center gap-4 mb-8">
-            <button id="btnDescargarPDF" onclick="descargarPDF()" class="text-white px-6 py-3 rounded-lg transition font-medium" style="background: linear-gradient(135deg, #029967 0%, #16a330 100%);">
-                Descargar PDF
+            <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">
+                Imprimir Informe
             </button>
-            <button onclick="exportarJSON()" class="text-white px-6 py-3 rounded-lg transition font-medium" style="background: linear-gradient(135deg, #00668e 0%, #03978f 100%);">
+            <button onclick="exportarJSON()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
                 Exportar JSON
             </button>
         </section>
@@ -710,15 +643,8 @@
         // Renderizar todo el informe
         function renderizarInforme(datos) {
             // Portada
-            const nombreEmpresa = datos.empresaInfo?.empresa || datos.codEmpresa;
-            document.getElementById('empresaName').textContent = nombreEmpresa;
+            document.getElementById('empresaName').textContent = datos.empresaInfo?.empresa || datos.codEmpresa;
             document.getElementById('empresaNit').textContent = datos.empresaInfo?.nit ? `NIT: ${datos.empresaInfo.nit}` : '';
-
-            // Actualizar encabezados de página para impresión
-            for (let i = 1; i <= 5; i++) {
-                const el = document.getElementById(`pageHeaderEmpresa${i}`);
-                if (el) el.textContent = nombreEmpresa;
-            }
             document.getElementById('periodoInforme').textContent = `Período: ${formatearFecha(datos.fechaInicio)} - ${formatearFecha(datos.fechaFin)}`;
             document.getElementById('fechaElaboracion').textContent = new Date().toLocaleDateString('es-CO');
             document.getElementById('totalAtenciones').textContent = datos.totalAtenciones || 0;
@@ -964,141 +890,6 @@
             URL.revokeObjectURL(url);
         }
 
-        // Descargar PDF usando Puppeteer en el servidor
-        async function descargarPDF() {
-            if (!datosInforme) {
-                alert('No hay datos para generar el PDF');
-                return;
-            }
-
-            const btn = document.getElementById('btnDescargarPDF');
-            const textoOriginal = btn.innerHTML;
-
-            try {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="loading-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;"></span> Generando PDF...';
-
-                // Preparar el HTML para impresión
-                const reportContent = document.getElementById('reportContent');
-
-                // Clonar el contenido para modificarlo
-                const clone = reportContent.cloneNode(true);
-
-                // Remover elementos no-print
-                clone.querySelectorAll('.no-print').forEach(el => el.remove());
-
-                // Mostrar los page-headers
-                clone.querySelectorAll('.page-header').forEach(el => {
-                    el.style.display = 'flex';
-                    el.style.alignItems = 'center';
-                    el.style.justifyContent = 'space-between';
-                    el.style.padding = '8px 0';
-                    el.style.marginBottom = '12px';
-                    el.style.borderBottom = '1px solid #e0e0e0';
-                });
-
-                // Convertir canvas de Chart.js a imágenes
-                const canvases = reportContent.querySelectorAll('canvas');
-                const cloneCanvases = clone.querySelectorAll('canvas');
-                canvases.forEach((canvas, index) => {
-                    try {
-                        const imgData = canvas.toDataURL('image/png');
-                        const img = document.createElement('img');
-                        img.src = imgData;
-                        img.style.maxWidth = '100%';
-                        img.style.height = 'auto';
-                        if (cloneCanvases[index] && cloneCanvases[index].parentNode) {
-                            cloneCanvases[index].parentNode.replaceChild(img, cloneCanvases[index]);
-                        }
-                    } catch (e) {
-                        console.warn('Error convirtiendo canvas:', e);
-                    }
-                });
-
-                // Construir el HTML completo
-                const htmlContent = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe de Condiciones de Salud - ${datosInforme.empresaInfo?.empresa || datosInforme.codEmpresa}</title>
-    <script src="https://cdn.tailwindcss.com"><\/script>
-    <style>
-        :root {
-            --la-palma: #16a330;
-            --olive-drab: #5bae27;
-            --bahama-blue: #00668e;
-            --niagara: #03978f;
-            --green-haze: #029967;
-            --abbey: #4c4c4d;
-            --bondi-blue: #0190b6;
-            --fun-green: #007932;
-        }
-        body { background: white; font-size: 11pt; font-family: system-ui, -apple-system, sans-serif; }
-        .print-break { page-break-before: always; }
-        section { page-break-inside: avoid; margin-bottom: 15px; padding: 15px; }
-        .recomendacion-box { page-break-inside: avoid; background: linear-gradient(135deg, #f0f9f4 0%, #e8f5f0 100%); border-left: 4px solid var(--green-haze); padding: 16px 20px; margin-top: 16px; border-radius: 0 10px 10px 0; }
-        .recomendacion-box h4 { color: var(--fun-green); font-weight: 600; margin-bottom: 10px; font-size: 15px; }
-        .recomendacion-text { white-space: pre-wrap; color: var(--abbey); line-height: 1.7; font-size: 14px; }
-        .page-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; margin-bottom: 12px; border-bottom: 1px solid #e0e0e0; }
-        .page-header-left { display: flex; align-items: center; gap: 10px; }
-        .page-header-left img { height: 28px; width: auto; }
-        .page-header-empresa { font-size: 10pt; color: var(--bahama-blue); font-weight: 600; }
-        .page-header-titulo { font-size: 9pt; color: var(--abbey); font-weight: 400; }
-        .stat-primary { background: linear-gradient(135deg, #e6f7f6 0%, #d4f1ef 100%); }
-        .stat-primary .stat-value { color: var(--niagara); }
-        .stat-secondary { background: linear-gradient(135deg, #e8f5e9 0%, #d7efd9 100%); }
-        .stat-secondary .stat-value { color: var(--la-palma); }
-        .stat-tertiary { background: linear-gradient(135deg, #e3f2fd 0%, #d1e9fc 100%); }
-        .stat-tertiary .stat-value { color: var(--bondi-blue); }
-        img { max-width: 100%; height: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        th { background: #f9fafb; font-weight: 600; }
-    </style>
-</head>
-<body class="bg-white">
-    <div class="container mx-auto px-4 py-6">
-        ${clone.innerHTML}
-    </div>
-</body>
-</html>`;
-
-                // Enviar al servidor para generar PDF
-                const response = await fetch('/api/informe-pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        html: htmlContent,
-                        filename: `informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}`
-                    })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Error generando el PDF');
-                }
-
-                // Descargar el PDF
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.pdf`;
-                a.click();
-                URL.revokeObjectURL(url);
-
-            } catch (error) {
-                console.error('Error generando PDF:', error);
-                alert('Error generando el PDF: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = textoOriginal;
-            }
-        }
-
         // Generar recomendaciones con IA
         async function generarRecomendacionIA(tipo) {
             if (!datosInforme) {
@@ -1135,10 +926,10 @@
                     datos = datosInforme.estadisticas?.hijos || [];
                     break;
                 case 'ciudad':
-                    datos = datosInforme.estadisticas?.ciudadResidencia || {};
+                    datos = datosInforme.estadisticas?.ciudad || [];
                     break;
                 case 'profesion':
-                    datos = datosInforme.estadisticas?.profesionUOficio || {};
+                    datos = datosInforme.estadisticas?.profesion || [];
                     break;
                 case 'encuestaSalud':
                     datos = datosInforme.estadisticas?.encuestaSalud || {};
