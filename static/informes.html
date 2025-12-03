@@ -162,10 +162,16 @@
         .stat-tertiary { background: linear-gradient(135deg, #e3f2fd 0%, #d1e9fc 100%); }
         .stat-tertiary .stat-value { color: var(--bondi-blue); }
 
-        /* Header imprimible */
+        /* Header imprimible - página principal */
         .print-header {
             display: none;
         }
+
+        /* Encabezado minimalista para páginas internas */
+        .page-header {
+            display: none;
+        }
+
         @media print {
             .print-header {
                 display: block;
@@ -182,6 +188,35 @@
             .print-header p {
                 color: var(--abbey);
                 font-size: 11pt;
+            }
+
+            /* Encabezado minimalista que aparece en cada salto de página */
+            .page-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 0;
+                margin-bottom: 12px;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            .page-header-left {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .page-header-left img {
+                height: 28px;
+                width: auto;
+            }
+            .page-header-empresa {
+                font-size: 10pt;
+                color: var(--bahama-blue);
+                font-weight: 600;
+            }
+            .page-header-titulo {
+                font-size: 9pt;
+                color: var(--abbey);
+                font-weight: 400;
             }
         }
     </style>
@@ -299,6 +334,13 @@
         </section>
 
         <!-- Edad -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <img src="/static/logo-bsl.png" alt="BSL">
+                <span class="page-header-empresa" id="pageHeaderEmpresa1">-</span>
+            </div>
+            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
+        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Edad</h3>
@@ -377,6 +419,13 @@
         </section>
 
         <!-- Nivel Educativo -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <img src="/static/logo-bsl.png" alt="BSL">
+                <span class="page-header-empresa" id="pageHeaderEmpresa2">-</span>
+            </div>
+            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
+        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Nivel Educativo</h3>
@@ -447,6 +496,13 @@
         </section>
 
         <!-- Ciudad de Residencia -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <img src="/static/logo-bsl.png" alt="BSL">
+                <span class="page-header-empresa" id="pageHeaderEmpresa3">-</span>
+            </div>
+            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
+        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Distribución por Ciudad de Residencia</h3>
@@ -495,6 +551,13 @@
         </section>
 
         <!-- Encuesta de Salud -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <img src="/static/logo-bsl.png" alt="BSL">
+                <span class="page-header-empresa" id="pageHeaderEmpresa4">-</span>
+            </div>
+            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
+        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800">Resultados Encuesta de Salud</h3>
@@ -543,6 +606,13 @@
         </section>
 
         <!-- SVE - Sistema de Vigilancia Epidemiológica -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <img src="/static/logo-bsl.png" alt="BSL">
+                <span class="page-header-empresa" id="pageHeaderEmpresa5">-</span>
+            </div>
+            <span class="page-header-titulo">Informe de Condiciones de Salud</span>
+        </div>
         <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
             <h3 class="text-xl font-semibold mb-4 text-gray-800">Sistema de Vigilancia Epidemiológica (SVE)</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -643,8 +713,15 @@
         // Renderizar todo el informe
         function renderizarInforme(datos) {
             // Portada
-            document.getElementById('empresaName').textContent = datos.empresaInfo?.empresa || datos.codEmpresa;
+            const nombreEmpresa = datos.empresaInfo?.empresa || datos.codEmpresa;
+            document.getElementById('empresaName').textContent = nombreEmpresa;
             document.getElementById('empresaNit').textContent = datos.empresaInfo?.nit ? `NIT: ${datos.empresaInfo.nit}` : '';
+
+            // Actualizar encabezados de página para impresión
+            for (let i = 1; i <= 5; i++) {
+                const el = document.getElementById(`pageHeaderEmpresa${i}`);
+                if (el) el.textContent = nombreEmpresa;
+            }
             document.getElementById('periodoInforme').textContent = `Período: ${formatearFecha(datos.fechaInicio)} - ${formatearFecha(datos.fechaFin)}`;
             document.getElementById('fechaElaboracion').textContent = new Date().toLocaleDateString('es-CO');
             document.getElementById('totalAtenciones').textContent = datos.totalAtenciones || 0;
