@@ -7577,7 +7577,10 @@ def generar_certificado_v2_drive(wix_id):
     </script>
 </body>
 </html>'''
-    return loader_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return loader_html, 200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+    }
 
 
 @app.route("/api/generar-certificado-pdf-v2-drive/<wix_id>", methods=["GET", "OPTIONS"])
