@@ -83,7 +83,34 @@ MAPEO_EXAMENES = {
 
 def normalizar_examen(nombre_examen):
     """Normaliza el nombre del examen para que funcione con Wix o PostgreSQL"""
-    return MAPEO_EXAMENES.get(nombre_examen, nombre_examen)
+    return MAPEO_EXAMENES.get(nombre_examen.strip(), nombre_examen.strip())
+
+def normalizar_lista_examenes(examenes):
+    """
+    Convierte el campo examenes a lista si viene como string (PostgreSQL).
+    En Wix viene como array, en PostgreSQL viene como string separado por comas.
+
+    Args:
+        examenes: lista o string de exámenes
+    Returns:
+        lista de exámenes normalizados
+    """
+    if examenes is None:
+        return []
+
+    # Si es string, convertir a lista separando por comas
+    if isinstance(examenes, str):
+        if not examenes.strip():
+            return []
+        # Separar por coma y limpiar espacios
+        lista = [e.strip() for e in examenes.split(',') if e.strip()]
+        return lista
+
+    # Si ya es lista, retornarla tal cual
+    if isinstance(examenes, list):
+        return examenes
+
+    return []
 
 def formatear_fecha_espanol(fecha):
     """
@@ -3389,8 +3416,12 @@ def api_generar_certificado_pdf(wix_id):
             fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
+        # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
+        examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
+        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+
         examenes_realizados = []
-        for examen in datos_wix.get('examenes', []):
+        for examen in examenes_normalizados:
             examenes_realizados.append({
                 "nombre": examen,
                 "fecha": fecha_formateada
@@ -3398,9 +3429,7 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
-        examenes = datos_wix.get('examenes', [])
-        # Normalizar exámenes para verificar si tiene visual/audio (acepta Wix y PostgreSQL)
-        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        # examenes y examenes_normalizados ya están definidos arriba
         tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
@@ -3639,12 +3668,11 @@ def api_generar_certificado_pdf(wix_id):
             # Remover análisis postural de las observaciones
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
-        for examen in datos_wix.get('examenes', []):
-            # Normalizar nombre del examen (funciona con Wix y PostgreSQL)
-            examen_normalizado = normalizar_examen(examen)
-            descripcion = textos_examenes.get(examen_normalizado, "Resultados dentro de parámetros normales.")
+        # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
+        for examen in examenes_normalizados:
+            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
-                "examen": examen_normalizado,
+                "examen": examen,
                 "descripcion": descripcion
             })
 
@@ -4214,8 +4242,12 @@ def preview_certificado_html(wix_id):
             fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
+        # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
+        examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
+        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+
         examenes_realizados = []
-        for examen in datos_wix.get('examenes', []):
+        for examen in examenes_normalizados:
             examenes_realizados.append({
                 "nombre": examen,
                 "fecha": fecha_formateada
@@ -4223,9 +4255,7 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
-        examenes = datos_wix.get('examenes', [])
-        # Normalizar exámenes para verificar si tiene visual/audio (acepta Wix y PostgreSQL)
-        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        # examenes y examenes_normalizados ya están definidos arriba
         tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
@@ -4537,12 +4567,11 @@ def preview_certificado_html(wix_id):
             # Remover análisis postural de las observaciones
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
-        for examen in datos_wix.get('examenes', []):
-            # Normalizar nombre del examen (funciona con Wix y PostgreSQL)
-            examen_normalizado = normalizar_examen(examen)
-            descripcion = textos_examenes.get(examen_normalizado, "Resultados dentro de parámetros normales.")
+        # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
+        for examen in examenes_normalizados:
+            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
-                "examen": examen_normalizado,
+                "examen": examen,
                 "descripcion": descripcion
             })
 
