@@ -49,6 +49,42 @@ MESES_ESPANOL = {
     9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
 }
 
+# ===== MAPEO DE NOMBRES DE EXÁMENES (PostgreSQL/Wix -> Nombre normalizado) =====
+# Permite recibir nombres tanto de Wix como de PostgreSQL
+MAPEO_EXAMENES = {
+    # PostgreSQL (mayúsculas) -> Nombre normalizado
+    "AUDIOMETRÍA": "Audiometría",
+    "OPTOMETRÍA": "Optometría",
+    "VISIOMETRÍA": "Visiometría",
+    "ÉNFASIS CARDIOVASCULAR": "Énfasis Cardiovascular",
+    "ESPIROMETRÍA": "Espirometría",
+    "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR": "Examen Médico Osteomuscular",
+    "OSTEOMUSCULAR": "Examen Médico Osteomuscular",
+    "PERFIL LIPÍDICO": "Perfil Lipídico",
+    "PERFIL LIPÍDICO COMPLETO": "Perfil Lipídico",
+    "ÉNFASIS DERMATOLÓGICO": "Énfasis Dermatológico",
+    "ÉNFASIS VASCULAR": "É. VASCULAR",
+    "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA": "Examen Médico Osteomuscular",
+
+    # Wix (formato original) -> Nombre normalizado
+    "Audiometría": "Audiometría",
+    "Optometría": "Optometría",
+    "Visiometría": "Visiometría",
+    "Examen Médico Osteomuscular": "Examen Médico Osteomuscular",
+    "Énfasis Cardiovascular": "Énfasis Cardiovascular",
+    "É. Cardiovascular": "Énfasis Cardiovascular",
+    "Espirometría": "Espirometría",
+    "Perfil Lipídico": "Perfil Lipídico",
+    "Énfasis Dermatológico": "Énfasis Dermatológico",
+    "É. VASCULAR": "É. VASCULAR",
+    "Test Vocal Voximetría": "Test Vocal Voximetría",
+    "Test R. Psicosocial (Ansiedad,Depresión)": "Test R. Psicosocial (Ansiedad,Depresión)",
+}
+
+def normalizar_examen(nombre_examen):
+    """Normaliza el nombre del examen para que funcione con Wix o PostgreSQL"""
+    return MAPEO_EXAMENES.get(nombre_examen, nombre_examen)
+
 def formatear_fecha_espanol(fecha):
     """
     Formatea una fecha en español: '02 de diciembre de 2025'
@@ -3363,7 +3399,9 @@ def api_generar_certificado_pdf(wix_id):
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
         examenes = datos_wix.get('examenes', [])
-        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes)
+        # Normalizar exámenes para verificar si tiene visual/audio (acepta Wix y PostgreSQL)
+        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
             try:
@@ -3387,7 +3425,7 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
-        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes)
+        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
             try:
@@ -3517,6 +3555,7 @@ def api_generar_certificado_pdf(wix_id):
                 print(f"❌ Error consultando datos de audiometría: {e}")
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
+        # Nota: MAPEO_EXAMENES y normalizar_examen() están definidos a nivel de módulo
         textos_examenes = {
             "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
             "Énfasis Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
@@ -3601,9 +3640,11 @@ def api_generar_certificado_pdf(wix_id):
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
         for examen in datos_wix.get('examenes', []):
-            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Normalizar nombre del examen (funciona con Wix y PostgreSQL)
+            examen_normalizado = normalizar_examen(examen)
+            descripcion = textos_examenes.get(examen_normalizado, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
-                "examen": examen,
+                "examen": examen_normalizado,
                 "descripcion": descripcion
             })
 
@@ -4183,7 +4224,9 @@ def preview_certificado_html(wix_id):
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
         examenes = datos_wix.get('examenes', [])
-        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes)
+        # Normalizar exámenes para verificar si tiene visual/audio (acepta Wix y PostgreSQL)
+        examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
             try:
@@ -4211,7 +4254,7 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
-        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes)
+        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
             try:
@@ -4495,9 +4538,11 @@ def preview_certificado_html(wix_id):
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
         for examen in datos_wix.get('examenes', []):
-            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Normalizar nombre del examen (funciona con Wix y PostgreSQL)
+            examen_normalizado = normalizar_examen(examen)
+            descripcion = textos_examenes.get(examen_normalizado, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
-                "examen": examen,
+                "examen": examen_normalizado,
                 "descripcion": descripcion
             })
 
