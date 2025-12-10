@@ -49,36 +49,115 @@ MESES_ESPANOL = {
     9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
 }
 
-# ===== MAPEO DE NOMBRES DE EXÁMENES (PostgreSQL/Wix -> Nombre normalizado) =====
-# Permite recibir nombres tanto de Wix como de PostgreSQL
+# ===== MAPEO DE NOMBRES DE EXÁMENES (Variantes -> Nombre oficial de tabla examenes en PostgreSQL) =====
+# Los nombres normalizados deben coincidir EXACTAMENTE con la tabla "examenes" de PostgreSQL
 MAPEO_EXAMENES = {
-    # PostgreSQL (mayúsculas) -> Nombre normalizado
-    "AUDIOMETRÍA": "Audiometría",
-    "OPTOMETRÍA": "Optometría",
-    "VISIOMETRÍA": "Visiometría",
-    "ÉNFASIS CARDIOVASCULAR": "Énfasis Cardiovascular",
-    "ESPIROMETRÍA": "Espirometría",
-    "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR": "Examen Médico Osteomuscular",
-    "OSTEOMUSCULAR": "Examen Médico Osteomuscular",
-    "PERFIL LIPÍDICO": "Perfil Lipídico",
-    "PERFIL LIPÍDICO COMPLETO": "Perfil Lipídico",
-    "ÉNFASIS DERMATOLÓGICO": "Énfasis Dermatológico",
-    "ÉNFASIS VASCULAR": "É. VASCULAR",
-    "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA": "Examen Médico Osteomuscular",
+    # AUDIOMETRÍA
+    "Audiometría": "AUDIOMETRÍA",
+    "AUDIOMETRÍA": "AUDIOMETRÍA",
+    "audiometría": "AUDIOMETRÍA",
 
-    # Wix (formato original) -> Nombre normalizado
-    "Audiometría": "Audiometría",
-    "Optometría": "Optometría",
-    "Visiometría": "Visiometría",
-    "Examen Médico Osteomuscular": "Examen Médico Osteomuscular",
-    "Énfasis Cardiovascular": "Énfasis Cardiovascular",
-    "É. Cardiovascular": "Énfasis Cardiovascular",
-    "Espirometría": "Espirometría",
-    "Perfil Lipídico": "Perfil Lipídico",
-    "Énfasis Dermatológico": "Énfasis Dermatológico",
-    "É. VASCULAR": "É. VASCULAR",
-    "Test Vocal Voximetría": "Test Vocal Voximetría",
-    "Test R. Psicosocial (Ansiedad,Depresión)": "Test R. Psicosocial (Ansiedad,Depresión)",
+    # OPTOMETRÍA
+    "Optometría": "OPTOMETRÍA",
+    "OPTOMETRÍA": "OPTOMETRÍA",
+    "optometría": "OPTOMETRÍA",
+
+    # VISIOMETRÍA
+    "Visiometría": "VISIOMETRÍA",
+    "VISIOMETRÍA": "VISIOMETRÍA",
+    "visiometría": "VISIOMETRÍA",
+
+    # SCL-90
+    "SCL-90": "SCL-90",
+    "Scl-90": "SCL-90",
+    "scl-90": "SCL-90",
+
+    # CUADRO HEMÁTICO
+    "Cuadro Hemático": "CUADRO HEMÁTICO",
+    "CUADRO HEMÁTICO": "CUADRO HEMÁTICO",
+
+    # EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA
+    "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA": "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA",
+    "Examen Médico Ocupacional / Audiometría / Visiometría": "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA",
+
+    # ELECTROCARDIOGRAMA
+    "Electrocardiograma": "ELECTROCARDIOGRAMA",
+    "ELECTROCARDIOGRAMA": "ELECTROCARDIOGRAMA",
+
+    # ÉNFASIS CARDIOVASCULAR
+    "Énfasis Cardiovascular": "ÉNFASIS CARDIOVASCULAR",
+    "É. Cardiovascular": "ÉNFASIS CARDIOVASCULAR",
+    "ÉNFASIS CARDIOVASCULAR": "ÉNFASIS CARDIOVASCULAR",
+
+    # ESPIROMETRÍA
+    "Espirometría": "ESPIROMETRÍA",
+    "ESPIROMETRÍA": "ESPIROMETRÍA",
+
+    # EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR
+    "Examen Médico Osteomuscular": "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR",
+    "Examen Médico Ocupacional Osteomuscular": "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR",
+    "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR": "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR",
+
+    # OSTEOMUSCULAR
+    "Osteomuscular": "OSTEOMUSCULAR",
+    "OSTEOMUSCULAR": "OSTEOMUSCULAR",
+
+    # EXAMEN DE ALTURAS
+    "Examen de Alturas": "EXAMEN DE ALTURAS",
+    "EXAMEN DE ALTURAS": "EXAMEN DE ALTURAS",
+
+    # GLICEMIA
+    "Glicemia": "GLICEMIA",
+    "GLICEMIA": "GLICEMIA",
+
+    # GLUCOSA EN SANGRE
+    "Glucosa en Sangre": "GLUCOSA EN SANGRE",
+    "GLUCOSA EN SANGRE": "GLUCOSA EN SANGRE",
+
+    # HEMOGRAMA
+    "Hemograma": "HEMOGRAMA",
+    "HEMOGRAMA": "HEMOGRAMA",
+
+    # KOH / COPROLÓGICO / FROTIS FARÍNGEO
+    "KOH / Coprológico / Frotis Faríngeo": "KOH / COPROLÓGICO / FROTIS FARÍNGEO",
+    "KOH / COPROLÓGICO / FROTIS FARÍNGEO": "KOH / COPROLÓGICO / FROTIS FARÍNGEO",
+
+    # MANIPULACIÓN DE ALIMENTOS
+    "Manipulación de Alimentos": "MANIPULACIÓN DE ALIMENTOS",
+    "MANIPULACIÓN DE ALIMENTOS": "MANIPULACIÓN DE ALIMENTOS",
+
+    # PERFIL LIPÍDICO
+    "Perfil Lipídico": "PERFIL LIPÍDICO",
+    "PERFIL LIPÍDICO": "PERFIL LIPÍDICO",
+
+    # PANEL DE DROGAS
+    "Panel de Drogas": "PANEL DE DROGAS",
+    "PANEL DE DROGAS": "PANEL DE DROGAS",
+
+    # PARCIAL DE ORINA
+    "Parcial de Orina": "PARCIAL DE ORINA",
+    "PARCIAL DE ORINA": "PARCIAL DE ORINA",
+
+    # PERFIL LIPÍDICO COMPLETO
+    "Perfil Lipídico Completo": "PERFIL LIPÍDICO COMPLETO",
+    "PERFIL LIPÍDICO COMPLETO": "PERFIL LIPÍDICO COMPLETO",
+
+    # ÉNFASIS DERMATOLÓGICO
+    "Énfasis Dermatológico": "ÉNFASIS DERMATOLÓGICO",
+    "ÉNFASIS DERMATOLÓGICO": "ÉNFASIS DERMATOLÓGICO",
+
+    # ÉNFASIS VASCULAR
+    "Énfasis Vascular": "ÉNFASIS VASCULAR",
+    "É. VASCULAR": "ÉNFASIS VASCULAR",
+    "ÉNFASIS VASCULAR": "ÉNFASIS VASCULAR",
+
+    # PRUEBA PSICOSENSOMÉTRICA
+    "Prueba Psicosensométrica": "PRUEBA PSICOSENSOMÉTRICA",
+    "PRUEBA PSICOSENSOMÉTRICA": "PRUEBA PSICOSENSOMÉTRICA",
+    "Psicosensométrica": "PRUEBA PSICOSENSOMÉTRICA",
+    "PSICOSENSOMÉTRICA": "PRUEBA PSICOSENSOMÉTRICA",
+    "Prueba Psicosensometrica": "PRUEBA PSICOSENSOMÉTRICA",
+    "PRUEBA PSICOSENSOMETRICA": "PRUEBA PSICOSENSOMÉTRICA",
 }
 
 def normalizar_examen(nombre_examen):
@@ -541,6 +620,73 @@ def obtener_foto_desde_postgres(wix_id):
     """
     datos = obtener_datos_formulario_postgres(wix_id)
     return datos.get('foto') if datos else None
+
+
+def obtener_estado_pago_postgres(wix_id):
+    """
+    Consulta el estado de pago desde PostgreSQL en la tabla HistoriaClinica.
+
+    Args:
+        wix_id: ID de Wix del registro (_id en HistoriaClinica)
+
+    Returns:
+        dict: {'pagado': bool, 'pvEstado': str, 'fecha_pago': datetime} o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando estado de pago para wix_id: {wix_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT pagado, "pvEstado", fecha_pago
+            FROM "HistoriaClinica"
+            WHERE _id = %s
+            LIMIT 1;
+        """, (wix_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
+            return None
+
+        pagado, pv_estado, fecha_pago = row
+
+        print(f"💳 [PostgreSQL] Estado de pago encontrado:")
+        print(f"   pagado: {pagado}")
+        print(f"   pvEstado: '{pv_estado}'")
+        print(f"   fecha_pago: {fecha_pago}")
+
+        return {
+            'pagado': pagado or False,
+            'pvEstado': pv_estado or '',
+            'fecha_pago': fecha_pago
+        }
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar estado de pago: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def descargar_imagen_wix_con_puppeteer(wix_url):
@@ -1260,38 +1406,55 @@ def es_empresa_especial(cod_empresa):
 
 def determinar_mostrar_sin_soporte(datos_wix):
     """
-    Función principal que determina si mostrar el aviso de sin soporte
+    Función principal que determina si mostrar el aviso de sin soporte.
+    Verifica TANTO Wix como PostgreSQL para determinar el estado de pago.
 
     Returns:
         tuple: (mostrar_aviso: bool, texto_aviso: str)
     """
-    # PRIORIDAD 1: Verificar el estado de pago primero
-    # Si NO está pagado (null, undefined, vacío, o cualquier valor != "Pagado"), mostrar aviso
-    pv_estado = datos_wix.get('pvEstado', '')
+    pv_estado_wix = datos_wix.get('pvEstado', '')
     cod_empresa = datos_wix.get('codEmpresa', '')
+    wix_id = datos_wix.get('_id', '')
 
     print(f"🔍 DEBUG determinar_mostrar_sin_soporte:")
-    print(f"   pvEstado: '{pv_estado}' (tipo: {type(pv_estado).__name__})")
+    print(f"   wix_id: '{wix_id}'")
+    print(f"   pvEstado (Wix): '{pv_estado_wix}' (tipo: {type(pv_estado_wix).__name__})")
     print(f"   codEmpresa: '{cod_empresa}'")
-    print(f"   pvEstado != 'Pagado': {pv_estado != 'Pagado'}")
 
-    if pv_estado != "Pagado":
-        # Solo ocultar el aviso si es empresa especial o código numérico
-        es_especial = es_empresa_especial(cod_empresa)
-        print(f"   es_empresa_especial('{cod_empresa}'): {es_especial}")
+    # PRIORIDAD 1: Verificar si es empresa especial (siempre mostrar certificado completo)
+    es_especial = es_empresa_especial(cod_empresa)
+    if es_especial:
+        print(f"   ✅ NO mostrar aviso (empresa especial: {cod_empresa})")
+        return False, ""
 
-        if es_especial:
-            print(f"   ✅ NO mostrar aviso (empresa especial)")
-            return False, ""
+    # PRIORIDAD 2: Verificar estado de pago en Wix
+    pagado_wix = pv_estado_wix == "Pagado"
+    print(f"   pagado_wix (pvEstado == 'Pagado'): {pagado_wix}")
 
-        # Mostrar aviso rojo (incluso si es Periódico, PostIncapacidad, etc.)
-        print(f"   ⚠️ MOSTRAR AVISO ROJO (pvEstado no es 'Pagado' y empresa no es especial)")
-        texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
-        return True, texto
+    # PRIORIDAD 3: Verificar estado de pago en PostgreSQL
+    pagado_postgres = False
+    if wix_id:
+        estado_postgres = obtener_estado_pago_postgres(wix_id)
+        if estado_postgres:
+            # Considerar pagado si el campo booleano 'pagado' es True
+            # O si pvEstado en PostgreSQL es "Pagado"
+            pagado_postgres = estado_postgres.get('pagado', False) or estado_postgres.get('pvEstado', '') == "Pagado"
+            print(f"   pagado_postgres: {pagado_postgres}")
+            print(f"      - campo 'pagado': {estado_postgres.get('pagado', False)}")
+            print(f"      - campo 'pvEstado': '{estado_postgres.get('pvEstado', '')}'")
+        else:
+            print(f"   ⚠️ No se encontró registro en PostgreSQL para wix_id: {wix_id}")
 
-    # Si está pagado, mostrar concepto normal
-    print(f"   ✅ NO mostrar aviso (pvEstado es 'Pagado')")
-    return False, ""
+    # Si está pagado en CUALQUIERA de las dos fuentes, no mostrar aviso
+    if pagado_wix or pagado_postgres:
+        fuente = "Wix" if pagado_wix else "PostgreSQL"
+        print(f"   ✅ NO mostrar aviso (pagado en {fuente})")
+        return False, ""
+
+    # No está pagado en ninguna fuente, mostrar aviso
+    print(f"   ⚠️ MOSTRAR AVISO ROJO (no pagado en Wix ni PostgreSQL)")
+    texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
+    return True, texto
 
 # ================================================
 
