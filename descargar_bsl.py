@@ -3722,8 +3722,8 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
-        # examenes y examenes_normalizados ya están definidos arriba
-        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
+        # examenes y examenes_normalizados ya están definidos arriba (ahora en MAYÚSCULAS)
+        tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
             try:
@@ -3877,8 +3877,34 @@ def api_generar_certificado_pdf(wix_id):
                 print(f"❌ Error consultando datos de audiometría: {e}")
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
-        # Nota: MAPEO_EXAMENES y normalizar_examen() están definidos a nivel de módulo
+        # Nota: Las claves deben coincidir con los nombres normalizados (MAYÚSCULAS de tabla examenes PostgreSQL)
         textos_examenes = {
+            # Nombres normalizados (MAYÚSCULAS - coinciden con tabla examenes de PostgreSQL)
+            "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
+            "OSTEOMUSCULAR": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
+            "ÉNFASIS CARDIOVASCULAR": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
+            "PERFIL LIPÍDICO": "Perfil Lipídico: Los resultados del perfil lipídico indican un buen control de los lípidos en sangre. Los niveles de colesterol total, LDL, HDL y triglicéridos se encuentran dentro de los rangos de referencia, lo cual sugiere un bajo riesgo cardiovascular en este momento.",
+            "PERFIL LIPÍDICO COMPLETO": "Perfil Lipídico: Los resultados del perfil lipídico indican un buen control de los lípidos en sangre. Los niveles de colesterol total, LDL, HDL y triglicéridos se encuentran dentro de los rangos de referencia, lo cual sugiere un bajo riesgo cardiovascular en este momento.",
+            "ÉNFASIS VASCULAR": "El examen vascular muestra resultados dentro de los límites normales, sin evidencia de enfermedad arterial periférica ni estenosis carotídea significativa. Se recomienda al paciente continuar evitando el tabaquismo y mantener un estilo de vida saludable. Dada la buena condición vascular, no se requieren restricciones laborales en este momento. Se sugiere realizar seguimiento periódico para monitorear la salud vascular y prevenir posibles complicaciones en el futuro.",
+            "ESPIROMETRÍA": "Prueba Espirometría: Función pulmonar normal sin evidencia de obstrucción o restricción significativa. No se requieren medidas adicionales en relación con la función pulmonar para el paciente en este momento.",
+            "ÉNFASIS DERMATOLÓGICO": "Énfasis Dermatológico: Descripción general de la piel: La piel presenta un aspecto saludable, con una textura suave y uniforme. No se observan áreas de enrojecimiento, descamación o inflamación evidentes. El color de la piel es uniforme en todas las áreas evaluadas.\n\nAusencia de lesiones cutáneas: No se detectaron lesiones cutáneas como abrasiones, quemaduras, cortes o irritaciones en ninguna parte del cuerpo del paciente. La piel está íntegra y sin signos de traumatismos recientes.\n\nExposición controlada a agentes ambientales: No se identificaron signos de exposición excesiva a sustancias químicas o agentes ambientales que puedan afectar la piel.",
+            "AUDIOMETRÍA": "No presenta signos de pérdida auditiva o alteraciones en la audición. Los resultados se encuentran dentro de los rangos normales establecidos para la población general y no se observan indicios de daño auditivo relacionado con la exposición laboral a ruido u otros factores.",
+            "OPTOMETRÍA": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos\nVisión de colores: Normal\nFondo de ojo: Normal.",
+            "VISIOMETRÍA": "Presión intraocular (PIO): 15 mmHg en ambos ojos\nReflejos pupilares: Respuesta pupilar normal a la luz en ambos ojos\nCampo visual: Normal en ambos ojos\nVisión de colores: Normal\nFondo de ojo: Normal.",
+            "ELECTROCARDIOGRAMA": "Electrocardiograma: Ritmo sinusal normal. No se observan alteraciones en la conducción cardíaca ni signos de isquemia o hipertrofia ventricular. Los intervalos y segmentos se encuentran dentro de los parámetros normales.",
+            "CUADRO HEMÁTICO": "Cuadro Hemático: Los valores de hemoglobina, hematocrito, leucocitos y plaquetas se encuentran dentro de los rangos normales. No se observan alteraciones que sugieran anemia, infección activa o trastornos de coagulación.",
+            "HEMOGRAMA": "Hemograma: Los valores de hemoglobina, hematocrito, leucocitos y plaquetas se encuentran dentro de los rangos normales. No se observan alteraciones que sugieran anemia, infección activa o trastornos de coagulación.",
+            "GLICEMIA": "Glicemia: Los niveles de glucosa en sangre se encuentran dentro de los parámetros normales, lo que indica un adecuado metabolismo de los carbohidratos.",
+            "GLUCOSA EN SANGRE": "Glucosa en Sangre: Los niveles de glucosa en sangre se encuentran dentro de los parámetros normales, lo que indica un adecuado metabolismo de los carbohidratos.",
+            "PARCIAL DE ORINA": "Parcial de Orina: El examen de orina no muestra alteraciones significativas. No se observan signos de infección urinaria, proteinuria ni glucosuria.",
+            "PANEL DE DROGAS": "Panel de Drogas: Los resultados del panel de detección de sustancias psicoactivas son negativos para todas las sustancias evaluadas.",
+            "EXAMEN DE ALTURAS": "Examen de Alturas: El paciente presenta condiciones físicas y psicológicas adecuadas para realizar trabajo en alturas. No se identifican contraindicaciones médicas para esta actividad.",
+            "MANIPULACIÓN DE ALIMENTOS": "Manipulación de Alimentos: El paciente cumple con los requisitos de salud establecidos para la manipulación de alimentos. No presenta enfermedades infectocontagiosas ni condiciones que representen riesgo para la inocuidad alimentaria.",
+            "KOH / COPROLÓGICO / FROTIS FARÍNGEO": "KOH / Coprológico / Frotis Faríngeo: Los exámenes de laboratorio no evidencian presencia de hongos, parásitos intestinales ni infecciones faríngeas activas.",
+            "SCL-90": "SCL-90: La evaluación psicológica mediante el cuestionario SCL-90 muestra resultados dentro de los rangos normales en todas las dimensiones evaluadas, sin indicadores de psicopatología significativa.",
+            "PRUEBA PSICOSENSOMÉTRICA": "Prueba Psicosensométrica: El usuario comprende rápidamente las indicaciones, realiza las pruebas correctamente y en el tiempo estipulado. La atención, concentración, memoria, velocidad de respuesta y las habilidades psicomotrices no presentan ninguna alteración. Los resultados están dentro de los rangos normales.",
+            "EXAMEN MÉDICO OCUPACIONAL / AUDIOMETRÍA / VISIOMETRÍA": "Examen médico ocupacional completo con audiometría y visiometría. Todos los resultados se encuentran dentro de los parámetros normales.",
+            # Mantener compatibilidad con nombres en formato antiguo (por si acaso)
             "Examen Médico Osteomuscular": "Basándonos en los resultados obtenidos de la evaluación osteomuscular, certificamos que el paciente presenta un sistema osteomuscular en condiciones óptimas de salud. Esta condición le permite llevar a cabo una variedad de actividades físicas y cotidianas sin restricciones notables y con un riesgo mínimo de lesiones osteomusculares.",
             "Énfasis Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
             "É. Cardiovascular": "Énfasis cardiovascular: El examen médico laboral de ingreso con énfasis cardiovascular revela que presenta un estado cardiovascular dentro de los parámetros normales. No se observan hallazgos que indiquen la presencia de enfermedades cardiovasculares significativas o limitaciones funcionales para el desempeño laboral.",
@@ -4548,8 +4574,8 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS VISUALES (Optometría/Visiometría) =====
         datos_visual = None
-        # examenes y examenes_normalizados ya están definidos arriba
-        tiene_examen_visual = any(e in ['Optometría', 'Visiometría'] for e in examenes_normalizados)
+        # examenes y examenes_normalizados ya están definidos arriba (ahora en MAYÚSCULAS)
+        tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
             try:
