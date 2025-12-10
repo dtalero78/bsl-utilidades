@@ -689,6 +689,89 @@ def obtener_estado_pago_postgres(wix_id):
         return None
 
 
+def obtener_datos_historia_clinica_postgres(wix_id):
+    """
+    Consulta los datos de HistoriaClinica desde PostgreSQL incluyendo exámenes.
+
+    Args:
+        wix_id: ID del registro (_id en HistoriaClinica)
+
+    Returns:
+        dict: Datos de la historia clínica o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando HistoriaClinica para wix_id: {wix_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                _id, "numeroId", "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
+                celular, email, "fechaNacimiento", edad, genero, "estadoCivil", hijos,
+                "codEmpresa", empresa, cargo, "tipoExamen", examenes,
+                "mdAntecedentes", "mdObservacionesCertificado", "mdRecomendacionesMedicasAdicionales",
+                "mdConceptoFinal", "mdDx1", "mdDx2", talla, peso,
+                "fechaAtencion", "fechaConsulta", atendido, "pvEstado", medico, ciudad,
+                pagado, fecha_pago
+            FROM "HistoriaClinica"
+            WHERE _id = %s
+            LIMIT 1;
+        """, (wix_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró registro en HistoriaClinica con wix_id: {wix_id}")
+            return None
+
+        # Mapear columnas a diccionario
+        columnas = [
+            '_id', 'numeroId', 'primerNombre', 'segundoNombre', 'primerApellido', 'segundoApellido',
+            'celular', 'email', 'fechaNacimiento', 'edad', 'genero', 'estadoCivil', 'hijos',
+            'codEmpresa', 'empresa', 'cargo', 'tipoExamen', 'examenes',
+            'mdAntecedentes', 'mdObservacionesCertificado', 'mdRecomendacionesMedicasAdicionales',
+            'mdConceptoFinal', 'mdDx1', 'mdDx2', 'talla', 'peso',
+            'fechaAtencion', 'fechaConsulta', 'atendido', 'pvEstado', 'medico', 'ciudad',
+            'pagado', 'fecha_pago'
+        ]
+
+        datos = {}
+        for i, col in enumerate(columnas):
+            datos[col] = row[i]
+
+        print(f"✅ [PostgreSQL] Datos de HistoriaClinica encontrados:")
+        print(f"   Paciente: {datos.get('primerNombre')} {datos.get('primerApellido')}")
+        print(f"   Exámenes: {datos.get('examenes')}")
+        print(f"   Pagado: {datos.get('pagado')}, pvEstado: {datos.get('pvEstado')}")
+
+        return datos
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar HistoriaClinica: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def descargar_imagen_wix_con_puppeteer(wix_url):
     """
     Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
@@ -3560,7 +3643,52 @@ def api_generar_certificado_pdf(wix_id):
 
             print(f"📊 Merge completado: edad={datos_wix.get('edad')}, genero={datos_wix.get('genero')}, eps={datos_wix.get('eps')}, arl={datos_wix.get('arl')}")
         else:
-            print(f"⚠️ No hay datos de PostgreSQL, usando solo datos de Wix")
+            print(f"⚠️ No hay datos de PostgreSQL (formularios), usando solo datos de Wix")
+
+        # ===== PRIORIDAD 0: CONSULTAR HISTORIA CLÍNICA DESDE POSTGRESQL (EXÁMENES) =====
+        print(f"🔍 [PRIORIDAD 0] Consultando HistoriaClinica en PostgreSQL para wix_id: {wix_id}")
+        datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
+
+        if datos_historia_postgres:
+            print(f"✅ Datos de HistoriaClinica PostgreSQL disponibles, sobrescribiendo...")
+            # Sobrescribir campos de HistoriaClinica desde PostgreSQL
+            if datos_historia_postgres.get('examenes'):
+                datos_wix['examenes'] = datos_historia_postgres.get('examenes')
+                print(f"  ✓ Exámenes (PostgreSQL): {datos_historia_postgres.get('examenes')}")
+            if datos_historia_postgres.get('primerNombre'):
+                datos_wix['primerNombre'] = datos_historia_postgres.get('primerNombre')
+            if datos_historia_postgres.get('segundoNombre'):
+                datos_wix['segundoNombre'] = datos_historia_postgres.get('segundoNombre')
+            if datos_historia_postgres.get('primerApellido'):
+                datos_wix['primerApellido'] = datos_historia_postgres.get('primerApellido')
+            if datos_historia_postgres.get('segundoApellido'):
+                datos_wix['segundoApellido'] = datos_historia_postgres.get('segundoApellido')
+            if datos_historia_postgres.get('numeroId'):
+                datos_wix['numeroId'] = datos_historia_postgres.get('numeroId')
+            if datos_historia_postgres.get('codEmpresa'):
+                datos_wix['codEmpresa'] = datos_historia_postgres.get('codEmpresa')
+            if datos_historia_postgres.get('empresa'):
+                datos_wix['empresa'] = datos_historia_postgres.get('empresa')
+            if datos_historia_postgres.get('cargo'):
+                datos_wix['cargo'] = datos_historia_postgres.get('cargo')
+            if datos_historia_postgres.get('tipoExamen'):
+                datos_wix['tipoExamen'] = datos_historia_postgres.get('tipoExamen')
+            if datos_historia_postgres.get('mdConceptoFinal'):
+                datos_wix['mdConceptoFinal'] = datos_historia_postgres.get('mdConceptoFinal')
+            if datos_historia_postgres.get('mdObservacionesCertificado'):
+                datos_wix['mdObservacionesCertificado'] = datos_historia_postgres.get('mdObservacionesCertificado')
+            if datos_historia_postgres.get('mdRecomendacionesMedicasAdicionales'):
+                datos_wix['mdRecomendacionesMedicasAdicionales'] = datos_historia_postgres.get('mdRecomendacionesMedicasAdicionales')
+            if datos_historia_postgres.get('mdAntecedentes'):
+                datos_wix['mdAntecedentes'] = datos_historia_postgres.get('mdAntecedentes')
+            if datos_historia_postgres.get('fechaConsulta'):
+                datos_wix['fechaConsulta'] = datos_historia_postgres.get('fechaConsulta')
+            if datos_historia_postgres.get('pvEstado'):
+                datos_wix['pvEstado'] = datos_historia_postgres.get('pvEstado')
+            if datos_historia_postgres.get('pagado'):
+                datos_wix['pagado'] = datos_historia_postgres.get('pagado')
+        else:
+            print(f"⚠️ No hay datos de HistoriaClinica en PostgreSQL para wix_id: {wix_id}")
 
         # Transformar datos de Wix al formato del endpoint de certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
@@ -3581,7 +3709,9 @@ def api_generar_certificado_pdf(wix_id):
         # Construir exámenes realizados
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
+        print(f"📋 Exámenes antes de normalizar: {examenes}")
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        print(f"📋 Exámenes normalizados: {examenes_normalizados}")
 
         examenes_realizados = []
         for examen in examenes_normalizados:
