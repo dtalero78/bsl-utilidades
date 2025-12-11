@@ -726,6 +726,50 @@ function abrirMediaModal(url, type) {
 }
 
 // ============================================================================
+// SLASH COMMANDS (Atajos de texto)
+// ============================================================================
+
+const SLASH_COMMANDS = {
+    '/a': '...transfiriendo con asesor',
+
+    '/c': `Bancolombia
+Cuenta de Ahorros 442 9119 2456
+Cédula: 79 981 585
+
+Daviplata: 3014400818
+Nequi: 3008021701`,
+
+    '/l': `La persona que va a hacer el examen debe diligenciar el siguiente link:
+
+https://bsl-plataforma.com/nuevaorden1.html`,
+
+    '/2': `Agendar tu teleconsulta es muy fácil:
+
+📅 Diligencia tus datos y escoge la hora que te convenga
+
+👂👀 Realiza las pruebas de audición y visión necesarias desde tu celular o computador.
+
+📱 El médico se comunicará contigo a través de WhatsApp video.
+
+💵 Paga después de la consulta usando Bancolombia, Nequi, o Daviplata (46.000).
+
+¡Listo! Descarga inmediatamente tu certificado
+
+Para comenzar:
+
+https://bsl-plataforma.com/nuevaorden1.html`
+};
+
+function expandirComando(texto) {
+    // Verificar si el texto es exactamente un comando
+    const textoLimpio = texto.trim().toLowerCase();
+    if (SLASH_COMMANDS[textoLimpio]) {
+        return SLASH_COMMANDS[textoLimpio];
+    }
+    return texto;
+}
+
+// ============================================================================
 // MESSAGE SENDING
 // ============================================================================
 
@@ -736,11 +780,14 @@ async function enviarMensaje() {
     }
 
     const messageInput = document.getElementById('messageInput');
-    const mensaje = messageInput.value.trim();
+    let mensaje = messageInput.value.trim();
 
     if (!mensaje) {
         return;
     }
+
+    // Expandir comandos slash
+    mensaje = expandirComando(mensaje);
 
     try {
         // Disable send button
