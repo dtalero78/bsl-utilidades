@@ -1,14 +1,16 @@
-import requests
-import json
+# Simular el mapeo
+MAPEO_EXAMENES = {
+    "Examen Médico Osteomuscular": "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR",
+}
 
-# ID de historia clínica del paciente
-wix_id = "8e7e484a-5579-4d08-a44e-360d0a7c7d89"
+textos_examenes = {
+    "EXAMEN MÉDICO OCUPACIONAL OSTEOMUSCULAR": "Texto osteomuscular...",
+}
 
-# Consultar datos de audiometría
-audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id}"
-response = requests.get(audio_url, timeout=10)
-data = response.json()
+examen_original = "Examen Médico Osteomuscular"
+examen_normalizado = MAPEO_EXAMENES.get(examen_original.strip(), examen_original.strip())
 
-print("=== DATOS DE AUDIOMETRÍA ===")
-print("Response status:", response.status_code)
-print("Data:", json.dumps(data, indent=2, ensure_ascii=False))
+print(f"Examen original: '{examen_original}'")
+print(f"Examen normalizado: '{examen_normalizado}'")
+print(f"Existe en textos_examenes: {examen_normalizado in textos_examenes}")
+print(f"Resultado búsqueda: {textos_examenes.get(examen_normalizado, 'NO ENCONTRADO')}")
