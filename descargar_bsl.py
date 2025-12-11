@@ -2106,8 +2106,8 @@ def generar_certificado_medico():
                 {"nombre": "Optometría", "fecha": formatear_fecha_espanol(fecha_actual)}
             ]),
 
-            # Concepto médico
-            "concepto_medico": data.get("concepto_medico", "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES"),
+            # Concepto médico (solo SANITHELP-JJ tiene valor por defecto)
+            "concepto_medico": data.get("concepto_medico", "") or ('ELEGIBLE PARA EL CARGO' if data.get('codEmpresa') == 'SANITHELP-JJ' else ''),
 
             # Resultados generales
             "resultados_generales": data.get("resultados_generales", [
@@ -2361,8 +2361,8 @@ def generar_certificado_medico_puppeteer():
                 {"nombre": "Optometría", "fecha": formatear_fecha_espanol(fecha_actual)}
             ]),
 
-            # Concepto médico
-            "concepto_medico": data.get("concepto_medico", "ELEGIBLE PARA EL CARGO SIN RECOMENDACIONES LABORALES"),
+            # Concepto médico (solo SANITHELP-JJ tiene valor por defecto)
+            "concepto_medico": data.get("concepto_medico", "") or ('ELEGIBLE PARA EL CARGO' if data.get('codEmpresa') == 'SANITHELP-JJ' else ''),
 
             # Resultados generales
             "resultados_generales": data.get("resultados_generales", [
@@ -4113,8 +4113,8 @@ def api_generar_certificado_pdf(wix_id):
             # Análisis postural (si existe)
             "analisis_postural": analisis_postural,
 
-            # Concepto médico
-            "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
+            # Concepto médico (solo SANITHELP-JJ tiene valor por defecto)
+            "concepto_medico": datos_wix.get('mdConceptoFinal', '') or ('ELEGIBLE PARA EL CARGO' if datos_wix.get('codEmpresa') == 'SANITHELP-JJ' else ''),
 
             # Recomendaciones médicas
             "recomendaciones_medicas": recomendaciones,
@@ -4999,7 +4999,7 @@ def preview_certificado_html(wix_id):
             "examenes": examenes,  # Lista de exámenes para verificar tipo
             "resultados_generales": resultados_generales,
             "analisis_postural": analisis_postural,
-            "concepto_medico": datos_wix.get('mdConceptoFinal', 'ELEGIBLE PARA EL CARGO'),
+            "concepto_medico": datos_wix.get('mdConceptoFinal', '') or ('ELEGIBLE PARA EL CARGO' if datos_wix.get('codEmpresa') == 'SANITHELP-JJ' else ''),
             "recomendaciones_medicas": recomendaciones,
             "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
             "datos_audiometria": datos_audiometria,  # Datos de audiometría

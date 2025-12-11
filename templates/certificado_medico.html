@@ -570,7 +570,8 @@
             </div>
         </div>
         {% else %}
-        <!-- CONCEPTO DE EVALUACIÓN MÉDICA -->
+        <!-- CONCEPTO DE EVALUACIÓN MÉDICA (solo si existe concepto_medico) -->
+        {% if concepto_medico %}
         <div class="section">
             <div class="section-title">Concepto de Evaluación Médica</div>
             <div class="medical-concept">
@@ -580,6 +581,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         {% endif %}
 
         <!-- RESULTADOS GENERALES -->
