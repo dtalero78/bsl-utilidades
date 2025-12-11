@@ -3747,7 +3747,7 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
-        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes_normalizados)
+        tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
             try:
@@ -4603,7 +4603,7 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
-        tiene_examen_audio = any(e in ['Audiometría'] for e in examenes_normalizados)
+        tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
             try:
