@@ -617,7 +617,11 @@ function mergeMessages(twilioMessages, wixMessages = []) {
             direction: msg.direction,
             body: msg.body,
             timestamp: msg.date_sent,
-            status: msg.status
+            status: msg.status,
+            media_url: msg.media_url,
+            media_type: msg.media_type,
+            media_mime: msg.media_mime,
+            media_count: msg.media_count
         });
     });
 
@@ -636,8 +640,23 @@ function renderizarMensaje(msg) {
     const time = formatTime(msg.timestamp);
     const statusIcon = getStatusIcon(msg.status);
 
-    // Manejar mensajes de media (sin body)
-    const messageContent = msg.body ? escapeHtml(msg.body) : '(media)';
+    // Renderizar contenido según el tipo
+    let messageContent = '';
+
+    if (msg.media_url && msg.media_type) {
+        // Renderizar media según el tipo
+        messageContent = renderizarMedia(msg.media_url, msg.media_type, msg.media_mime);
+
+        // Agregar caption/body si existe
+        if (msg.body) {
+            messageContent += `<div class="message-caption">${escapeHtml(msg.body)}</div>`;
+        }
+    } else if (msg.body) {
+        // Mensaje de texto normal - detectar URLs y hacerlas clickeables
+        messageContent = convertirUrlsALinks(escapeHtml(msg.body));
+    } else {
+        messageContent = '<span class="media-placeholder">📎 Archivo adjunto</span>';
+    }
 
     return `
         <div class="message ${direction}">
@@ -650,6 +669,60 @@ function renderizarMensaje(msg) {
             </div>
         </div>
     `;
+}
+
+function renderizarMedia(url, type, mime) {
+    if (!url) return '<span class="media-placeholder">📎 Archivo adjunto</span>';
+
+    switch (type) {
+        case 'image':
+        case 'sticker':
+            return `<img src="${url}" alt="Imagen" class="message-image" onclick="abrirMediaModal('${url}', 'image')" loading="lazy">`;
+
+        case 'video':
+            return `<video controls class="message-video" preload="metadata">
+                <source src="${url}" type="${mime || 'video/mp4'}">
+                Tu navegador no soporta videos.
+            </video>`;
+
+        case 'audio':
+            return `<audio controls class="message-audio" preload="metadata">
+                <source src="${url}" type="${mime || 'audio/ogg'}">
+                Tu navegador no soporta audio.
+            </audio>`;
+
+        case 'document':
+            return `<a href="${url}" target="_blank" class="message-document">
+                <i class="fas fa-file-alt"></i> Ver documento
+            </a>`;
+
+        default:
+            return `<a href="${url}" target="_blank" class="message-document">
+                <i class="fas fa-paperclip"></i> Ver archivo
+            </a>`;
+    }
+}
+
+function convertirUrlsALinks(text) {
+    // Regex para detectar URLs
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+function abrirMediaModal(url, type) {
+    const modal = document.getElementById('mediaModal');
+    if (!modal) return;
+
+    const modalContent = modal.querySelector('.modal-content') || modal;
+
+    if (type === 'image') {
+        modalContent.innerHTML = `
+            <span class="close-modal" onclick="closeMediaModal()">&times;</span>
+            <img src="${url}" style="max-width: 90vw; max-height: 90vh; object-fit: contain;">
+        `;
+    }
+
+    modal.style.display = 'flex';
 }
 
 // ============================================================================

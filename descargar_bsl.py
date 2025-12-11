@@ -5530,16 +5530,57 @@ def formatear_mensaje_whapi(msg, chat_id):
         else:
             date_sent = timestamp
 
+        # Extraer contenido según el tipo de mensaje
+        msg_type = msg.get('type', 'text')
+        body = ''
+        media_url = None
+        media_type = None
+        media_mime = None
+
+        if msg_type == 'text':
+            body = msg.get('text', {}).get('body', '')
+        elif msg_type == 'image':
+            image_data = msg.get('image', {})
+            media_url = image_data.get('link')
+            media_mime = image_data.get('mime_type', 'image/jpeg')
+            media_type = 'image'
+            body = image_data.get('caption', '')
+        elif msg_type == 'video':
+            video_data = msg.get('video', {})
+            media_url = video_data.get('link')
+            media_mime = video_data.get('mime_type', 'video/mp4')
+            media_type = 'video'
+            body = video_data.get('caption', '')
+        elif msg_type == 'audio' or msg_type == 'voice':
+            audio_data = msg.get('audio', {}) or msg.get('voice', {})
+            media_url = audio_data.get('link')
+            media_mime = audio_data.get('mime_type', 'audio/ogg')
+            media_type = 'audio'
+        elif msg_type == 'document':
+            doc_data = msg.get('document', {})
+            media_url = doc_data.get('link')
+            media_mime = doc_data.get('mime_type', 'application/octet-stream')
+            media_type = 'document'
+            body = doc_data.get('caption', '') or doc_data.get('file_name', 'Documento')
+        elif msg_type == 'sticker':
+            sticker_data = msg.get('sticker', {})
+            media_url = sticker_data.get('link')
+            media_mime = sticker_data.get('mime_type', 'image/webp')
+            media_type = 'sticker'
+
         return {
             'id': msg.get('id', ''),
             'chat_id': chat_id,
             'from': WHAPI_PHONE_NUMBER if from_me else chat_id,
             'to': chat_id if from_me else WHAPI_PHONE_NUMBER,
-            'body': msg.get('text', {}).get('body', '') if msg.get('type') == 'text' else '(media)',
+            'body': body,
             'date_sent': date_sent,
             'status': 'delivered',
             'direction': 'outbound' if from_me else 'inbound',
-            'media_count': 1 if msg.get('type') != 'text' else 0,
+            'media_count': 1 if media_url else 0,
+            'media_url': media_url,
+            'media_type': media_type,
+            'media_mime': media_mime,
             'source': 'whapi'
         }
     except Exception as e:
@@ -5837,6 +5878,33 @@ def twilio_get_conversacion(numero):
 
                 # Combinar y formatear
                 for msg in list(outgoing) + list(incoming):
+                    # Obtener URLs de media si el mensaje tiene archivos adjuntos
+                    media_url = None
+                    media_type = None
+                    media_mime = None
+                    num_media = int(msg.num_media) if hasattr(msg, 'num_media') and msg.num_media else 0
+
+                    if num_media > 0:
+                        try:
+                            media_list = msg.media.list()
+                            if media_list:
+                                media_item = media_list[0]
+                                # Construir la URL de media de Twilio
+                                media_url = f"https://api.twilio.com{media_item.uri.replace('.json', '')}"
+                                media_mime = media_item.content_type
+                                # Determinar tipo de media basado en MIME
+                                if media_mime:
+                                    if media_mime.startswith('image/'):
+                                        media_type = 'image'
+                                    elif media_mime.startswith('video/'):
+                                        media_type = 'video'
+                                    elif media_mime.startswith('audio/'):
+                                        media_type = 'audio'
+                                    else:
+                                        media_type = 'document'
+                        except Exception as media_error:
+                            logger.warning(f"⚠️ Error obteniendo media de Twilio: {str(media_error)}")
+
                     conversacion_messages.append({
                         'sid': msg.sid,
                         'from': msg.from_,
@@ -5845,7 +5913,10 @@ def twilio_get_conversacion(numero):
                         'date_sent': msg.date_sent.isoformat() if msg.date_sent else None,
                         'status': msg.status,
                         'direction': 'outbound' if msg.from_ == TWILIO_WHATSAPP_NUMBER else 'inbound',
-                        'media_count': msg.num_media if hasattr(msg, 'num_media') else 0,
+                        'media_count': num_media,
+                        'media_url': media_url,
+                        'media_type': media_type,
+                        'media_mime': media_mime,
                         'source': 'twilio'
                     })
 
