@@ -5331,6 +5331,14 @@ WHAPI_TOKEN = os.getenv('WHAPI_TOKEN', 'due3eWCwuBM2Xqd6cPujuTRqSbMb68lt')
 WHAPI_BASE_URL = os.getenv('WHAPI_BASE_URL', 'https://gate.whapi.cloud')
 WHAPI_PHONE_NUMBER = '573008021701'  # Número de la línea Whapi
 
+# Números excluidos del chat (separados por coma, ej: "573187639040,573014400818,17547364085")
+TWILIO_CHAT_EXCLUDED_NUMBERS_RAW = os.getenv('TWILIO_CHAT_EXCLUDED_NUMBERS', '')
+TWILIO_CHAT_EXCLUDED_NUMBERS = set(
+    num.strip().replace('+', '').replace(' ', '')
+    for num in TWILIO_CHAT_EXCLUDED_NUMBERS_RAW.split(',')
+    if num.strip()
+)
+
 # Inicializar cliente Twilio
 twilio_client = None
 if TWILIO_AVAILABLE and TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
@@ -5597,6 +5605,12 @@ def twilio_health():
         'twilio_configured': twilio_client is not None
     })
 
+def is_numero_excluido(numero):
+    """Verifica si un número está en la lista de excluidos"""
+    # Limpiar el número para comparar
+    numero_clean = numero.replace('whatsapp:', '').replace('+', '').replace(' ', '').replace('-', '')
+    return numero_clean in TWILIO_CHAT_EXCLUDED_NUMBERS
+
 @app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
     """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi con paginación"""
@@ -5623,6 +5637,10 @@ def twilio_get_conversaciones():
                     # Determinar el número del contacto
                     numero = msg.to if msg.from_ == TWILIO_WHATSAPP_NUMBER else msg.from_
                     numero_clean = numero.replace('whatsapp:', '').replace('+', '')
+
+                    # Saltar números excluidos
+                    if is_numero_excluido(numero_clean):
+                        continue
 
                     if numero_clean not in conversaciones:
                         conversaciones[numero_clean] = {
@@ -5668,6 +5686,10 @@ def twilio_get_conversaciones():
                 chat_id = chat.get('id', '')
                 # Limpiar el chat_id para obtener solo el número
                 numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
+
+                # Saltar números excluidos
+                if is_numero_excluido(numero_clean):
+                    continue
 
                 # Obtener nombre del contacto
                 nombre = chat.get('name', f"Usuario {numero_clean[-4:]}")
