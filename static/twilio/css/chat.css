@@ -554,6 +554,60 @@ body {
 }
 
 /* ============================================================================
+   SLASH COMMANDS MENU
+   ============================================================================ */
+
+.slash-commands-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-sm);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.slash-command-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.slash-command-item:hover,
+.slash-command-item.selected {
+    background: var(--hover-bg);
+}
+
+.slash-command-item .command-key {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--whatsapp-teal);
+    background: rgba(7, 94, 84, 0.1);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.slash-command-item .command-desc {
+    color: var(--text-secondary);
+    font-size: 13px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================================================
    MESSAGE INPUT AREA
    ============================================================================ */
 
@@ -561,6 +615,7 @@ body {
     background: var(--header-bg);
     padding: var(--spacing-md);
     border-top: 1px solid var(--border-color);
+    position: relative;
 }
 
 .input-wrapper {

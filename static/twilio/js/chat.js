@@ -730,20 +730,28 @@ function abrirMediaModal(url, type) {
 // ============================================================================
 
 const SLASH_COMMANDS = {
-    '/a': '...transfiriendo con asesor',
-
-    '/c': `Bancolombia
+    '/a': {
+        description: 'Transfiriendo con asesor',
+        text: '...transfiriendo con asesor'
+    },
+    '/c': {
+        description: 'Datos bancarios',
+        text: `Bancolombia
 Cuenta de Ahorros 442 9119 2456
 Cédula: 79 981 585
 
 Daviplata: 3014400818
-Nequi: 3008021701`,
+Nequi: 3008021701`
+    },
+    '/l': {
+        description: 'Link para diligenciar orden',
+        text: `La persona que va a hacer el examen debe diligenciar el siguiente link:
 
-    '/l': `La persona que va a hacer el examen debe diligenciar el siguiente link:
-
-https://bsl-plataforma.com/nuevaorden1.html`,
-
-    '/2': `Agendar tu teleconsulta es muy fácil:
+https://bsl-plataforma.com/nuevaorden1.html`
+    },
+    '/2': {
+        description: 'Instrucciones teleconsulta',
+        text: `Agendar tu teleconsulta es muy fácil:
 
 📅 Diligencia tus datos y escoge la hora que te convenga
 
@@ -758,16 +766,155 @@ https://bsl-plataforma.com/nuevaorden1.html`,
 Para comenzar:
 
 https://bsl-plataforma.com/nuevaorden1.html`
+    }
 };
+
+let comandoMenuVisible = false;
+let comandoSeleccionado = 0;
 
 function expandirComando(texto) {
     // Verificar si el texto es exactamente un comando
     const textoLimpio = texto.trim().toLowerCase();
     if (SLASH_COMMANDS[textoLimpio]) {
-        return SLASH_COMMANDS[textoLimpio];
+        return SLASH_COMMANDS[textoLimpio].text;
     }
     return texto;
 }
+
+function crearMenuComandos() {
+    // Crear el menú si no existe
+    let menu = document.getElementById('slashCommandsMenu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'slashCommandsMenu';
+        menu.className = 'slash-commands-menu';
+        menu.style.display = 'none';
+
+        // Insertar dentro del input area (al inicio)
+        const inputArea = document.querySelector('.message-input-area');
+        if (inputArea) {
+            inputArea.insertBefore(menu, inputArea.firstChild);
+        }
+    }
+    return menu;
+}
+
+function mostrarMenuComandos(filtro = '') {
+    const menu = crearMenuComandos();
+    const comandos = Object.entries(SLASH_COMMANDS);
+
+    // Filtrar comandos si hay texto después del /
+    const comandosFiltrados = comandos.filter(([cmd, data]) =>
+        cmd.toLowerCase().includes(filtro.toLowerCase()) ||
+        data.description.toLowerCase().includes(filtro.toLowerCase())
+    );
+
+    if (comandosFiltrados.length === 0) {
+        ocultarMenuComandos();
+        return;
+    }
+
+    // Renderizar opciones
+    menu.innerHTML = comandosFiltrados.map(([cmd, data], index) => `
+        <div class="slash-command-item ${index === comandoSeleccionado ? 'selected' : ''}"
+             data-command="${cmd}"
+             onclick="seleccionarComando('${cmd}')">
+            <span class="command-key">${cmd}</span>
+            <span class="command-desc">${data.description}</span>
+        </div>
+    `).join('');
+
+    menu.style.display = 'block';
+    comandoMenuVisible = true;
+
+    // Asegurar que la selección esté dentro del rango
+    if (comandoSeleccionado >= comandosFiltrados.length) {
+        comandoSeleccionado = 0;
+    }
+}
+
+function ocultarMenuComandos() {
+    const menu = document.getElementById('slashCommandsMenu');
+    if (menu) {
+        menu.style.display = 'none';
+    }
+    comandoMenuVisible = false;
+    comandoSeleccionado = 0;
+}
+
+function seleccionarComando(comando) {
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput && SLASH_COMMANDS[comando]) {
+        messageInput.value = SLASH_COMMANDS[comando].text;
+        messageInput.focus();
+        // Auto-expandir textarea
+        messageInput.style.height = 'auto';
+        messageInput.style.height = messageInput.scrollHeight + 'px';
+    }
+    ocultarMenuComandos();
+}
+
+function navegarMenuComandos(direccion) {
+    const items = document.querySelectorAll('.slash-command-item');
+    if (items.length === 0) return;
+
+    // Remover selección actual
+    items[comandoSeleccionado]?.classList.remove('selected');
+
+    // Calcular nueva posición
+    comandoSeleccionado += direccion;
+    if (comandoSeleccionado < 0) comandoSeleccionado = items.length - 1;
+    if (comandoSeleccionado >= items.length) comandoSeleccionado = 0;
+
+    // Aplicar nueva selección
+    items[comandoSeleccionado]?.classList.add('selected');
+}
+
+function confirmarComandoSeleccionado() {
+    const items = document.querySelectorAll('.slash-command-item');
+    if (items.length > 0 && items[comandoSeleccionado]) {
+        const comando = items[comandoSeleccionado].dataset.command;
+        seleccionarComando(comando);
+    }
+}
+
+// Inicializar listeners para el menú de comandos
+function inicializarMenuComandos() {
+    const messageInput = document.getElementById('messageInput');
+    if (!messageInput) return;
+
+    messageInput.addEventListener('input', function(e) {
+        const valor = e.target.value;
+
+        // Mostrar menú si empieza con /
+        if (valor.startsWith('/')) {
+            const filtro = valor.substring(1); // Texto después del /
+            mostrarMenuComandos(filtro);
+        } else {
+            ocultarMenuComandos();
+        }
+    });
+
+    messageInput.addEventListener('keydown', function(e) {
+        if (!comandoMenuVisible) return;
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            navegarMenuComandos(-1);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            navegarMenuComandos(1);
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            confirmarComandoSeleccionado();
+        } else if (e.key === 'Escape') {
+            ocultarMenuComandos();
+        }
+    });
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', inicializarMenuComandos);
 
 // ============================================================================
 // MESSAGE SENDING
