@@ -2184,8 +2184,18 @@ def generar_certificado_medico():
                         else:
                             template_key = key
 
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                        # Para ciudad: solo usar PostgreSQL si NO viene en el request de Wix
+                        if template_key == 'ciudad':
+                            # Solo sobrescribir si no viene del request o es el valor por defecto
+                            if not data.get('ciudad') or data.get('ciudad') == 'Bogotá':
+                                datos_certificado[template_key] = datos_postgres[key]
+                                print(f"✅ Ciudad desde PostgreSQL: {datos_postgres[key]}")
+                            else:
+                                print(f"ℹ️  Ciudad ya viene del request de Wix: {data.get('ciudad')}")
+                        else:
+                            # Para otros campos, sobrescribir siempre
+                            datos_certificado[template_key] = datos_postgres[key]
+                            print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
                         print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
             else:
@@ -2445,8 +2455,18 @@ def generar_certificado_medico_puppeteer():
                         else:
                             template_key = key
 
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                        # Para ciudad: solo usar PostgreSQL si NO viene en el request de Wix
+                        if template_key == 'ciudad':
+                            # Solo sobrescribir si no viene del request o es el valor por defecto
+                            if not data.get('ciudad') or data.get('ciudad') == 'Bogotá':
+                                datos_certificado[template_key] = datos_postgres[key]
+                                print(f"✅ Ciudad desde PostgreSQL: {datos_postgres[key]}")
+                            else:
+                                print(f"ℹ️  Ciudad ya viene del request de Wix: {data.get('ciudad')}")
+                        else:
+                            # Para otros campos, sobrescribir siempre
+                            datos_certificado[template_key] = datos_postgres[key]
+                            print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
                         print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
             else:
