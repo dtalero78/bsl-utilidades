@@ -4136,7 +4136,7 @@ def api_generar_certificado_pdf(wix_id):
 
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
-            "ciudad": "Bogotá",
+            "ciudad": datos_wix.get('ciudadDeResidencia', 'Bogotá'),
             "vigencia": "Tres años",
             "ips_sede": "Sede norte DHSS0244914",
 
@@ -5057,7 +5057,7 @@ def preview_certificado_html(wix_id):
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
-            "ciudad": "Bogotá",
+            "ciudad": datos_wix.get('ciudadDeResidencia', 'Bogotá'),
             "vigencia": "Tres años",
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
