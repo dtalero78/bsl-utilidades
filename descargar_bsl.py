@@ -3724,6 +3724,9 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix['pvEstado'] = datos_historia_postgres.get('pvEstado')
             if datos_historia_postgres.get('pagado'):
                 datos_wix['pagado'] = datos_historia_postgres.get('pagado')
+            if datos_historia_postgres.get('ciudad'):
+                datos_wix['ciudad'] = datos_historia_postgres.get('ciudad')
+                print(f"  ✓ Ciudad (PostgreSQL HistoriaClinica): {datos_historia_postgres.get('ciudad')}")
         else:
             print(f"⚠️ No hay datos de HistoriaClinica en PostgreSQL para wix_id: {wix_id}")
 
@@ -4136,7 +4139,7 @@ def api_generar_certificado_pdf(wix_id):
 
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
-            "ciudad": datos_wix.get('ciudadDeResidencia', 'Bogotá'),
+            "ciudad": datos_wix.get('ciudad', 'Bogotá'),
             "vigencia": "Tres años",
             "ips_sede": "Sede norte DHSS0244914",
 
@@ -5057,7 +5060,7 @@ def preview_certificado_html(wix_id):
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
-            "ciudad": datos_wix.get('ciudadDeResidencia', 'Bogotá'),
+            "ciudad": datos_wix.get('ciudad', 'Bogotá'),
             "vigencia": "Tres años",
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
