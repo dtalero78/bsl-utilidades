@@ -2166,7 +2166,7 @@ def generar_certificado_medico():
         datos_certificado.setdefault("pensiones", "")
         datos_certificado.setdefault("nivel_educativo", "")
 
-        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo, Ciudad)
         # Esto sobrescribirá los valores vacíos con los datos reales de la BD
         if data.get("wix_id"):
             print(f"🔍 Buscando datos adicionales para wix_id: {data.get('wix_id')}")
@@ -2174,10 +2174,16 @@ def generar_certificado_medico():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia']:
                     if key in datos_postgres and datos_postgres[key]:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        # Mapear campos con nombres diferentes en la plantilla
+                        if key == 'nivelEducativo':
+                            template_key = 'nivel_educativo'
+                        elif key == 'ciudadDeResidencia':
+                            template_key = 'ciudad'
+                        else:
+                            template_key = key
+
                         datos_certificado[template_key] = datos_postgres[key]
                         print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
@@ -2421,7 +2427,7 @@ def generar_certificado_medico_puppeteer():
         datos_certificado.setdefault("pensiones", "")
         datos_certificado.setdefault("nivel_educativo", "")
 
-        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo)
+        # Si hay wix_id, obtener datos adicionales de PostgreSQL (EPS, ARL, Pensiones, Nivel Educativo, Ciudad)
         # Esto sobrescribirá los valores vacíos con los datos reales de la BD
         if data.get("wix_id"):
             print(f"🔍 Buscando datos adicionales para wix_id: {data.get('wix_id')}")
@@ -2429,10 +2435,16 @@ def generar_certificado_medico_puppeteer():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia']:
                     if key in datos_postgres and datos_postgres[key]:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
+                        # Mapear campos con nombres diferentes en la plantilla
+                        if key == 'nivelEducativo':
+                            template_key = 'nivel_educativo'
+                        elif key == 'ciudadDeResidencia':
+                            template_key = 'ciudad'
+                        else:
+                            template_key = key
+
                         datos_certificado[template_key] = datos_postgres[key]
                         print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
