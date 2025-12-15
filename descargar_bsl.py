@@ -4594,24 +4594,20 @@ def preview_certificado_html(wix_id):
             except Exception as e:
                 print(f"⚠️ Error de conexión a Wix: {str(e)}, intentando PostgreSQL...")
 
-            # Si Wix no tiene datos, consultar HistoriaClinica de PostgreSQL
-            if not datos_wix:
-                print(f"🔍 Consultando HistoriaClinica desde PostgreSQL...")
-                datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
+            # SIEMPRE consultar PostgreSQL primero (tiene prioridad sobre Wix)
+            print(f"🔍 Consultando HistoriaClinica desde PostgreSQL (prioridad)...")
+            datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
 
-                if datos_historia_postgres:
-                    print(f"✅ Datos obtenidos de HistoriaClinica PostgreSQL")
-                    datos_wix = datos_historia_postgres
-                else:
-                    print(f"❌ No se encontraron datos ni en Wix ni en PostgreSQL")
-                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
-            else:
-                # Wix tiene datos, pero priorizar exámenes de PostgreSQL (más actualizados)
-                print(f"🔍 Consultando HistoriaClinica PostgreSQL para sobrescribir exámenes...")
-                datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
-                if datos_historia_postgres and datos_historia_postgres.get('examenes'):
-                    datos_wix['examenes'] = datos_historia_postgres.get('examenes')
-                    print(f"  ✓ Exámenes sobrescritos desde PostgreSQL: {datos_historia_postgres.get('examenes')}")
+            if datos_historia_postgres:
+                print(f"✅ Datos obtenidos de HistoriaClinica PostgreSQL")
+                # PostgreSQL sobrescribe TODOS los datos de Wix
+                for key, value in datos_historia_postgres.items():
+                    if value is not None:
+                        datos_wix[key] = value
+                        print(f"  ✓ {key} sobrescrito desde PostgreSQL")
+            elif not datos_wix:
+                print(f"❌ No se encontraron datos ni en Wix ni en PostgreSQL")
+                return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
 
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
