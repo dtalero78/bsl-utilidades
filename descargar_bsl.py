@@ -4605,6 +4605,13 @@ def preview_certificado_html(wix_id):
                 else:
                     print(f"❌ No se encontraron datos ni en Wix ni en PostgreSQL")
                     return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
+            else:
+                # Wix tiene datos, pero priorizar exámenes de PostgreSQL (más actualizados)
+                print(f"🔍 Consultando HistoriaClinica PostgreSQL para sobrescribir exámenes...")
+                datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
+                if datos_historia_postgres and datos_historia_postgres.get('examenes'):
+                    datos_wix['examenes'] = datos_historia_postgres.get('examenes')
+                    print(f"  ✓ Exámenes sobrescritos desde PostgreSQL: {datos_historia_postgres.get('examenes')}")
 
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
