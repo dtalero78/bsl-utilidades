@@ -726,7 +726,7 @@ def obtener_datos_historia_clinica_postgres(wix_id):
         cur.execute("""
             SELECT
                 _id, "numeroId", "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
-                celular, email, "fechaNacimiento", edad, genero, "estadoCivil", hijos,
+                celular, email,
                 "codEmpresa", empresa, cargo, "tipoExamen", examenes,
                 "mdAntecedentes", "mdObservacionesCertificado", "mdRecomendacionesMedicasAdicionales",
                 "mdConceptoFinal", "mdDx1", "mdDx2", talla, peso,
@@ -745,10 +745,10 @@ def obtener_datos_historia_clinica_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro en HistoriaClinica con wix_id: {wix_id}")
             return None
 
-        # Mapear columnas a diccionario
+        # Mapear columnas a diccionario (solo columnas que existen en la tabla)
         columnas = [
             '_id', 'numeroId', 'primerNombre', 'segundoNombre', 'primerApellido', 'segundoApellido',
-            'celular', 'email', 'fechaNacimiento', 'edad', 'genero', 'estadoCivil', 'hijos',
+            'celular', 'email',
             'codEmpresa', 'empresa', 'cargo', 'tipoExamen', 'examenes',
             'mdAntecedentes', 'mdObservacionesCertificado', 'mdRecomendacionesMedicasAdicionales',
             'mdConceptoFinal', 'mdDx1', 'mdDx2', 'talla', 'peso',
