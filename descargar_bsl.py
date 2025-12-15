@@ -4396,7 +4396,8 @@ def preview_certificado_alegra(wix_id):
         # Consultar datos desde Wix HTTP Functions
         wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
 
-        # 1. Obtener datos de HistoriaClinica
+        # 1. Obtener datos de HistoriaClinica (primero Wix, luego PostgreSQL como fallback)
+        datos_wix = {}
         try:
             wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
             response = requests.get(wix_url, timeout=10)
@@ -4405,19 +4406,27 @@ def preview_certificado_alegra(wix_id):
                 wix_response = response.json()
                 datos_wix = wix_response.get("data", {})
 
-                if not datos_wix:
-                    print(f"❌ [ALEGRA] Error: Wix retornó respuesta vacía para ID: {wix_id}")
-                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
-
-                print(f"✅ [ALEGRA] Datos obtenidos de HistoriaClinica para ID: {wix_id}")
+                if datos_wix:
+                    print(f"✅ [ALEGRA] Datos obtenidos de HistoriaClinica Wix para ID: {wix_id}")
+                else:
+                    print(f"⚠️ [ALEGRA] Wix retornó respuesta vacía, intentando PostgreSQL...")
             else:
-                print(f"❌ [ALEGRA] Error consultando Wix: {response.status_code}")
-                return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+                print(f"⚠️ [ALEGRA] Error consultando Wix: {response.status_code}, intentando PostgreSQL...")
 
         except Exception as e:
-            print(f"❌ [ALEGRA] Error de conexión a Wix: {str(e)}")
-            traceback.print_exc()
-            return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
+            print(f"⚠️ [ALEGRA] Error de conexión a Wix: {str(e)}, intentando PostgreSQL...")
+
+        # Si Wix no tiene datos, consultar HistoriaClinica de PostgreSQL
+        if not datos_wix:
+            print(f"🔍 [ALEGRA] Consultando HistoriaClinica desde PostgreSQL...")
+            datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
+
+            if datos_historia_postgres:
+                print(f"✅ [ALEGRA] Datos obtenidos de HistoriaClinica PostgreSQL")
+                datos_wix = datos_historia_postgres
+            else:
+                print(f"❌ [ALEGRA] No se encontraron datos ni en Wix ni en PostgreSQL")
+                return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
 
         # 2. Consultar FORMULARIO desde PostgreSQL (fuente principal, igual que Puppeteer)
         print(f"📋 [ALEGRA] Consultando FORMULARIO desde PostgreSQL con wix_id={wix_id}")
@@ -4562,6 +4571,7 @@ def preview_certificado_html(wix_id):
             print(f"✅ [ALEGRA] Usando datos enriquecidos con FORMULARIO para preview")
         else:
             # Consultar normalmente desde Wix (flujo original de Puppeteer)
+            datos_wix = {}
             try:
                 wix_url = f"{wix_base_url}/historiaClinicaPorId?_id={wix_id}"
                 response = requests.get(wix_url, timeout=10)
@@ -4570,19 +4580,27 @@ def preview_certificado_html(wix_id):
                     wix_response = response.json()
                     datos_wix = wix_response.get("data", {})
 
-                    if not datos_wix:
-                        print(f"❌ Error: Wix retornó respuesta vacía para ID: {wix_id}")
-                        return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
-
-                    print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
+                    if datos_wix:
+                        print(f"✅ Datos obtenidos de Wix para ID: {wix_id}")
+                    else:
+                        print(f"⚠️ Wix retornó respuesta vacía, intentando PostgreSQL...")
                 else:
-                    print(f"❌ Error consultando Wix: {response.status_code}")
-                    return f"<html><body><h1>Error</h1><p>Error al obtener datos del paciente (código {response.status_code})</p></body></html>", 500
+                    print(f"⚠️ Error consultando Wix: {response.status_code}, intentando PostgreSQL...")
 
             except Exception as e:
-                print(f"❌ Error de conexión a Wix: {str(e)}")
-                traceback.print_exc()
-                return f"<html><body><h1>Error</h1><p>Error de conexión con el sistema de datos. Intenta nuevamente.</p></body></html>", 500
+                print(f"⚠️ Error de conexión a Wix: {str(e)}, intentando PostgreSQL...")
+
+            # Si Wix no tiene datos, consultar HistoriaClinica de PostgreSQL
+            if not datos_wix:
+                print(f"🔍 Consultando HistoriaClinica desde PostgreSQL...")
+                datos_historia_postgres = obtener_datos_historia_clinica_postgres(wix_id)
+
+                if datos_historia_postgres:
+                    print(f"✅ Datos obtenidos de HistoriaClinica PostgreSQL")
+                    datos_wix = datos_historia_postgres
+                else:
+                    print(f"❌ No se encontraron datos ni en Wix ni en PostgreSQL")
+                    return f"<html><body><h1>Error</h1><p>No se encontraron datos del paciente en el sistema (ID: {wix_id})</p></body></html>", 404
 
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
