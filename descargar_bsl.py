@@ -507,7 +507,8 @@ def obtener_datos_formulario_postgres(wix_id):
                 eps,
                 arl,
                 pensiones,
-                nivel_educativo
+                nivel_educativo,
+                foto_url
             FROM formularios
             WHERE wix_id = %s
             LIMIT 1;
@@ -521,17 +522,20 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
         # Construir diccionario con los datos
         datos_formulario = {}
 
-        # Foto (validar que sea data URI)
-        if foto and foto.startswith("data:image/"):
+        # Foto - Priorizar foto_url (URL pública de DO Spaces) sobre foto (data URI base64)
+        if foto_url and foto_url.startswith("http"):
+            print(f"📸 [PostgreSQL] Usando foto_url (DO Spaces): {foto_url[:80]}...")
+            datos_formulario['foto'] = foto_url
+        elif foto and foto.startswith("data:image/"):
             foto_size_kb = len(foto) / 1024
-            print(f"📸 [PostgreSQL] Foto encontrada: {foto_size_kb:.1f} KB")
+            print(f"📸 [PostgreSQL] Usando foto base64: {foto_size_kb:.1f} KB")
             datos_formulario['foto'] = foto
         else:
             print(f"ℹ️  [PostgreSQL] Sin foto válida")
