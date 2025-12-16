@@ -4055,6 +4055,7 @@ def api_generar_certificado_pdf(wix_id):
             "JUAN 134": "FIRMA-JUAN134.jpeg",
             "CESAR": "FIRMA-CESAR.jpeg",
             "MARY": "FIRMA-MARY.jpeg",
+            "NUBIA": "FIRMA-JUAN134.jpeg",
             "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
         }
 
@@ -4091,10 +4092,10 @@ def api_generar_certificado_pdf(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "PRESENCIAL": {
-                "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
-                "fecha": "6 DE JULIO DE 2020"
+                "nombre": "",
+                "registro": "",
+                "licencia": "",
+                "fecha": ""
             }
         }
 
@@ -5002,6 +5003,7 @@ def preview_certificado_html(wix_id):
             "JUAN 134": "FIRMA-JUAN134.jpeg",
             "CESAR": "FIRMA-CESAR.jpeg",
             "MARY": "FIRMA-MARY.jpeg",
+            "NUBIA": "FIRMA-JUAN134.jpeg",
             "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
         }
 
@@ -5038,10 +5040,10 @@ def preview_certificado_html(wix_id):
                 "fecha": "6 DE JULIO DE 2020"
             },
             "PRESENCIAL": {
-                "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
-                "licencia": "LICENCIA SALUD OCUPACIONAL 460",
-                "fecha": "6 DE JULIO DE 2020"
+                "nombre": "",
+                "registro": "",
+                "licencia": "",
+                "fecha": ""
             }
         }
 
