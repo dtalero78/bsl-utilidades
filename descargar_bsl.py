@@ -2138,9 +2138,9 @@ def generar_certificado_medico():
             "recomendaciones_medicas": data.get("recomendaciones_medicas", ""),
 
             # Firmas
-            "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
-            "medico_registro": data.get("medico_registro", "REGISTRO MEDICO NO 14791"),
-            "medico_licencia": data.get("medico_licencia", "LICENCIA SALUD OCUPACIONAL 460"),
+            "medico_nombre": data.get("medico_nombre", ""),
+            "medico_registro": data.get("medico_registro", ""),
+            "medico_licencia": data.get("medico_licencia", ""),
             "firma_medico_url": data.get("firma_medico_url"),
             "firma_paciente_url": data.get("firma_paciente_url"),
 
@@ -2409,9 +2409,9 @@ def generar_certificado_medico_puppeteer():
             "recomendaciones_medicas": data.get("recomendaciones_medicas", ""),
 
             # Firmas
-            "medico_nombre": data.get("medico_nombre", "JUAN JOSE REATIGA"),
-            "medico_registro": data.get("medico_registro", "REGISTRO MEDICO NO 14791"),
-            "medico_licencia": data.get("medico_licencia", "LICENCIA SALUD OCUPACIONAL 460"),
+            "medico_nombre": data.get("medico_nombre", ""),
+            "medico_registro": data.get("medico_registro", ""),
+            "medico_licencia": data.get("medico_licencia", ""),
             "firma_medico_url": data.get("firma_medico_url"),
             "firma_paciente_url": data.get("firma_paciente_url"),
 
@@ -4069,7 +4069,7 @@ def api_generar_certificado_pdf(wix_id):
             },
             "JUAN 134": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
+                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -4087,7 +4087,7 @@ def api_generar_certificado_pdf(wix_id):
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
+                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -4100,11 +4100,11 @@ def api_generar_certificado_pdf(wix_id):
         }
 
         # Obtener firma del médico desde archivos locales
-        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        firma_medico_filename = firma_medico_map.get(medico)
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
 
         # Obtener datos del médico
-        datos_medico = medico_datos_map.get(medico, medico_datos_map["JUAN 134"])
+        datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
@@ -5017,7 +5017,7 @@ def preview_certificado_html(wix_id):
             },
             "JUAN 134": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
+                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -5035,7 +5035,7 @@ def preview_certificado_html(wix_id):
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "REGISTRO MEDICO NO 14791",
+                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -5048,11 +5048,11 @@ def preview_certificado_html(wix_id):
         }
 
         # Obtener firma del médico desde archivos locales
-        firma_medico_filename = firma_medico_map.get(medico, "FIRMA-JUAN134.jpeg")
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}"
+        firma_medico_filename = firma_medico_map.get(medico)
+        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
 
         # Obtener datos del médico
-        datos_medico = medico_datos_map.get(medico, medico_datos_map["JUAN 134"])
+        datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
         print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
