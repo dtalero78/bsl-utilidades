@@ -4032,16 +4032,17 @@ def api_generar_certificado_pdf(wix_id):
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
-        for examen in examenes_normalizados:
-            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+        # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
+        for i, examen in enumerate(examenes_normalizados):
+            # Para el primer examen: si hay observaciones del médico, usar esas en lugar del texto hardcodeado
+            if i == 0 and observaciones_sin_analisis:
+                descripcion = observaciones_sin_analisis
+            else:
+                descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
                 "examen": examen,
                 "descripcion": descripcion
             })
-
-        # Si hay observaciones (sin análisis postural), agregarlas al primer examen
-        if observaciones_sin_analisis and len(resultados_generales) > 0:
-            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_sin_analisis}"
 
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
@@ -4981,15 +4982,17 @@ def preview_certificado_html(wix_id):
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
-        for examen in examenes_normalizados:
-            descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+        # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
+        for i, examen in enumerate(examenes_normalizados):
+            # Para el primer examen: si hay observaciones del médico, usar esas en lugar del texto hardcodeado
+            if i == 0 and observaciones_sin_analisis:
+                descripcion = observaciones_sin_analisis
+            else:
+                descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
                 "examen": examen,
                 "descripcion": descripcion
             })
-
-        if observaciones_sin_analisis and len(resultados_generales) > 0:
-            resultados_generales[0]["descripcion"] += f"\n\n{observaciones_sin_analisis}"
 
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
