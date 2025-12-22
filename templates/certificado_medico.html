@@ -697,10 +697,10 @@
         {% endif %}
 
         <!-- RESULTADOS DE PRUEBA VISUAL (Optometría o Visiometría) -->
-        {% if 'Optometría' in examenes or 'Visiometría' in examenes %}
+        {% if 'Optometría' in examenes or 'OPTOMETRÍA' in examenes or 'Visiometría' in examenes or 'VISIOMETRÍA' in examenes %}
         <div class="section" style="margin-top: 30px;">
             <div class="section-title">
-                {% if 'Optometría' in examenes %}
+                {% if 'Optometría' in examenes or 'OPTOMETRÍA' in examenes %}
                 Resultados de Optometría
                 {% else %}
                 Resultados de Visiometría
@@ -767,7 +767,7 @@
         {% endif %}
 
         <!-- RESULTADOS DE AUDIOMETRÍA -->
-        {% if 'Audiometría' in examenes %}
+        {% if 'Audiometría' in examenes or 'AUDIOMETRÍA' in examenes %}
         <div class="section" style="margin-top: 30px;">
             <div class="section-title">Resultados de Audiometría</div>
 
