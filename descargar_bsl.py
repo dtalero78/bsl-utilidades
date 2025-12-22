@@ -781,6 +781,85 @@ def obtener_datos_historia_clinica_postgres(wix_id):
         return None
 
 
+def obtener_visiometria_postgres(orden_id):
+    """
+    Consulta los datos de visiometría desde PostgreSQL usando el orden_id (wix_id).
+
+    Args:
+        orden_id: ID de la orden (_id de HistoriaClinica)
+
+    Returns:
+        dict: Datos de visiometría formateados para el template o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada para visiometría")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando visiometrias_virtual para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                snellen_correctas, snellen_total, snellen_porcentaje,
+                landolt_correctas, landolt_total, landolt_porcentaje,
+                ishihara_correctas, ishihara_total, ishihara_porcentaje,
+                concepto
+            FROM visiometrias_virtual
+            WHERE orden_id = %s
+            LIMIT 1;
+        """, (orden_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró visiometría para orden_id: {orden_id}")
+            return None
+
+        # Formatear resultado numérico para el template
+        snellen_correctas, snellen_total, snellen_porcentaje = row[0], row[1], row[2]
+        landolt_correctas, landolt_total, landolt_porcentaje = row[3], row[4], row[5]
+        ishihara_correctas, ishihara_total, ishihara_porcentaje = row[6], row[7], row[8]
+        concepto = row[9]
+
+        resultado_numerico = f"""Snellen: {snellen_correctas}/{snellen_total} ({snellen_porcentaje}%)
+Landolt: {landolt_correctas}/{landolt_total} ({landolt_porcentaje}%)
+Ishihara: {ishihara_correctas}/{ishihara_total} ({ishihara_porcentaje}%)"""
+
+        datos_visual = {
+            "resultadoNumerico": resultado_numerico,
+            "concepto": concepto,
+            "snellen": {"correctas": snellen_correctas, "total": snellen_total, "porcentaje": snellen_porcentaje},
+            "landolt": {"correctas": landolt_correctas, "total": landolt_total, "porcentaje": landolt_porcentaje},
+            "ishihara": {"correctas": ishihara_correctas, "total": ishihara_total, "porcentaje": ishihara_porcentaje}
+        }
+
+        print(f"✅ [PostgreSQL] Datos de visiometría encontrados: Snellen {snellen_porcentaje}%, Landolt {landolt_porcentaje}%, Ishihara {ishihara_porcentaje}%")
+        return datos_visual
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado para visiometría")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar visiometría: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def descargar_imagen_wix_con_puppeteer(wix_url):
     """
     Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
@@ -3770,24 +3849,31 @@ def api_generar_certificado_pdf(wix_id):
         tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
-            try:
-                wix_id_historia = datos_wix.get('_id', '')
-                visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
-                print(f"🔍 Consultando datos visuales para HistoriaClinica ID: {wix_id_historia}")
+            wix_id_historia = datos_wix.get('_id', '')
 
-                visual_response = requests.get(visual_url, timeout=10)
+            # PRIORIDAD 1: Consultar PostgreSQL (visiometrias_virtual)
+            print(f"🔍 [PRIORIDAD 1] Consultando datos visuales en PostgreSQL para: {wix_id_historia}")
+            datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
-                if visual_response.status_code == 200:
-                    visual_data = visual_response.json()
-                    if visual_data.get('success') and visual_data.get('data'):
-                        datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
-                        print(f"✅ Datos visuales obtenidos correctamente")
+            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_visual:
+                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos visuales en Wix...")
+                try:
+                    visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
+
+                    visual_response = requests.get(visual_url, timeout=10)
+
+                    if visual_response.status_code == 200:
+                        visual_data = visual_response.json()
+                        if visual_data.get('success') and visual_data.get('data'):
+                            datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
+                            print(f"✅ Datos visuales obtenidos desde Wix (fallback)")
+                        else:
+                            print(f"⚠️ No se encontraron datos visuales en Wix para {wix_id_historia}")
                     else:
-                        print(f"⚠️ No se encontraron datos visuales para {wix_id_historia}")
-                else:
-                    print(f"⚠️ Error al consultar datos visuales: {visual_response.status_code}")
-            except Exception as e:
-                print(f"❌ Error consultando datos visuales: {e}")
+                        print(f"⚠️ Error al consultar datos visuales en Wix: {visual_response.status_code}")
+                except Exception as e:
+                    print(f"❌ Error consultando datos visuales en Wix: {e}")
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
@@ -4645,28 +4731,35 @@ def preview_certificado_html(wix_id):
         tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
         if tiene_examen_visual:
-            try:
-                wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
-                visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
-                print(f"🔍 Consultando datos visuales para HistoriaClinica ID: {wix_id_historia}", flush=True)
+            wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
-                visual_response = requests.get(visual_url, timeout=10)
+            # PRIORIDAD 1: Consultar PostgreSQL (visiometrias_virtual)
+            print(f"🔍 [PRIORIDAD 1] Consultando datos visuales en PostgreSQL para: {wix_id_historia}", flush=True)
+            datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
-                if visual_response.status_code == 200:
-                    visual_data = visual_response.json()
-                    if visual_data.get('success') and visual_data.get('data'):
-                        datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
-                        print(f"✅ Datos visuales obtenidos correctamente", flush=True)
-                        print(f"📊 Datos: {datos_visual}", flush=True)
+            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_visual:
+                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos visuales en Wix...", flush=True)
+                try:
+                    visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
+
+                    visual_response = requests.get(visual_url, timeout=10)
+
+                    if visual_response.status_code == 200:
+                        visual_data = visual_response.json()
+                        if visual_data.get('success') and visual_data.get('data'):
+                            datos_visual = visual_data['data'][0] if len(visual_data['data']) > 0 else None
+                            print(f"✅ Datos visuales obtenidos desde Wix (fallback)", flush=True)
+                            print(f"📊 Datos: {datos_visual}", flush=True)
+                        else:
+                            print(f"⚠️ No se encontraron datos visuales en Wix para {wix_id_historia}", flush=True)
+                            datos_visual = None
                     else:
-                        print(f"⚠️ No se encontraron datos visuales para {wix_id_historia}", flush=True)
+                        print(f"⚠️ Error al consultar datos visuales en Wix: {visual_response.status_code}", flush=True)
                         datos_visual = None
-                else:
-                    print(f"⚠️ Error al consultar datos visuales: {visual_response.status_code}", flush=True)
+                except Exception as e:
+                    print(f"❌ Error consultando datos visuales en Wix: {e}", flush=True)
                     datos_visual = None
-            except Exception as e:
-                print(f"❌ Error consultando datos visuales: {e}", flush=True)
-                datos_visual = None
 
         # ===== CONSULTAR DATOS DE AUDIOMETRÍA =====
         datos_audiometria = None
