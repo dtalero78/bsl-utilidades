@@ -847,14 +847,119 @@ Ishihara: {ishihara_correctas}/{ishihara_total} ({ishihara_porcentaje}%)"""
             "ishihara": {"correctas": ishihara_correctas, "total": ishihara_total, "porcentaje": ishihara_porcentaje}
         }
 
-        print(f"✅ [PostgreSQL] Datos de visiometría encontrados: Snellen {snellen_porcentaje}%, Landolt {landolt_porcentaje}%, Ishihara {ishihara_porcentaje}%")
+        print(f"✅ [PostgreSQL] Datos de visiometría virtual encontrados: Snellen {snellen_porcentaje}%, Landolt {landolt_porcentaje}%, Ishihara {ishihara_porcentaje}%")
         return datos_visual
 
     except ImportError:
         print("⚠️  [PostgreSQL] psycopg2 no está instalado para visiometría")
         return None
     except Exception as e:
-        print(f"❌ [PostgreSQL] Error al consultar visiometría: {e}")
+        print(f"❌ [PostgreSQL] Error al consultar visiometría virtual: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def obtener_optometria_postgres(orden_id):
+    """
+    Consulta los datos de optometría profesional desde PostgreSQL usando el orden_id (wix_id).
+    Esta función consulta la tabla 'visiometrias' que tiene datos de exámenes profesionales.
+
+    Args:
+        orden_id: ID de la orden (_id de HistoriaClinica)
+
+    Returns:
+        dict: Datos de optometría formateados para el template o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada para optometría")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando tabla visiometrias (optometría) para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                vl_od_sin_correccion, vl_od_con_correccion,
+                vl_oi_sin_correccion, vl_oi_con_correccion,
+                vl_ao_sin_correccion, vl_ao_con_correccion,
+                vc_od_sin_correccion, vc_od_con_correccion,
+                vc_oi_sin_correccion, vc_oi_con_correccion,
+                vc_ao_sin_correccion, vc_ao_con_correccion,
+                ishihara, vision_cromatica,
+                diagnostico, observaciones
+            FROM visiometrias
+            WHERE orden_id = %s
+            LIMIT 1;
+        """, (orden_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró optometría para orden_id: {orden_id}")
+            return None
+
+        # Extraer valores
+        vl_od_sc, vl_od_cc = row[0] or '', row[1] or ''
+        vl_oi_sc, vl_oi_cc = row[2] or '', row[3] or ''
+        vl_ao_sc, vl_ao_cc = row[4] or '', row[5] or ''
+        vc_od_sc, vc_od_cc = row[6] or '', row[7] or ''
+        vc_oi_sc, vc_oi_cc = row[8] or '', row[9] or ''
+        vc_ao_sc, vc_ao_cc = row[10] or '', row[11] or ''
+        ishihara = row[12] or ''
+        vision_cromatica = row[13] or ''
+        diagnostico = row[14] or ''
+        observaciones = row[15] or ''
+
+        # Formatear resultado numérico para el template
+        resultado_numerico = f"""VISIÓN LEJANA (VL):
+  OD: SC {vl_od_sc} / CC {vl_od_cc}
+  OI: SC {vl_oi_sc} / CC {vl_oi_cc}
+  AO: SC {vl_ao_sc} / CC {vl_ao_cc}
+
+VISIÓN CERCANA (VC):
+  OD: SC {vc_od_sc} / CC {vc_od_cc}
+  OI: SC {vc_oi_sc} / CC {vc_oi_cc}
+  AO: SC {vc_ao_sc} / CC {vc_ao_cc}
+
+Ishihara: {ishihara}
+Visión Cromática: {vision_cromatica}
+
+Diagnóstico: {diagnostico}"""
+
+        if observaciones:
+            resultado_numerico += f"\nObservaciones: {observaciones}"
+
+        datos_visual = {
+            "resultadoNumerico": resultado_numerico,
+            "diagnostico": diagnostico,
+            "ishihara": ishihara,
+            "vision_cromatica": vision_cromatica,
+            "tipo": "optometria_profesional"
+        }
+
+        print(f"✅ [PostgreSQL] Datos de optometría profesional encontrados: {diagnostico}")
+        return datos_visual
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado para optometría")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar optometría: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -3851,13 +3956,18 @@ def api_generar_certificado_pdf(wix_id):
         if tiene_examen_visual:
             wix_id_historia = datos_wix.get('_id', '')
 
-            # PRIORIDAD 1: Consultar PostgreSQL (visiometrias_virtual)
-            print(f"🔍 [PRIORIDAD 1] Consultando datos visuales en PostgreSQL para: {wix_id_historia}")
+            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
+            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias_virtual en PostgreSQL para: {wix_id_historia}")
             datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
-            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias (optometría profesional)
             if not datos_visual:
-                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos visuales en Wix...")
+                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias (optometría) en PostgreSQL...")
+                datos_visual = obtener_optometria_postgres(wix_id_historia)
+
+            # PRIORIDAD 3: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_visual:
+                print(f"🔍 [PRIORIDAD 3 - Fallback] Consultando datos visuales en Wix...")
                 try:
                     visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
 
@@ -4733,13 +4843,18 @@ def preview_certificado_html(wix_id):
         if tiene_examen_visual:
             wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
-            # PRIORIDAD 1: Consultar PostgreSQL (visiometrias_virtual)
-            print(f"🔍 [PRIORIDAD 1] Consultando datos visuales en PostgreSQL para: {wix_id_historia}", flush=True)
+            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
+            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias_virtual en PostgreSQL para: {wix_id_historia}", flush=True)
             datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
-            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias (optometría profesional)
             if not datos_visual:
-                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos visuales en Wix...", flush=True)
+                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias (optometría) en PostgreSQL...", flush=True)
+                datos_visual = obtener_optometria_postgres(wix_id_historia)
+
+            # PRIORIDAD 3: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_visual:
+                print(f"🔍 [PRIORIDAD 3 - Fallback] Consultando datos visuales en Wix...", flush=True)
                 try:
                     visual_url = f"https://www.bsl.com.co/_functions/visualPorIdGeneral?idGeneral={wix_id_historia}"
 
