@@ -562,13 +562,7 @@
             document.getElementById('horaAtencionSelector').value = '08:00';
             document.getElementById('horaActual').textContent = '(Actual: 08:00)';
 
-            // Si hay empresa en el primer registro (de "Autorizado por:"), usarla como valor por defecto
-            if (data.datos.length > 0 && data.datos[0].empresa) {
-                const empresaDelCSV = data.datos[0].empresa;
-                document.getElementById('empresaInput').value = empresaDelCSV;
-                // Aplicar a todos los registros por consistencia
-                actualizarEmpresaTodos(empresaDelCSV);
-            }
+            // El input global de empresa queda vacío (cada registro ya tiene su empresa del CSV)
 
             // Actualizar información de médicos seleccionados
             actualizarMedicosSeleccionados();
