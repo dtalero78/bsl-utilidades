@@ -2934,23 +2934,54 @@ def procesar_csv():
                 # Normalizar los nombres de las columnas (eliminar espacios al inicio/final)
                 row_normalized = {key.strip(): value for key, value in row.items()}
 
-                # Obtener el nombre completo y separarlo (soportar múltiples nombres de columna)
-                nombre_completo = (
-                    row_normalized.get('NOMBRES APELLIDOS Y', '') or
-                    row_normalized.get('NOMBRES COMPLETOS', '') or
-                    row_normalized.get('NOMBRES Y APELLIDOS', '')
-                ).strip()
-
-                print(f"🔍 Fila {idx} - Nombre encontrado: '{nombre_completo}'")
                 print(f"🔍 Columnas disponibles: {list(row_normalized.keys())}")
 
-                nombres_separados = separar_nombre_completo(nombre_completo)
+                # Detectar si el CSV ya viene con formato procesado (tiene primerNombre)
+                es_formato_procesado = 'primerNombre' in row_normalized
+
+                if es_formato_procesado:
+                    # CSV ya procesado: usar los campos directamente
+                    print(f"📋 Fila {idx} - Formato procesado detectado")
+
+                    primer_nombre = row_normalized.get('primerNombre', '').strip()
+                    segundo_nombre = row_normalized.get('segundoNombre', '').strip()
+                    primer_apellido = row_normalized.get('primerApellido', '').strip()
+                    segundo_apellido = row_normalized.get('segundoApellido', '').strip()
+                    nombre_completo = f"{primer_nombre} {segundo_nombre} {primer_apellido} {segundo_apellido}".strip()
+                    nombre_completo = ' '.join(nombre_completo.split())  # Eliminar espacios extras
+
+                    numero_id = row_normalized.get('numeroId', '').strip()
+                    cargo = row_normalized.get('cargo', '').strip()
+                    celular = row_normalized.get('celular', '').strip()
+                    ciudad = row_normalized.get('ciudad', '').strip()
+                    tipo_examen = row_normalized.get('tipoExamen', '').strip()
+                    empresa = row_normalized.get('empresa', '').strip()
+
+                else:
+                    # CSV formato original: procesar nombres
+                    nombre_completo = (
+                        row_normalized.get('NOMBRES APELLIDOS Y', '') or
+                        row_normalized.get('NOMBRES COMPLETOS', '') or
+                        row_normalized.get('NOMBRES Y APELLIDOS', '')
+                    ).strip()
+
+                    print(f"🔍 Fila {idx} - Nombre encontrado: '{nombre_completo}'")
+
+                    nombres_separados = separar_nombre_completo(nombre_completo)
+                    primer_nombre = nombres_separados["primerNombre"]
+                    segundo_nombre = nombres_separados["segundoNombre"]
+                    primer_apellido = nombres_separados["primerApellido"]
+                    segundo_apellido = nombres_separados["segundoApellido"]
+
+                    numero_id = row_normalized.get('No IDENTIFICACION', '').strip()
+                    cargo = row_normalized.get('CARGO', '').strip()
+                    celular = row_normalized.get('TELEFONOS', '').strip()
+                    ciudad = row_normalized.get('CIUDAD', '').strip()
+                    tipo_examen = row_normalized.get('TIPO DE EXAMEN OCUPACIONAL', '').strip()
+                    empresa = row_normalized.get('Autorizado por:', '').strip()
 
                 # Calcular fecha de atención (un día después de hoy por defecto)
                 fecha_atencion = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-
-                # Extraer ciudad
-                ciudad = row_normalized.get('CIUDAD', '').strip()
 
                 # Normalizar Bogotá a BOGOTA (cualquier variación)
                 es_bogota = 'BOGOT' in ciudad.upper()
@@ -2968,22 +2999,19 @@ def procesar_csv():
                     hora_atencion = (hora_base + timedelta(minutes=contador_no_bogota * 10)).strftime('%H:%M')
                     contador_no_bogota += 1
 
-                # Extraer empresa del campo "Autorizado por:"
-                empresa = row_normalized.get('Autorizado por:', '').strip()
-
-                # Extraer otros campos del CSV
+                # Construir objeto persona
                 persona = {
                     "fila": idx,
                     "nombreCompleto": nombre_completo,
-                    "primerNombre": nombres_separados["primerNombre"],
-                    "segundoNombre": nombres_separados["segundoNombre"],
-                    "primerApellido": nombres_separados["primerApellido"],
-                    "segundoApellido": nombres_separados["segundoApellido"],
-                    "numeroId": row_normalized.get('No IDENTIFICACION', '').strip(),
-                    "cargo": row_normalized.get('CARGO', '').strip(),
-                    "celular": row_normalized.get('TELEFONOS', '').strip(),
+                    "primerNombre": primer_nombre,
+                    "segundoNombre": segundo_nombre,
+                    "primerApellido": primer_apellido,
+                    "segundoApellido": segundo_apellido,
+                    "numeroId": numero_id,
+                    "cargo": cargo,
+                    "celular": celular,
                     "ciudad": ciudad,
-                    "tipoExamen": row_normalized.get('TIPO DE EXAMEN OCUPACIONAL', '').strip(),
+                    "tipoExamen": tipo_examen,
                     "fechaAtencion": fecha_atencion,
                     "horaAtencion": hora_atencion,
                     "medico": medico_asignado,
