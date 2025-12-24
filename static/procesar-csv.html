@@ -474,10 +474,10 @@
             `;
 
             data.datos.forEach((persona, index) => {
-                // Inicializar nuevos campos
+                // Inicializar nuevos campos (empresa viene del backend desde "Autorizado por:")
                 persona.atendido = 'PENDIENTE';
                 persona.codEmpresa = '';
-                persona.empresa = '';
+                persona.empresa = persona.empresa || '';  // Usar valor del CSV si existe
                 persona.examen = [];
 
                 // Formatear fecha a MM/DD/YYYY
@@ -516,7 +516,7 @@
                         </td>
                         <td class="atendido" data-index="${index}">PENDIENTE</td>
                         <td class="codEmpresa" data-index="${index}"></td>
-                        <td class="empresa" data-index="${index}"></td>
+                        <td class="empresa" data-index="${index}">${persona.empresa}</td>
                         <td class="examen" data-index="${index}">[]</td>
                     </tr>
                 `;
@@ -561,6 +561,14 @@
             // Configurar el selector de hora con la hora por defecto (08:00)
             document.getElementById('horaAtencionSelector').value = '08:00';
             document.getElementById('horaActual').textContent = '(Actual: 08:00)';
+
+            // Si hay empresa en el primer registro (de "Autorizado por:"), usarla como valor por defecto
+            if (data.datos.length > 0 && data.datos[0].empresa) {
+                const empresaDelCSV = data.datos[0].empresa;
+                document.getElementById('empresaInput').value = empresaDelCSV;
+                // Aplicar a todos los registros por consistencia
+                actualizarEmpresaTodos(empresaDelCSV);
+            }
 
             // Actualizar información de médicos seleccionados
             actualizarMedicosSeleccionados();

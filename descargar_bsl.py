@@ -2968,6 +2968,9 @@ def procesar_csv():
                     hora_atencion = (hora_base + timedelta(minutes=contador_no_bogota * 10)).strftime('%H:%M')
                     contador_no_bogota += 1
 
+                # Extraer empresa del campo "Autorizado por:"
+                empresa = row_normalized.get('Autorizado por:', '').strip()
+
                 # Extraer otros campos del CSV
                 persona = {
                     "fila": idx,
@@ -2983,7 +2986,8 @@ def procesar_csv():
                     "tipoExamen": row_normalized.get('TIPO DE EXAMEN OCUPACIONAL', '').strip(),
                     "fechaAtencion": fecha_atencion,
                     "horaAtencion": hora_atencion,
-                    "medico": medico_asignado
+                    "medico": medico_asignado,
+                    "empresa": empresa
                 }
 
                 personas_procesadas.append(persona)
