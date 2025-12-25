@@ -965,6 +965,112 @@ Diagnóstico: {diagnostico}"""
         return None
 
 
+def obtener_audiometria_postgres(orden_id):
+    """
+    Consulta los datos de audiometría desde PostgreSQL usando el orden_id (wix_id).
+
+    Args:
+        orden_id: ID de la orden (_id de HistoriaClinica)
+
+    Returns:
+        dict: Datos de audiometría formateados para el template o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada para audiometría")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando audiometrias para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                aereo_od_250, aereo_od_500, aereo_od_1000, aereo_od_2000,
+                aereo_od_3000, aereo_od_4000, aereo_od_6000, aereo_od_8000,
+                aereo_oi_250, aereo_oi_500, aereo_oi_1000, aereo_oi_2000,
+                aereo_oi_3000, aereo_oi_4000, aereo_oi_6000, aereo_oi_8000,
+                diagnostico_od, diagnostico_oi, interpretacion, recomendaciones
+            FROM audiometrias
+            WHERE orden_id = %s
+            LIMIT 1;
+        """, (orden_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró audiometría para orden_id: {orden_id}")
+            return None
+
+        # Extraer valores - convertir None a 0 para los valores numéricos
+        def safe_int(val):
+            if val is None or val == '':
+                return 0
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return 0
+
+        # Frecuencias para el audiograma (sin 125 Hz en esta tabla)
+        frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+
+        datosParaTabla = []
+        for i, freq in enumerate(frecuencias):
+            datosParaTabla.append({
+                "frecuencia": freq,
+                "oidoDerecho": safe_int(row[i]),      # aereo_od_250 a aereo_od_8000
+                "oidoIzquierdo": safe_int(row[i + 8]) # aereo_oi_250 a aereo_oi_8000
+            })
+
+        diagnostico_od = row[16] or ''
+        diagnostico_oi = row[17] or ''
+        interpretacion = row[18] or ''
+        recomendaciones = row[19] or ''
+
+        # Construir diagnóstico combinado
+        diagnostico_partes = []
+        if diagnostico_od:
+            diagnostico_partes.append(f"OD: {diagnostico_od}")
+        if diagnostico_oi:
+            diagnostico_partes.append(f"OI: {diagnostico_oi}")
+        if interpretacion:
+            diagnostico_partes.append(f"Interpretación: {interpretacion}")
+
+        diagnostico_final = ". ".join(diagnostico_partes) if diagnostico_partes else "Audiometría realizada"
+
+        datos_audiometria = {
+            "datosParaTabla": datosParaTabla,
+            "diagnostico": diagnostico_final,
+            "diagnostico_od": diagnostico_od,
+            "diagnostico_oi": diagnostico_oi,
+            "recomendaciones": recomendaciones
+        }
+
+        print(f"✅ [PostgreSQL] Datos de audiometría encontrados: OD={diagnostico_od}, OI={diagnostico_oi}")
+        return datos_audiometria
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado para audiometría")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar audiometría: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def descargar_imagen_wix_con_puppeteer(wix_url):
     """
     Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
@@ -4022,131 +4128,138 @@ def api_generar_certificado_pdf(wix_id):
         tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
-            try:
-                wix_id_historia = datos_wix.get('_id', '')
-                audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
-                print(f"🔍 Consultando datos de audiometría para HistoriaClinica ID: {wix_id_historia}")
+            wix_id_historia = datos_wix.get('_id', '')
 
-                audio_response = requests.get(audio_url, timeout=10)
+            # PRIORIDAD 1: Consultar PostgreSQL (audiometrias)
+            print(f"🔍 [PRIORIDAD 1] Consultando audiometrias en PostgreSQL para: {wix_id_historia}")
+            datos_audiometria = obtener_audiometria_postgres(wix_id_historia)
 
-                if audio_response.status_code == 200:
-                    audio_data = audio_response.json()
-                    if audio_data.get('success') and audio_data.get('data'):
-                        datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
+            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_audiometria:
+                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos de audiometría en Wix...")
+                try:
+                    audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
 
-                        if datos_raw:
-                            # Transformar datos de Wix al formato esperado
-                            frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
-                            datosParaTabla = []
+                    audio_response = requests.get(audio_url, timeout=10)
 
-                            for freq in frecuencias:
-                                campo_der = f"auDer{freq}"
-                                campo_izq = f"auIzq{freq}"
-                                datosParaTabla.append({
-                                    "frecuencia": freq,
-                                    "oidoDerecho": datos_raw.get(campo_der, 0),
-                                    "oidoIzquierdo": datos_raw.get(campo_izq, 0)
-                                })
+                    if audio_response.status_code == 200:
+                        audio_data = audio_response.json()
+                        if audio_data.get('success') and audio_data.get('data'):
+                            datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
 
-                            # Calcular diagnóstico automático basado en umbrales auditivos
-                            def calcular_diagnostico_audiometria(datos):
-                                # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
-                                umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
-                                umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
-                                tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
+                            if datos_raw:
+                                # Transformar datos de Wix al formato esperado
+                                frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+                                datosParaTabla = []
 
-                                # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
-                                freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
-                                valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
-                                valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+                                for freq in frecuencias:
+                                    campo_der = f"auDer{freq}"
+                                    campo_izq = f"auIzq{freq}"
+                                    datosParaTabla.append({
+                                        "frecuencia": freq,
+                                        "oidoDerecho": datos_raw.get(campo_der, 0),
+                                        "oidoIzquierdo": datos_raw.get(campo_izq, 0)
+                                    })
 
-                                prom_der = sum(valores_der) / len(valores_der)
-                                prom_izq = sum(valores_izq) / len(valores_izq)
+                                # Calcular diagnóstico automático basado en umbrales auditivos
+                                def calcular_diagnostico_audiometria(datos):
+                                    # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
+                                    umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
+                                    umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
+                                    tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
 
-                                def clasificar_umbral(umbral):
-                                    if umbral <= 25:
-                                        return "Normal"
-                                    elif umbral <= 40:
-                                        return "Leve"
-                                    elif umbral <= 55:
-                                        return "Moderada"
-                                    elif umbral <= 70:
-                                        return "Moderadamente Severa"
-                                    elif umbral <= 90:
-                                        return "Severa"
+                                    # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
+                                    freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
+                                    valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
+                                    valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+
+                                    prom_der = sum(valores_der) / len(valores_der)
+                                    prom_izq = sum(valores_izq) / len(valores_izq)
+
+                                    def clasificar_umbral(umbral):
+                                        if umbral <= 25:
+                                            return "Normal"
+                                        elif umbral <= 40:
+                                            return "Leve"
+                                        elif umbral <= 55:
+                                            return "Moderada"
+                                        elif umbral <= 70:
+                                            return "Moderadamente Severa"
+                                        elif umbral <= 90:
+                                            return "Severa"
+                                        else:
+                                            return "Profunda"
+
+                                    clasif_der = clasificar_umbral(prom_der)
+                                    clasif_izq = clasificar_umbral(prom_izq)
+
+                                    # Verificar pérdida en frecuencias graves (250 Hz)
+                                    grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
+                                    grave_250_izq = datos[0]['oidoIzquierdo']
+
+                                    # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
+                                    agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
+                                    agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
+                                    tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+
+                                    # Construir diagnóstico base
+                                    diagnostico_base = ""
+                                    notas_adicionales = []
+
+                                    if clasif_der == "Normal" and clasif_izq == "Normal":
+                                        if tiene_perdida_agudas:
+                                            diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
+                                        else:
+                                            diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
+                                    elif clasif_der == "Normal":
+                                        diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                    elif clasif_izq == "Normal":
+                                        diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
                                     else:
-                                        return "Profunda"
+                                        diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
 
-                                clasif_der = clasificar_umbral(prom_der)
-                                clasif_izq = clasificar_umbral(prom_izq)
+                                    # Agregar nota sobre pérdida en 250 Hz si es significativa
+                                    if grave_250_der > 25 or grave_250_izq > 25:
+                                        if grave_250_der > 25 and grave_250_izq > 25:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
+                                        elif grave_250_der > 25:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
+                                        else:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
 
-                                # Verificar pérdida en frecuencias graves (250 Hz)
-                                grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
-                                grave_250_izq = datos[0]['oidoIzquierdo']
+                                    # Agregar nota sobre umbrales atípicamente bajos si existen
+                                    if tiene_umbrales_bajos:
+                                        frecuencias_afectadas = []
+                                        if umbrales_bajos_der:
+                                            frecuencias_afectadas.append("oído derecho")
+                                        if umbrales_bajos_izq:
+                                            frecuencias_afectadas.append("oído izquierdo")
+                                        notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
 
-                                # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
-                                agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
-                                agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
-                                tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+                                    # Combinar diagnóstico base con notas adicionales
+                                    if notas_adicionales:
+                                        diagnostico_base += " " + " ".join(notas_adicionales)
 
-                                # Construir diagnóstico base
-                                diagnostico_base = ""
-                                notas_adicionales = []
+                                    return diagnostico_base
 
-                                if clasif_der == "Normal" and clasif_izq == "Normal":
-                                    if tiene_perdida_agudas:
-                                        diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
-                                    else:
-                                        diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
-                                elif clasif_der == "Normal":
-                                    diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
-                                elif clasif_izq == "Normal":
-                                    diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
-                                else:
-                                    diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                # Usar diagnóstico de Wix si existe, sino calcular automáticamente
+                                diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
+                                diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
 
-                                # Agregar nota sobre pérdida en 250 Hz si es significativa
-                                if grave_250_der > 25 or grave_250_izq > 25:
-                                    if grave_250_der > 25 and grave_250_izq > 25:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
-                                    elif grave_250_der > 25:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
-                                    else:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
-
-                                # Agregar nota sobre umbrales atípicamente bajos si existen
-                                if tiene_umbrales_bajos:
-                                    frecuencias_afectadas = []
-                                    if umbrales_bajos_der:
-                                        frecuencias_afectadas.append("oído derecho")
-                                    if umbrales_bajos_izq:
-                                        frecuencias_afectadas.append("oído izquierdo")
-                                    notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
-
-                                # Combinar diagnóstico base con notas adicionales
-                                if notas_adicionales:
-                                    diagnostico_base += " " + " ".join(notas_adicionales)
-
-                                return diagnostico_base
-
-                            # Usar diagnóstico de Wix si existe, sino calcular automáticamente
-                            diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
-                            diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
-
-                            datos_audiometria = {
-                                "datosParaTabla": datosParaTabla,
-                                "diagnostico": diagnostico_final
-                            }
-                            print(f"✅ Datos de audiometría obtenidos y transformados correctamente")
-                            print(f"📊 Diagnóstico: {diagnostico_final}")
+                                datos_audiometria = {
+                                    "datosParaTabla": datosParaTabla,
+                                    "diagnostico": diagnostico_final
+                                }
+                                print(f"✅ Datos de audiometría obtenidos desde Wix (fallback)")
+                                print(f"📊 Diagnóstico: {diagnostico_final}")
+                            else:
+                                datos_audiometria = None
                         else:
-                            datos_audiometria = None
+                            print(f"⚠️ No se encontraron datos de audiometría en Wix para {wix_id_historia}")
                     else:
-                        print(f"⚠️ No se encontraron datos de audiometría para {wix_id_historia}")
-                else:
-                    print(f"⚠️ Error al consultar datos de audiometría: {audio_response.status_code}")
-            except Exception as e:
-                print(f"❌ Error consultando datos de audiometría: {e}")
+                        print(f"⚠️ Error al consultar datos de audiometría en Wix: {audio_response.status_code}")
+                except Exception as e:
+                    print(f"❌ Error consultando datos de audiometría en Wix: {e}")
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         # Nota: Las claves deben coincidir con los nombres normalizados (MAYÚSCULAS de tabla examenes PostgreSQL)
@@ -4913,134 +5026,141 @@ def preview_certificado_html(wix_id):
         tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
         if tiene_examen_audio:
-            try:
-                wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
-                audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
-                print(f"🔍 Consultando datos de audiometría para HistoriaClinica ID: {wix_id_historia}", flush=True)
+            wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
-                audio_response = requests.get(audio_url, timeout=10)
+            # PRIORIDAD 1: Consultar PostgreSQL (audiometrias)
+            print(f"🔍 [PRIORIDAD 1] Consultando audiometrias en PostgreSQL para: {wix_id_historia}", flush=True)
+            datos_audiometria = obtener_audiometria_postgres(wix_id_historia)
 
-                if audio_response.status_code == 200:
-                    audio_data = audio_response.json()
-                    if audio_data.get('success') and audio_data.get('data'):
-                        datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
+            # PRIORIDAD 2: Fallback a Wix si PostgreSQL no tiene datos
+            if not datos_audiometria:
+                print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando datos de audiometría en Wix...", flush=True)
+                try:
+                    audio_url = f"https://www.bsl.com.co/_functions/audiometriaPorIdGeneral?idGeneral={wix_id_historia}"
 
-                        if datos_raw:
-                            # Transformar datos de Wix al formato esperado
-                            frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
-                            datosParaTabla = []
+                    audio_response = requests.get(audio_url, timeout=10)
 
-                            for freq in frecuencias:
-                                campo_der = f"auDer{freq}"
-                                campo_izq = f"auIzq{freq}"
-                                datosParaTabla.append({
-                                    "frecuencia": freq,
-                                    "oidoDerecho": datos_raw.get(campo_der, 0),
-                                    "oidoIzquierdo": datos_raw.get(campo_izq, 0)
-                                })
+                    if audio_response.status_code == 200:
+                        audio_data = audio_response.json()
+                        if audio_data.get('success') and audio_data.get('data'):
+                            datos_raw = audio_data['data'][0] if len(audio_data['data']) > 0 else None
 
-                            # Calcular diagnóstico automático basado en umbrales auditivos
-                            def calcular_diagnostico_audiometria(datos):
-                                # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
-                                umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
-                                umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
-                                tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
+                            if datos_raw:
+                                # Transformar datos de Wix al formato esperado
+                                frecuencias = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000]
+                                datosParaTabla = []
 
-                                # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
-                                freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
-                                valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
-                                valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+                                for freq in frecuencias:
+                                    campo_der = f"auDer{freq}"
+                                    campo_izq = f"auIzq{freq}"
+                                    datosParaTabla.append({
+                                        "frecuencia": freq,
+                                        "oidoDerecho": datos_raw.get(campo_der, 0),
+                                        "oidoIzquierdo": datos_raw.get(campo_izq, 0)
+                                    })
 
-                                prom_der = sum(valores_der) / len(valores_der)
-                                prom_izq = sum(valores_izq) / len(valores_izq)
+                                # Calcular diagnóstico automático basado en umbrales auditivos
+                                def calcular_diagnostico_audiometria(datos):
+                                    # Detectar umbrales anormalmente bajos (por debajo de 0 dB)
+                                    umbrales_bajos_der = [d for d in datos if d['oidoDerecho'] < 0]
+                                    umbrales_bajos_izq = [d for d in datos if d['oidoIzquierdo'] < 0]
+                                    tiene_umbrales_bajos = len(umbrales_bajos_der) > 0 or len(umbrales_bajos_izq) > 0
 
-                                def clasificar_umbral(umbral):
-                                    if umbral <= 25:
-                                        return "Normal"
-                                    elif umbral <= 40:
-                                        return "Leve"
-                                    elif umbral <= 55:
-                                        return "Moderada"
-                                    elif umbral <= 70:
-                                        return "Moderadamente Severa"
-                                    elif umbral <= 90:
-                                        return "Severa"
+                                    # Promedios de frecuencias conversacionales (500, 1000, 2000 Hz)
+                                    freq_conv_indices = [1, 2, 3]  # índices para 500, 1000, 2000 Hz
+                                    valores_der = [datos[i]['oidoDerecho'] for i in freq_conv_indices]
+                                    valores_izq = [datos[i]['oidoIzquierdo'] for i in freq_conv_indices]
+
+                                    prom_der = sum(valores_der) / len(valores_der)
+                                    prom_izq = sum(valores_izq) / len(valores_izq)
+
+                                    def clasificar_umbral(umbral):
+                                        if umbral <= 25:
+                                            return "Normal"
+                                        elif umbral <= 40:
+                                            return "Leve"
+                                        elif umbral <= 55:
+                                            return "Moderada"
+                                        elif umbral <= 70:
+                                            return "Moderadamente Severa"
+                                        elif umbral <= 90:
+                                            return "Severa"
+                                        else:
+                                            return "Profunda"
+
+                                    clasif_der = clasificar_umbral(prom_der)
+                                    clasif_izq = clasificar_umbral(prom_izq)
+
+                                    # Verificar pérdida en frecuencias graves (250 Hz)
+                                    grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
+                                    grave_250_izq = datos[0]['oidoIzquierdo']
+
+                                    # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
+                                    agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
+                                    agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
+                                    tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+
+                                    # Construir diagnóstico base
+                                    diagnostico_base = ""
+                                    notas_adicionales = []
+
+                                    if clasif_der == "Normal" and clasif_izq == "Normal":
+                                        if tiene_perdida_agudas:
+                                            diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
+                                        else:
+                                            diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
+                                    elif clasif_der == "Normal":
+                                        diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                    elif clasif_izq == "Normal":
+                                        diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
                                     else:
-                                        return "Profunda"
+                                        diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
 
-                                clasif_der = clasificar_umbral(prom_der)
-                                clasif_izq = clasificar_umbral(prom_izq)
+                                    # Agregar nota sobre pérdida en 250 Hz si es significativa
+                                    if grave_250_der > 25 or grave_250_izq > 25:
+                                        if grave_250_der > 25 and grave_250_izq > 25:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
+                                        elif grave_250_der > 25:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
+                                        else:
+                                            notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
 
-                                # Verificar pérdida en frecuencias graves (250 Hz)
-                                grave_250_der = datos[0]['oidoDerecho']  # 250 Hz es índice 0
-                                grave_250_izq = datos[0]['oidoIzquierdo']
+                                    # Agregar nota sobre umbrales atípicamente bajos si existen
+                                    if tiene_umbrales_bajos:
+                                        frecuencias_afectadas = []
+                                        if umbrales_bajos_der:
+                                            frecuencias_afectadas.append("oído derecho")
+                                        if umbrales_bajos_izq:
+                                            frecuencias_afectadas.append("oído izquierdo")
+                                        notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
 
-                                # Verificar pérdida en frecuencias agudas (6000, 8000 Hz)
-                                agudas_der = [datos[6]['oidoDerecho'], datos[7]['oidoDerecho']]
-                                agudas_izq = [datos[6]['oidoIzquierdo'], datos[7]['oidoIzquierdo']]
-                                tiene_perdida_agudas = any(v > 25 for v in agudas_der + agudas_izq)
+                                    # Combinar diagnóstico base con notas adicionales
+                                    if notas_adicionales:
+                                        diagnostico_base += " " + " ".join(notas_adicionales)
 
-                                # Construir diagnóstico base
-                                diagnostico_base = ""
-                                notas_adicionales = []
+                                    return diagnostico_base
 
-                                if clasif_der == "Normal" and clasif_izq == "Normal":
-                                    if tiene_perdida_agudas:
-                                        diagnostico_base = "Audición dentro de parámetros normales en frecuencias conversacionales. Se observa leve disminución en frecuencias agudas."
-                                    else:
-                                        diagnostico_base = "Audición dentro de parámetros normales bilateralmente. Los umbrales auditivos se encuentran en rangos de normalidad en todas las frecuencias evaluadas."
-                                elif clasif_der == "Normal":
-                                    diagnostico_base = f"Oído derecho con audición normal. Oído izquierdo presenta pérdida auditiva {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
-                                elif clasif_izq == "Normal":
-                                    diagnostico_base = f"Oído izquierdo con audición normal. Oído derecho presenta pérdida auditiva {clasif_der.lower()} (promedio {prom_der:.1f} dB HL)."
-                                else:
-                                    diagnostico_base = f"Pérdida auditiva bilateral: Oído derecho {clasif_der.lower()} (promedio {prom_der:.1f} dB HL), Oído izquierdo {clasif_izq.lower()} (promedio {prom_izq:.1f} dB HL)."
+                                # Usar diagnóstico de Wix si existe, sino calcular automáticamente
+                                diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
+                                diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
 
-                                # Agregar nota sobre pérdida en 250 Hz si es significativa
-                                if grave_250_der > 25 or grave_250_izq > 25:
-                                    if grave_250_der > 25 and grave_250_izq > 25:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) bilateral.")
-                                    elif grave_250_der > 25:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído derecho ({grave_250_der} dB).")
-                                    else:
-                                        notas_adicionales.append(f"Se observa disminución en frecuencias graves (250 Hz) en oído izquierdo ({grave_250_izq} dB).")
-
-                                # Agregar nota sobre umbrales atípicamente bajos si existen
-                                if tiene_umbrales_bajos:
-                                    frecuencias_afectadas = []
-                                    if umbrales_bajos_der:
-                                        frecuencias_afectadas.append("oído derecho")
-                                    if umbrales_bajos_izq:
-                                        frecuencias_afectadas.append("oído izquierdo")
-                                    notas_adicionales.append(f"Se observan umbrales atípicamente bajos en {' y '.join(frecuencias_afectadas)}.")
-
-                                # Combinar diagnóstico base con notas adicionales
-                                if notas_adicionales:
-                                    diagnostico_base += " " + " ".join(notas_adicionales)
-
-                                return diagnostico_base
-
-                            # Usar diagnóstico de Wix si existe, sino calcular automáticamente
-                            diagnostico_auto = calcular_diagnostico_audiometria(datosParaTabla)
-                            diagnostico_final = datos_raw.get('diagnostico') or diagnostico_auto
-
-                            datos_audiometria = {
-                                "datosParaTabla": datosParaTabla,
-                                "diagnostico": diagnostico_final
-                            }
-                            print(f"✅ Datos de audiometría obtenidos y transformados correctamente", flush=True)
-                            print(f"📊 Diagnóstico: {diagnostico_final}", flush=True)
+                                datos_audiometria = {
+                                    "datosParaTabla": datosParaTabla,
+                                    "diagnostico": diagnostico_final
+                                }
+                                print(f"✅ Datos de audiometría obtenidos desde Wix (fallback)", flush=True)
+                                print(f"📊 Diagnóstico: {diagnostico_final}", flush=True)
+                            else:
+                                datos_audiometria = None
                         else:
+                            print(f"⚠️ No se encontraron datos de audiometría en Wix para {wix_id_historia}", flush=True)
                             datos_audiometria = None
                     else:
-                        print(f"⚠️ No se encontraron datos de audiometría para {wix_id_historia}", flush=True)
+                        print(f"⚠️ Error al consultar datos de audiometría en Wix: {audio_response.status_code}", flush=True)
                         datos_audiometria = None
-                else:
-                    print(f"⚠️ Error al consultar datos de audiometría: {audio_response.status_code}", flush=True)
+                except Exception as e:
+                    print(f"❌ Error consultando datos de audiometría en Wix: {e}", flush=True)
                     datos_audiometria = None
-            except Exception as e:
-                print(f"❌ Error consultando datos de audiometría: {e}", flush=True)
-                datos_audiometria = None
 
         # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
         # Solo consultar PostgreSQL si NO venimos de Alegra con datos ya cargados
