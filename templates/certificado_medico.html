@@ -829,8 +829,8 @@
                             <!-- Línea Oído Derecho -->
                             <polyline points="
                                 {% for dato in datos_audiometria.datosParaTabla %}
-                                    {% set freq_index = [125, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) %}
-                                    {% set x = freq_index * 60 %}
+                                    {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                    {% set x = freq_index * 60 + 60 %}
                                     {% set y = (dato.oidoDerecho + 10) * 2.5 %}
                                     {{ x }},{{ y }}{% if not loop.last %} {% endif %}
                                 {% endfor %}
@@ -838,8 +838,8 @@
 
                             <!-- Puntos Oído Derecho -->
                             {% for dato in datos_audiometria.datosParaTabla %}
-                                {% set freq_index = [125, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) %}
-                                {% set x = freq_index * 60 %}
+                                {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                {% set x = freq_index * 60 + 60 %}
                                 {% set y = (dato.oidoDerecho + 10) * 2.5 %}
                                 <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
                             {% endfor %}
@@ -847,8 +847,8 @@
                             <!-- Línea Oído Izquierdo -->
                             <polyline points="
                                 {% for dato in datos_audiometria.datosParaTabla %}
-                                    {% set freq_index = [125, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) %}
-                                    {% set x = freq_index * 60 %}
+                                    {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                    {% set x = freq_index * 60 + 60 %}
                                     {% set y = (dato.oidoIzquierdo + 10) * 2.5 %}
                                     {{ x }},{{ y }}{% if not loop.last %} {% endif %}
                                 {% endfor %}
@@ -856,8 +856,8 @@
 
                             <!-- Puntos Oído Izquierdo -->
                             {% for dato in datos_audiometria.datosParaTabla %}
-                                {% set freq_index = [125, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) %}
-                                {% set x = freq_index * 60 %}
+                                {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                {% set x = freq_index * 60 + 60 %}
                                 {% set y = (dato.oidoIzquierdo + 10) * 2.5 %}
                                 <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
                             {% endfor %}
