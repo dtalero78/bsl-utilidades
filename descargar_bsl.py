@@ -515,11 +515,52 @@ def obtener_datos_formulario_postgres(wix_id):
         """, (wix_id,))
 
         row = cur.fetchone()
+
+        # Si no se encontró por wix_id, buscar por numero_id
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró por wix_id, buscando numero_id en HistoriaClinica...")
+
+            # Primero obtener el numero_id desde HistoriaClinica
+            cur.execute("""
+                SELECT "numeroId" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1;
+            """, (wix_id,))
+            historia_row = cur.fetchone()
+
+            if historia_row and historia_row[0]:
+                numero_id = historia_row[0]
+                print(f"🔍 [PostgreSQL] Encontrado numero_id: {numero_id}, buscando en formularios...")
+
+                # Buscar en formularios por numero_id
+                cur.execute("""
+                    SELECT
+                        foto,
+                        edad,
+                        genero,
+                        estado_civil,
+                        hijos,
+                        email,
+                        profesion_oficio,
+                        ciudad_residencia,
+                        fecha_nacimiento,
+                        primer_nombre,
+                        primer_apellido,
+                        firma,
+                        eps,
+                        arl,
+                        pensiones,
+                        nivel_educativo,
+                        foto_url
+                    FROM formularios
+                    WHERE numero_id = %s
+                    LIMIT 1;
+                """, (numero_id,))
+                row = cur.fetchone()
+
         cur.close()
         conn.close()
 
         if not row:
-            print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id}")
+            print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id} ni por numero_id")
             return None
 
         foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url = row
