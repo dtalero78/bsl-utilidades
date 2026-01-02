@@ -1876,7 +1876,7 @@ def determinar_mostrar_sin_soporte(datos_wix):
 
     # No está pagado en ninguna fuente, mostrar aviso
     print(f"   ⚠️ MOSTRAR AVISO ROJO (no pagado en Wix ni PostgreSQL)")
-    texto = "ESTE CERTIFICADO SERÁ LIBERADO EN EL MOMENTO EN QUE LA EMPRESA REALICE EL PAGO CORRESPONDIENTE"
+    texto = "ESTE CERTIFICADO AÚN NO REGISTRA PAGO. PARA LIBERARLO REMITE EL SOPORTE DE CONSIGNACIÓN"
     return True, texto
 
 # ================================================
