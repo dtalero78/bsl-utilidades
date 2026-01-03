@@ -659,7 +659,6 @@
         {% endif %}
 
         <!-- FIRMAS -->
-        {% if not mostrar_sin_soporte %}
         <div class="signatures-section">
             <div class="section-title">Firmas</div>
             <div class="signatures-container" style="grid-template-columns: repeat(2, 1fr);">
@@ -667,7 +666,7 @@
                 <div class="signature-box">
                     <div class="signature-header">Firma Médico</div>
                     <div class="signature-line">
-                        {% if firma_medico_url %}
+                        {% if firma_medico_url and not mostrar_sin_soporte %}
                         <img src="{{ firma_medico_url }}" alt="Firma Médico" class="signature-img">
                         {% endif %}
                     </div>
@@ -683,7 +682,7 @@
                 <div class="signature-box">
                     <div class="signature-header">Firma Paciente Atendido</div>
                     <div class="signature-line">
-                        {% if firma_paciente_url %}
+                        {% if firma_paciente_url and not mostrar_sin_soporte %}
                         <img src="{{ firma_paciente_url }}" alt="Firma Paciente" class="signature-img">
                         {% endif %}
                     </div>
