@@ -22,6 +22,7 @@ venv/
 *.pkl
 token_*.json
 credentials*.json
+.mcp.json
 
 # Archivos generados
 *.pdf
