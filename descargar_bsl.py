@@ -1080,6 +1080,46 @@ def obtener_audiometria_postgres(orden_id):
         interpretacion = row[18] or ''
         recomendaciones = row[19] or ''
 
+        # Función auxiliar para clasificar pérdida auditiva
+        def clasificar_perdida(valores_db):
+            """Clasifica la pérdida auditiva según promedio de frecuencias"""
+            # Calcular promedio de frecuencias conversacionales (500, 1000, 2000, 4000 Hz)
+            # Índices: 250(0), 500(1), 1000(2), 2000(3), 3000(4), 4000(5), 6000(6), 8000(7)
+            try:
+                promedio = (valores_db[1] + valores_db[2] + valores_db[3] + valores_db[5]) / 4
+                if promedio <= 25:
+                    return "Audición Normal"
+                elif promedio <= 40:
+                    return "Hipoacusia Leve"
+                elif promedio <= 55:
+                    return "Hipoacusia Moderada"
+                elif promedio <= 70:
+                    return "Hipoacusia Moderadamente Severa"
+                elif promedio <= 90:
+                    return "Hipoacusia Severa"
+                else:
+                    return "Hipoacusia Profunda"
+            except:
+                return "Audición Normal"
+
+        # Si no hay diagnóstico manual, generar análisis automático
+        if not diagnostico_od and not diagnostico_oi and not interpretacion:
+            # Extraer valores OD y OI
+            valores_od = [safe_int(row[i]) for i in range(8)]  # aereo_od_250 a aereo_od_8000
+            valores_oi = [safe_int(row[i + 8]) for i in range(8)]  # aereo_oi_250 a aereo_oi_8000
+
+            clasificacion_od = clasificar_perdida(valores_od)
+            clasificacion_oi = clasificar_perdida(valores_oi)
+
+            diagnostico_od = clasificacion_od
+            diagnostico_oi = clasificacion_oi
+
+            # Generar interpretación
+            if clasificacion_od == "Audición Normal" and clasificacion_oi == "Audición Normal":
+                interpretacion = "Ambos oídos presentan audición dentro de parámetros normales."
+            else:
+                interpretacion = f"Oído Derecho: {clasificacion_od}. Oído Izquierdo: {clasificacion_oi}."
+
         # Construir diagnóstico combinado
         diagnostico_partes = []
         if diagnostico_od:
@@ -1087,7 +1127,7 @@ def obtener_audiometria_postgres(orden_id):
         if diagnostico_oi:
             diagnostico_partes.append(f"OI: {diagnostico_oi}")
         if interpretacion:
-            diagnostico_partes.append(f"Interpretación: {interpretacion}")
+            diagnostico_partes.append(interpretacion)
 
         diagnostico_final = ". ".join(diagnostico_partes) if diagnostico_partes else "Audiometría realizada"
 
