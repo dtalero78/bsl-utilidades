@@ -5629,7 +5629,14 @@ def enviar_certificado_whatsapp():
         print(f"🔍 [PRIORIDAD 1] Consultando PostgreSQL...")
         try:
             import psycopg2
-            conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+            from urllib.parse import urlparse
+
+            # Parsear DATABASE_URL correctamente
+            database_url = os.getenv('DATABASE_URL')
+            if database_url.startswith('postgres://'):
+                database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+            conn = psycopg2.connect(database_url, sslmode='require')
             cur = conn.cursor()
 
             if historia_id:
