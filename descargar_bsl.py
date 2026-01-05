@@ -5622,84 +5622,80 @@ def enviar_certificado_whatsapp():
 
         print(f"📱 Solicitud de certificado por WhatsApp")
 
-        wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+        datos_wix = None
+        wix_id = None
 
-        # Si viene historiaId, buscar directamente por _id
-        if historia_id:
-            print(f"   Historia ID: {historia_id}")
-            wix_url = f"{wix_base_url}/medidataPaciente?historiaId={historia_id}"
-        else:
-            print(f"   Cédula: {numero_id}")
-            wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
+        # PRIORIDAD 1: Buscar en PostgreSQL primero
+        print(f"🔍 [PRIORIDAD 1] Consultando PostgreSQL...")
+        try:
+            import psycopg2
+            conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+            cur = conn.cursor()
 
-        print(f"🔍 Consultando Wix: {wix_url}")
+            if historia_id:
+                print(f"   Buscando por Historia ID: {historia_id}")
+                cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+            else:
+                print(f"   Buscando por Cédula: {numero_id}")
+                cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE "numeroId" = %s ORDER BY _createdDate DESC LIMIT 1', (numero_id,))
 
-        wix_response = requests.get(wix_url, timeout=10)
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
 
-        if wix_response.status_code == 404:
-            mensaje_error = "No se encontró certificado para este registro" if historia_id else f"No se encontró certificado para cédula: {numero_id}"
-            print(f"❌ {mensaje_error}")
-            return jsonify({
-                "success": False,
-                "message": mensaje_error + ". Verifica los datos ingresados."
-            }), 404
+            if row:
+                wix_id = row[0]
+                datos_wix = {
+                    '_id': row[0],
+                    'numeroId': row[1],
+                    'celular': row[2]
+                }
+                print(f"✅ Encontrado en PostgreSQL: {wix_id}")
+        except Exception as e:
+            print(f"⚠️ Error consultando PostgreSQL: {e}")
 
-        if wix_response.status_code != 200:
-            print(f"❌ Error en Wix: {wix_response.status_code}")
-            print(f"   Respuesta: {wix_response.text[:200]}")
-            return jsonify({
-                "success": False,
-                "message": "Error al consultar la información. Intenta nuevamente."
-            }), 500
-
-        wix_data = wix_response.json()
-        print(f"✅ Respuesta de Wix: {wix_data}")
-
-        # Si vino por historiaId, la respuesta es diferente (tiene historiaClinica y formulario)
-        if historia_id:
-            datos_wix = wix_data.get('historiaClinica', {})
-            wix_id = historia_id
-        else:
-            # La respuesta tiene formato: { "_id": "...", "data": {...} }
-            datos_wix = wix_data.get('data')
-            wix_id = wix_data.get('_id')
-
-        # Si no se encontró en Wix, intentar con PostgreSQL
+        # PRIORIDAD 2: Si no se encontró en PostgreSQL, buscar en Wix
         if not datos_wix or not wix_id:
-            print(f"⚠️ No se encontró en Wix, intentando con PostgreSQL...")
+            print(f"🔍 [PRIORIDAD 2 - Fallback] Consultando Wix...")
+            wix_base_url = os.getenv("WIX_BASE_URL", "https://www.bsl.com.co/_functions")
+
+            if historia_id:
+                wix_url = f"{wix_base_url}/medidataPaciente?historiaId={historia_id}"
+            else:
+                wix_url = f"{wix_base_url}/historiaClinicaPorNumeroId?numeroId={numero_id}"
+
+            print(f"   URL: {wix_url}")
+
             try:
-                import psycopg2
-                conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-                cur = conn.cursor()
+                wix_response = requests.get(wix_url, timeout=10)
 
-                if historia_id:
-                    cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+                if wix_response.status_code == 200:
+                    wix_data = wix_response.json()
+                    print(f"✅ Respuesta de Wix: {wix_data}")
+
+                    # Si vino por historiaId, la respuesta es diferente
+                    if historia_id:
+                        datos_wix = wix_data.get('historiaClinica', {})
+                        wix_id = historia_id
+                    else:
+                        datos_wix = wix_data.get('data')
+                        wix_id = wix_data.get('_id')
+
+                    if datos_wix and wix_id:
+                        print(f"✅ Encontrado en Wix: {wix_id}")
                 else:
-                    cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE "numeroId" = %s ORDER BY _createdDate DESC LIMIT 1', (numero_id,))
-
-                row = cur.fetchone()
-                cur.close()
-                conn.close()
-
-                if row:
-                    wix_id = row[0]
-                    datos_wix = {
-                        '_id': row[0],
-                        'numeroId': row[1],
-                        'celular': row[2]
-                    }
-                    print(f"✅ Encontrado en PostgreSQL: {wix_id}")
-                else:
-                    return jsonify({
-                        "success": False,
-                        "message": "No se encontró un certificado con esos datos"
-                    }), 404
+                    print(f"⚠️ Wix respondió con código: {wix_response.status_code}")
             except Exception as e:
-                print(f"❌ Error consultando PostgreSQL: {e}")
-                return jsonify({
-                    "success": False,
-                    "message": "No se encontró un certificado con esos datos"
-                }), 404
+                print(f"⚠️ Error consultando Wix: {e}")
+
+        # Si no se encontró en ninguna fuente, retornar error
+        if not datos_wix or not wix_id:
+            mensaje = "No se encontró certificado para este registro" if historia_id else f"No se encontró certificado para cédula: {numero_id}"
+            print(f"❌ {mensaje}")
+            return jsonify({
+                "success": False,
+                "message": mensaje + ". Verifica los datos ingresados."
+            }), 404
 
         # Obtener celular del registro de HistoriaClinica
         celular_raw = datos_wix.get('celular', '')
