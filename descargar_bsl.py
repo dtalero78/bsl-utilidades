@@ -5664,11 +5664,42 @@ def enviar_certificado_whatsapp():
             datos_wix = wix_data.get('data')
             wix_id = wix_data.get('_id')
 
+        # Si no se encontró en Wix, intentar con PostgreSQL
         if not datos_wix or not wix_id:
-            return jsonify({
-                "success": False,
-                "message": "No se encontró un certificado con esos datos"
-            }), 404
+            print(f"⚠️ No se encontró en Wix, intentando con PostgreSQL...")
+            try:
+                import psycopg2
+                conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+                cur = conn.cursor()
+
+                if historia_id:
+                    cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+                else:
+                    cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE "numeroId" = %s ORDER BY _createdDate DESC LIMIT 1', (numero_id,))
+
+                row = cur.fetchone()
+                cur.close()
+                conn.close()
+
+                if row:
+                    wix_id = row[0]
+                    datos_wix = {
+                        '_id': row[0],
+                        'numeroId': row[1],
+                        'celular': row[2]
+                    }
+                    print(f"✅ Encontrado en PostgreSQL: {wix_id}")
+                else:
+                    return jsonify({
+                        "success": False,
+                        "message": "No se encontró un certificado con esos datos"
+                    }), 404
+            except Exception as e:
+                print(f"❌ Error consultando PostgreSQL: {e}")
+                return jsonify({
+                    "success": False,
+                    "message": "No se encontró un certificado con esos datos"
+                }), 404
 
         # Obtener celular del registro de HistoriaClinica
         celular_raw = datos_wix.get('celular', '')
