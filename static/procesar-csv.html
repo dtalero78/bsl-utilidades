@@ -358,7 +358,10 @@
                     </div>
                 </div>
 
-                <a href="#" class="download-json" onclick="downloadJSON(event)">⬇️ Descargar JSON</a>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <a href="#" class="download-json" onclick="downloadJSON(event)" style="flex: 1; text-align: center;">⬇️ Descargar JSON</a>
+                    <a href="#" class="download-json" onclick="downloadCSV(event)" style="flex: 1; text-align: center; background: #10b981;">⬇️ Descargar CSV</a>
+                </div>
 
                 <div style="margin: 20px 0; padding: 15px; background: #f8f9ff; border-radius: 8px; border-left: 4px solid #667eea;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -903,6 +906,76 @@
             }
 
             console.log(`✅ Exámenes actualizados para todos: ${JSON.stringify(examenesSeleccionados)}`);
+        }
+
+        function downloadCSV(event) {
+            event.preventDefault();
+
+            if (!window.lastProcessedData) return;
+
+            // Definir las columnas del CSV según el formato solicitado
+            const headers = [
+                'numeroId',
+                'primerNombre',
+                'segundoNombre',
+                'primerApellido',
+                'segundoApellido',
+                'celular',
+                'cargo',
+                'ciudad',
+                'fechaAtencion',
+                'horaAtencion',
+                'empresa',
+                'tipoExamen',
+                'medico',
+                'codEmpresa',
+                'examenes'
+            ];
+
+            // Crear el contenido CSV
+            let csvContent = headers.join(',') + '\n';
+
+            // Agregar cada fila de datos
+            window.lastProcessedData.datos.forEach(persona => {
+                const row = [
+                    persona.numeroId || '',
+                    persona.primerNombre || '',
+                    persona.segundoNombre || '',
+                    persona.primerApellido || '',
+                    persona.segundoApellido || '',
+                    persona.celular || '',
+                    escapeCsvValue(persona.cargo || ''),
+                    persona.ciudad || '',
+                    persona.fechaAtencion || '',
+                    persona.horaAtencion || '',
+                    escapeCsvValue(persona.empresa || ''),
+                    escapeCsvValue(persona.tipoExamen || ''),
+                    persona.medico || '',
+                    persona.codEmpresa || '',
+                    escapeCsvValue(Array.isArray(persona.examen) ? persona.examen.join('; ') : '')
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+
+            // Crear y descargar el archivo
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'datos_procesados.csv';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeCsvValue(value) {
+            // Escapar valores que contienen comas, comillas o saltos de línea
+            if (typeof value !== 'string') return value;
+
+            if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                // Duplicar comillas dentro del valor y envolver en comillas
+                return '"' + value.replace(/"/g, '""') + '"';
+            }
+            return value;
         }
 
         function downloadJSON(event) {
