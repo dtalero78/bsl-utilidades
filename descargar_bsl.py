@@ -5651,8 +5651,12 @@ def enviar_certificado_whatsapp():
                     'celular': row[2]
                 }
                 print(f"✅ Encontrado en PostgreSQL: {wix_id}")
+            else:
+                print(f"⚠️ No se encontró registro en PostgreSQL")
         except Exception as e:
+            import traceback
             print(f"⚠️ Error consultando PostgreSQL: {e}")
+            print(f"   Traceback: {traceback.format_exc()}")
 
         # PRIORIDAD 2: Si no se encontró en PostgreSQL, buscar en Wix
         if not datos_wix or not wix_id:
