@@ -5629,14 +5629,21 @@ def enviar_certificado_whatsapp():
         print(f"🔍 [PRIORIDAD 1] Consultando PostgreSQL...")
         try:
             import psycopg2
-            from urllib.parse import urlparse
 
-            # Parsear DATABASE_URL correctamente
-            database_url = os.getenv('DATABASE_URL')
-            if database_url.startswith('postgres://'):
-                database_url = database_url.replace('postgres://', 'postgresql://', 1)
+            # Usar el mismo patrón de conexión que las funciones que funcionan
+            postgres_password = os.getenv("POSTGRES_PASSWORD")
+            if not postgres_password:
+                print("⚠️ POSTGRES_PASSWORD no configurada")
+                raise Exception("POSTGRES_PASSWORD not configured")
 
-            conn = psycopg2.connect(database_url, sslmode='require')
+            conn = psycopg2.connect(
+                host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+                port=int(os.getenv("POSTGRES_PORT", "25060")),
+                user=os.getenv("POSTGRES_USER", "doadmin"),
+                password=postgres_password,
+                database=os.getenv("POSTGRES_DB", "defaultdb"),
+                sslmode="require"
+            )
             cur = conn.cursor()
 
             if historia_id:
