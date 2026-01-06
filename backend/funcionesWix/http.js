@@ -643,6 +643,53 @@ export async function post_marcarPagado(request) {
     }
 }
 
+export async function post_marcarStopBot(request) {
+    try {
+        const { userId, stopBot } = await request.body.json();
+
+        if (!userId) {
+            return badRequest({ body: { error: "Falta el parámetro userId" } });
+        }
+
+        console.log(`🛑 Marcando stopBot para userId: ${userId} = ${stopBot}`);
+
+        // Buscar en la colección CHATBOT (conversaciones de WhatsApp)
+        const result = await wixData.query("CHATBOT").eq("userId", userId).find();
+
+        if (result.items.length === 0) {
+            // Si no existe, crear una nueva entrada con stopBot = true
+            console.log(`📝 Usuario ${userId} no encontrado en CHATBOT, creando nuevo registro`);
+
+            const nuevoItem = {
+                userId: userId,
+                stopBot: stopBot !== undefined ? stopBot : true,
+                nombre: "Usuario",
+                mensajes: [],
+                observaciones: "StopBot marcado desde CSV",
+                fechaCreacion: new Date()
+            };
+
+            await wixData.insert("CHATBOT", nuevoItem);
+            console.log(`✅ Nuevo registro creado con stopBot = ${stopBot} para userId: ${userId}`);
+
+            return ok({ body: { success: true, created: true, userId: userId } });
+        }
+
+        // Si existe, actualizar stopBot
+        const item = result.items[0];
+        item.stopBot = stopBot !== undefined ? stopBot : true;
+
+        await wixData.update("CHATBOT", item);
+        console.log(`✅ stopBot actualizado a ${stopBot} para userId: ${userId}`);
+
+        return ok({ body: { success: true, updated: true, userId: userId } });
+
+    } catch (e) {
+        console.error("❌ Error en marcarStopBot:", e);
+        return serverError({ body: { error: e.message } });
+    }
+}
+
 export function get_informacionPaciente(request) {
     console.log("Buscando información del paciente por número de documento");
 

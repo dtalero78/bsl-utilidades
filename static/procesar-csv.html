@@ -361,7 +361,9 @@
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <a href="#" class="download-json" onclick="downloadJSON(event)" style="flex: 1; text-align: center;">⬇️ Descargar JSON</a>
                     <a href="#" class="download-json" onclick="downloadCSV(event)" style="flex: 1; text-align: center; background: #10b981;">⬇️ Descargar CSV</a>
+                    <a href="#" class="download-json" onclick="marcarStopBot(event)" style="flex: 1; text-align: center; background: #ef4444;">🛑 Marcar StopBot</a>
                 </div>
+                <div id="stopBotStatus" style="margin-top: 10px; padding: 10px; border-radius: 6px; display: none;"></div>
 
                 <div style="margin: 20px 0; padding: 15px; background: #f8f9ff; border-radius: 8px; border-left: 4px solid #667eea;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -976,6 +978,69 @@
                 return '"' + value.replace(/"/g, '""') + '"';
             }
             return value;
+        }
+
+        async function marcarStopBot(event) {
+            event.preventDefault();
+
+            if (!window.lastProcessedData) return;
+
+            // Confirmar acción
+            if (!confirm('¿Está seguro de marcar todos los números de celular con stopBot = true?\n\nEsto detendrá el bot de WhatsApp para estos números.')) {
+                return;
+            }
+
+            // Extraer números de celular de los datos procesados
+            const numeros = window.lastProcessedData.datos
+                .map(persona => persona.celular)
+                .filter(celular => celular && celular.trim() !== '');
+
+            if (numeros.length === 0) {
+                alert('No hay números de celular para marcar');
+                return;
+            }
+
+            // Mostrar estado de procesamiento
+            const statusDiv = document.getElementById('stopBotStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#eff6ff';
+            statusDiv.style.borderLeft = '4px solid #3b82f6';
+            statusDiv.style.color = '#1e40af';
+            statusDiv.innerHTML = `⏳ Procesando ${numeros.length} números...`;
+
+            try {
+                const response = await fetch('/marcar-stopbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ numeros: numeros })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusDiv.style.background = '#d1fae5';
+                    statusDiv.style.borderLeft = '4px solid #10b981';
+                    statusDiv.style.color = '#065f46';
+                    statusDiv.innerHTML = `
+                        ✅ ${result.message}<br>
+                        <strong>Exitosos:</strong> ${result.resultados.exitosos.length}<br>
+                        <strong>Fallidos:</strong> ${result.resultados.fallidos.length}
+                    `;
+
+                    if (result.resultados.fallidos.length > 0) {
+                        console.log('Números fallidos:', result.resultados.fallidos);
+                    }
+                } else {
+                    throw new Error(result.error || 'Error desconocido');
+                }
+            } catch (error) {
+                statusDiv.style.background = '#fee2e2';
+                statusDiv.style.borderLeft = '4px solid #ef4444';
+                statusDiv.style.color = '#991b1b';
+                statusDiv.innerHTML = `❌ Error: ${error.message}`;
+            }
         }
 
         function downloadJSON(event) {

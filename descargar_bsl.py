@@ -3250,6 +3250,124 @@ def procesar_csv():
 
         return error_response, 500
 
+# --- Endpoint: MARCAR NÚMEROS CON STOPBOT ---
+@app.route("/marcar-stopbot", methods=["POST", "OPTIONS"])
+def marcar_stopbot():
+    """
+    Endpoint para marcar números de celular con stopBot = true en Wix CHATBOT.
+    Recibe una lista de números con prefijo de país (sin el +) y los actualiza.
+
+    Body JSON esperado:
+    {
+        "numeros": ["573001234567", "573109876543", ...]
+    }
+
+    Returns:
+        JSON con el resultado de la operación
+    """
+    # Manejar preflight CORS
+    if request.method == "OPTIONS":
+        response_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        }
+        return ("", 204, response_headers)
+
+    try:
+        print("📞 Iniciando marcado de stopBot para números de celular...")
+
+        # Obtener datos del request
+        data = request.get_json()
+        numeros = data.get('numeros', [])
+
+        if not numeros or not isinstance(numeros, list):
+            raise Exception("Se requiere un array de números en el campo 'numeros'")
+
+        print(f"📋 Total de números a procesar: {len(numeros)}")
+
+        # Configuración de Wix
+        wix_base_url = os.getenv('WIX_BASE_URL', 'https://www.bsl.com.co/_functions')
+
+        resultados = {
+            'exitosos': [],
+            'fallidos': [],
+            'total': len(numeros)
+        }
+
+        # Procesar cada número
+        for numero in numeros:
+            try:
+                # Limpiar el número (remover espacios, caracteres especiales excepto números)
+                numero_limpio = ''.join(filter(str.isdigit, str(numero)))
+
+                if not numero_limpio:
+                    print(f"⚠️ Número inválido (vacío): {numero}")
+                    resultados['fallidos'].append({
+                        'numero': numero,
+                        'error': 'Número vacío o inválido'
+                    })
+                    continue
+
+                # Asegurar que el número tenga prefijo de país (asumir Colombia 57 si no lo tiene)
+                if len(numero_limpio) == 10:  # Número sin prefijo de país
+                    numero_limpio = f"57{numero_limpio}"
+
+                print(f"🔄 Procesando número: {numero_limpio}")
+
+                # Llamar a la función de Wix para actualizar stopBot
+                url = f"{wix_base_url}/marcarStopBot"
+                payload = {
+                    'userId': numero_limpio,
+                    'stopBot': True
+                }
+
+                response = requests.post(url, json=payload, timeout=10)
+
+                if response.status_code == 200:
+                    print(f"✅ StopBot marcado exitosamente para: {numero_limpio}")
+                    resultados['exitosos'].append(numero_limpio)
+                else:
+                    print(f"❌ Error al marcar stopBot para {numero_limpio}: {response.status_code}")
+                    resultados['fallidos'].append({
+                        'numero': numero_limpio,
+                        'error': f'Error HTTP {response.status_code}'
+                    })
+
+            except Exception as e:
+                print(f"❌ Error procesando número {numero}: {str(e)}")
+                resultados['fallidos'].append({
+                    'numero': numero,
+                    'error': str(e)
+                })
+
+        print(f"✅ Proceso completado: {len(resultados['exitosos'])} exitosos, {len(resultados['fallidos'])} fallidos")
+
+        # Preparar respuesta
+        respuesta = {
+            "success": True,
+            "message": f"Proceso completado: {len(resultados['exitosos'])} números marcados exitosamente",
+            "resultados": resultados
+        }
+
+        # Configurar headers CORS
+        response = jsonify(respuesta)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+
+    except Exception as e:
+        print(f"❌ Error en marcar_stopbot: {str(e)}")
+        traceback.print_exc()
+
+        error_response = jsonify({
+            "success": False,
+            "error": str(e)
+        })
+        error_response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return error_response, 500
+
 # --- Endpoint: OBTENER IP DEL SERVIDOR ---
 @app.route("/server-ip", methods=["GET"])
 def server_ip():
