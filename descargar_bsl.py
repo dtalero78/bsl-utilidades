@@ -6323,7 +6323,7 @@ def is_numero_excluido(numero):
 
 @app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
-    """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi con paginación"""
+    """Obtiene todas las conversaciones - SOLO de la línea 3008021701 (Whapi)"""
     try:
         # Parámetros de paginación
         limit = request.args.get('limit', default=30, type=int)  # Default: 30 conversaciones
@@ -6331,7 +6331,13 @@ def twilio_get_conversaciones():
 
         conversaciones = {}
 
+        # ==================== FILTRAR SOLO LÍNEA 3008021701 ====================
+        # NO obtener mensajes de Twilio (línea 3153369631)
+        # Solo mostrar conversaciones de Whapi (línea 3008021701)
+
         # ==================== OBTENER MENSAJES DE TWILIO ====================
+        # DESHABILITADO: No queremos mostrar conversaciones de la línea 3153369631
+        """
         if twilio_client:
             try:
                 logger.info("📱 Obteniendo mensajes de Twilio...")
@@ -6385,6 +6391,7 @@ def twilio_get_conversaciones():
 
             except Exception as e:
                 logger.error(f"⚠️ Error obteniendo mensajes de Twilio: {str(e)}")
+        """
 
         # ==================== OBTENER MENSAJES DE WHAPI ====================
         try:
@@ -6506,7 +6513,7 @@ def twilio_get_conversaciones():
 
 @app.route('/twilio-chat/api/conversacion/<numero>')
 def twilio_get_conversacion(numero):
-    """Obtiene conversación específica - COMBINANDO Twilio + Whapi con paginación"""
+    """Obtiene conversación específica - SOLO de la línea 3008021701 (Whapi)"""
     try:
         # Parámetros de paginación
         limit = request.args.get('limit', default=50, type=int)  # Default: 50 mensajes
@@ -6516,7 +6523,13 @@ def twilio_get_conversacion(numero):
 
         conversacion_messages = []
 
+        # ==================== FILTRAR SOLO LÍNEA 3008021701 ====================
+        # NO obtener mensajes de Twilio (línea 3153369631)
+        # Solo mostrar mensajes de Whapi (línea 3008021701)
+
         # ==================== OBTENER MENSAJES DE TWILIO ====================
+        # DESHABILITADO: No queremos mostrar mensajes de la línea 3153369631
+        """
         if twilio_client:
             try:
                 # Normalizar número para Twilio
@@ -6592,6 +6605,7 @@ def twilio_get_conversacion(numero):
                 logger.info(f"✅ Mensajes Twilio encontrados: {len([m for m in conversacion_messages if m['source'] == 'twilio'])}")
             except Exception as e:
                 logger.error(f"⚠️ Error obteniendo mensajes de Twilio: {str(e)}")
+        """
 
         # ==================== OBTENER MENSAJES DE WHAPI ====================
         try:
