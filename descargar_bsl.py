@@ -6027,7 +6027,7 @@ elif not TWILIO_AVAILABLE:
 def broadcast_websocket_event(event_type, data):
     """Envía un evento a todos los clientes conectados vía WebSocket"""
     try:
-        socketio.emit(event_type, data, namespace='/twilio')
+        socketio.emit(event_type, data, namespace='/twilio-chat')
         logger.info(f"📡 Evento WebSocket enviado: {event_type}")
     except Exception as e:
         logger.error(f"❌ Error enviando evento WebSocket: {e}")
@@ -6036,12 +6036,12 @@ def broadcast_websocket_event(event_type, data):
 # WebSocket Event Handlers
 # ============================================================================
 
-@socketio.on('connect', namespace='/twilio')
+@socketio.on('connect', namespace='/twilio-chat')
 def handle_connect():
     """Maneja nuevas conexiones WebSocket"""
     logger.info(f"✅ Cliente WebSocket conectado")
 
-@socketio.on('disconnect', namespace='/twilio')
+@socketio.on('disconnect', namespace='/twilio-chat')
 def handle_disconnect():
     """Maneja desconexiones WebSocket"""
     logger.info(f"❌ Cliente WebSocket desconectado")
@@ -6300,12 +6300,12 @@ def enviar_mensaje_whapi(to_number, message_body, media_url=None):
         return None
 
 # Rutas Twilio-BSL
-@app.route('/twilio')
+@app.route('/twilio-chat')
 def twilio_chat_interface():
     """Interfaz principal del chat WhatsApp"""
     return render_template('twilio/chat.html')
 
-@app.route('/twilio/health')
+@app.route('/twilio-chat/health')
 def twilio_health():
     """Health check del servicio Twilio"""
     return jsonify({
@@ -6321,7 +6321,7 @@ def is_numero_excluido(numero):
     numero_clean = numero.replace('whatsapp:', '').replace('+', '').replace(' ', '').replace('-', '')
     return numero_clean in TWILIO_CHAT_EXCLUDED_NUMBERS
 
-@app.route('/twilio/api/conversaciones')
+@app.route('/twilio-chat/api/conversaciones')
 def twilio_get_conversaciones():
     """Obtiene todas las conversaciones - COMBINANDO Twilio + Whapi con paginación"""
     try:
@@ -6504,7 +6504,7 @@ def twilio_get_conversaciones():
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/twilio/api/conversacion/<numero>')
+@app.route('/twilio-chat/api/conversacion/<numero>')
 def twilio_get_conversacion(numero):
     """Obtiene conversación específica - COMBINANDO Twilio + Whapi con paginación"""
     try:
@@ -6644,7 +6644,7 @@ def twilio_get_conversacion(numero):
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/twilio/api/register-push-token', methods=['POST'])
+@app.route('/twilio-chat/api/register-push-token', methods=['POST'])
 def register_push_token_endpoint():
     """Register Expo push notification token"""
     try:
@@ -6666,7 +6666,7 @@ def register_push_token_endpoint():
         logger.error(f"Error registering push token: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/twilio/api/marcar-leido/<numero>', methods=['POST'])
+@app.route('/twilio-chat/api/marcar-leido/<numero>', methods=['POST'])
 def marcar_conversacion_leida(numero):
     """Marca una conversación como leída"""
     try:
@@ -6686,7 +6686,7 @@ def marcar_conversacion_leida(numero):
         logger.error(f"❌ Error marcando conversación como leída: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/twilio/api/enviar-mensaje', methods=['POST'])
+@app.route('/twilio-chat/api/enviar-mensaje', methods=['POST'])
 def twilio_enviar_mensaje():
     """Envía mensaje WhatsApp - Auto-detecta la línea correcta"""
     try:
@@ -6776,7 +6776,7 @@ def twilio_enviar_mensaje():
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/twilio/webhook/twilio', methods=['POST'])
+@app.route('/twilio-chat/webhook/twilio', methods=['POST'])
 def twilio_webhook():
     """Webhook para mensajes entrantes de Twilio - Con notificaciones SSE"""
     try:
@@ -6834,7 +6834,7 @@ def twilio_webhook():
         logger.error(traceback.format_exc())
         return '', 500
 
-@app.route('/twilio/webhook/whapi', methods=['GET', 'POST'])
+@app.route('/twilio-chat/webhook/whapi', methods=['GET', 'POST'])
 def whapi_webhook():
     """Webhook para mensajes entrantes de Whapi - Con notificaciones SSE"""
     try:
@@ -7013,9 +7013,9 @@ def whapi_webhook_chats():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Rutas adicionales de Whapi (envía eventos a diferentes paths)
-@app.route('/twilio/webhook/whapi/messages', methods=['GET', 'POST', 'PATCH'])
-@app.route('/twilio/webhook/whapi/statuses', methods=['GET', 'POST'])
-@app.route('/twilio/webhook/whapi/chats', methods=['GET', 'POST', 'PATCH'])
+@app.route('/twilio-chat/webhook/whapi/messages', methods=['GET', 'POST', 'PATCH'])
+@app.route('/twilio-chat/webhook/whapi/statuses', methods=['GET', 'POST'])
+@app.route('/twilio-chat/webhook/whapi/chats', methods=['GET', 'POST', 'PATCH'])
 def whapi_webhook_events():
     """Webhook para eventos específicos de Whapi (messages, statuses, chats)"""
     # Determinar el tipo de evento según la ruta
@@ -7031,7 +7031,7 @@ def whapi_webhook_events():
     return jsonify({'error': 'Unknown event type'}), 400
 
 # Servir archivos estáticos de Twilio
-@app.route('/twilio/static/<path:filename>')
+@app.route('/twilio-chat/static/<path:filename>')
 def twilio_static(filename):
     """Servir archivos estáticos CSS/JS para Twilio"""
     return send_from_directory('static/twilio', filename)
