@@ -5731,61 +5731,6 @@ def enviar_certificado_whatsapp():
         print(f"✅ Certificado encontrado: {wix_id}")
         print(f"📱 Celular de envío: {celular}")
 
-        # VERIFICAR SI YA SE ENVIÓ RECIENTEMENTE (últimas 2 horas) para evitar spam
-        try:
-            from datetime import datetime, timedelta
-            conn_check = psycopg2.connect(
-                host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
-                port=int(os.getenv("POSTGRES_PORT", "25060")),
-                user=os.getenv("POSTGRES_USER", "doadmin"),
-                password=os.getenv("POSTGRES_PASSWORD"),
-                database=os.getenv("POSTGRES_DB", "defaultdb"),
-                sslmode="require"
-            )
-            cur_check = conn_check.cursor()
-
-            # Crear tabla de logs si no existe
-            cur_check.execute("""
-                CREATE TABLE IF NOT EXISTS certificado_envio_logs (
-                    id SERIAL PRIMARY KEY,
-                    historia_id VARCHAR(255) NOT NULL,
-                    celular VARCHAR(50) NOT NULL,
-                    enviado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Crear índice si no existe
-            cur_check.execute("""
-                CREATE INDEX IF NOT EXISTS idx_historia_enviado
-                ON certificado_envio_logs (historia_id, enviado_at)
-            """)
-
-            conn_check.commit()
-
-            # Verificar si ya se envió en las últimas 2 horas
-            dos_horas_atras = datetime.now() - timedelta(hours=2)
-            cur_check.execute("""
-                SELECT COUNT(*) FROM certificado_envio_logs
-                WHERE historia_id = %s AND enviado_at > %s
-            """, (wix_id, dos_horas_atras))
-
-            count = cur_check.fetchone()[0]
-
-            if count > 0:
-                cur_check.close()
-                conn_check.close()
-                print(f"⚠️ Certificado ya fue enviado recientemente. Bloqueando envío duplicado.")
-                return jsonify({
-                    "success": False,
-                    "message": "Este certificado ya fue enviado recientemente por WhatsApp. Por favor espera al menos 2 horas antes de solicitar un nuevo envío."
-                }), 429  # Too Many Requests
-
-            cur_check.close()
-            conn_check.close()
-        except Exception as e:
-            print(f"⚠️ Error verificando logs de envío: {e}")
-            # Continuar de todas formas si hay error en la verificación
-
         # Generar URL del certificado PDF
         pdf_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/generar-certificado-desde-wix/{wix_id}"
 
@@ -5838,29 +5783,6 @@ def enviar_certificado_whatsapp():
 
             if whatsapp_response.status_code in [200, 201]:
                 print(f"✅ Certificado enviado exitosamente por WhatsApp")
-
-                # Registrar el envío exitoso en la tabla de logs
-                try:
-                    conn_log = psycopg2.connect(
-                        host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
-                        port=int(os.getenv("POSTGRES_PORT", "25060")),
-                        user=os.getenv("POSTGRES_USER", "doadmin"),
-                        password=os.getenv("POSTGRES_PASSWORD"),
-                        database=os.getenv("POSTGRES_DB", "defaultdb"),
-                        sslmode="require"
-                    )
-                    cur_log = conn_log.cursor()
-                    cur_log.execute("""
-                        INSERT INTO certificado_envio_logs (historia_id, celular)
-                        VALUES (%s, %s)
-                    """, (wix_id, celular))
-                    conn_log.commit()
-                    cur_log.close()
-                    conn_log.close()
-                    print(f"📝 Envío registrado en logs")
-                except Exception as log_error:
-                    print(f"⚠️ Error registrando envío en logs: {log_error}")
-
                 return jsonify({
                     "success": True,
                     "message": "Certificado enviado exitosamente por WhatsApp"
@@ -5876,29 +5798,6 @@ def enviar_certificado_whatsapp():
         except requests.exceptions.Timeout:
             # Timeout en la respuesta de WhatsApp, pero el mensaje probablemente se envió
             print(f"⏱️  Timeout esperando respuesta de WhatsApp (mensaje probablemente enviado)")
-
-            # Registrar el envío aunque haya timeout (probablemente sí se envió)
-            try:
-                conn_log = psycopg2.connect(
-                    host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
-                    port=int(os.getenv("POSTGRES_PORT", "25060")),
-                    user=os.getenv("POSTGRES_USER", "doadmin"),
-                    password=os.getenv("POSTGRES_PASSWORD"),
-                    database=os.getenv("POSTGRES_DB", "defaultdb"),
-                    sslmode="require"
-                )
-                cur_log = conn_log.cursor()
-                cur_log.execute("""
-                    INSERT INTO certificado_envio_logs (historia_id, celular)
-                    VALUES (%s, %s)
-                """, (wix_id, celular))
-                conn_log.commit()
-                cur_log.close()
-                conn_log.close()
-                print(f"📝 Envío registrado en logs (timeout)")
-            except Exception as log_error:
-                print(f"⚠️ Error registrando envío en logs: {log_error}")
-
             return jsonify({
                 "success": True,
                 "message": "Certificado enviado por WhatsApp (confirmación pendiente)"
