@@ -671,6 +671,102 @@ def twilio_health():
         'twilio_configured': twilio_client is not None
     })
 
+@chat_bp.route('/debug/db-status')
+def twilio_db_status():
+    """Diagnóstico del estado de la base de datos"""
+    try:
+        import psycopg2
+        from psycopg2 import sql as psycopg2_sql
+
+        result = {
+            'timestamp': datetime.now().isoformat(),
+            'env_vars': {},
+            'connection': False,
+            'tables': [],
+            'sql_file_exists': False,
+            'sql_file_path': None,
+            'errors': []
+        }
+
+        # Verificar variables de entorno
+        env_vars = ['POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_USER', 'POSTGRES_DB']
+        for var in env_vars:
+            value = os.getenv(var)
+            result['env_vars'][var] = '✅ SET' if value else '❌ NOT SET'
+            if var == 'POSTGRES_HOST' and value:
+                result['env_vars'][f'{var}_value'] = value
+
+        # Verificar archivo SQL
+        sql_path = os.path.join(os.path.dirname(__file__), 'sql', 'init_conversaciones_whatsapp.sql')
+        result['sql_file_path'] = sql_path
+        result['sql_file_exists'] = os.path.exists(sql_path)
+
+        if result['sql_file_exists']:
+            with open(sql_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                result['sql_file_size'] = len(content)
+                result['sql_has_create_table'] = 'CREATE TABLE' in content
+
+        # Intentar conexión a PostgreSQL
+        try:
+            conn = psycopg2.connect(
+                host=os.getenv("POSTGRES_HOST"),
+                port=int(os.getenv("POSTGRES_PORT", "25060")),
+                user=os.getenv("POSTGRES_USER"),
+                password=os.getenv("POSTGRES_PASSWORD"),
+                database=os.getenv("POSTGRES_DB"),
+                sslmode="require"
+            )
+            result['connection'] = True
+
+            # Verificar tablas existentes
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT table_name,
+                       (SELECT COUNT(*) FROM information_schema.columns
+                        WHERE table_name = t.table_name AND table_schema = 'public') as column_count
+                FROM information_schema.tables t
+                WHERE table_schema = 'public'
+                AND table_name IN ('conversaciones_whatsapp', 'sistema_asignacion')
+            """)
+
+            for row in cur.fetchall():
+                result['tables'].append({
+                    'name': row[0],
+                    'column_count': row[1]
+                })
+
+            # Si existe conversaciones_whatsapp, obtener un ejemplo de registro
+            if any(t['name'] == 'conversaciones_whatsapp' for t in result['tables']):
+                cur.execute("SELECT COUNT(*) FROM conversaciones_whatsapp")
+                count = cur.fetchone()[0]
+                result['conversaciones_count'] = count
+
+            cur.close()
+            conn.close()
+
+        except Exception as db_error:
+            result['errors'].append(f"DB Connection Error: {str(db_error)}")
+
+        # Determinar status general
+        if result['connection'] and len(result['tables']) == 2:
+            result['status'] = 'healthy'
+        elif result['connection'] and len(result['tables']) > 0:
+            result['status'] = 'partial'
+        elif result['connection']:
+            result['status'] = 'connected_no_tables'
+        else:
+            result['status'] = 'unhealthy'
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @chat_bp.route('/api/conversaciones')
 @require_auth
 def twilio_get_conversaciones():
