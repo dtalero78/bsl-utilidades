@@ -797,8 +797,8 @@ def twilio_get_conversaciones():
                 numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
 
                 # ========== FILTRO DE ASIGNACIÓN ==========
-                # Normalizar número para comparar
-                numero_normalizado = numero_clean if numero_clean.startswith('+') else '+' + numero_clean
+                # Normalizar número para comparar (SIN el + para que coincida con la BD)
+                numero_normalizado = numero_clean.lstrip('+')
 
                 # Solo mostrar conversaciones asignadas a este agente
                 if numero_normalizado not in numeros_set:
