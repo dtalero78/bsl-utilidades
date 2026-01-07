@@ -46,22 +46,25 @@ bsl-utilidades/
 
 ### Tabla `conversaciones_whatsapp`
 
+**⚠️ IMPORTANTE:** Esta tabla es compartida con el bot de WhatsApp existente. Las columnas del chat de agentes fueron **agregadas** sin modificar las columnas del bot.
+
+**Columnas para el chat de agentes:**
 ```sql
-CREATE TABLE IF NOT EXISTS conversaciones_whatsapp (
-    id SERIAL PRIMARY KEY,
-    numero_telefono VARCHAR(20) UNIQUE NOT NULL,
-    agente_asignado VARCHAR(50),
-    fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_ultima_actividad TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    estado VARCHAR(20) DEFAULT 'activa',
-    notas TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Columnas agregadas para el sistema de chat de agentes:
+agente_asignado VARCHAR(50)              -- Username del agente (agente1, agente2)
+fecha_asignacion TIMESTAMP               -- Fecha de primera asignación
+notas TEXT                               -- Notas del agente sobre la conversación
+
+-- Columnas existentes reutilizadas:
+celular VARCHAR(20)                      -- Número de teléfono (usado como identificador)
+fecha_ultima_actividad TIMESTAMP         -- Última actividad de la conversación
+estado VARCHAR(20)                       -- Estado ('activa', 'nueva', etc.)
 ```
 
+**Columnas del bot (NO modificar):**
+- `id`, `paciente_id`, `wix_chatbot_id`, `wix_whp_id`, `sincronizado_wix`, `stopBot`, `origen`, `nombre_paciente`, `bot_activo`, `fecha_inicio`, `canal`, `estado_actual`, etc.
+
 **Índices:**
-- `idx_numero_telefono`: Búsqueda rápida por número
 - `idx_agente_asignado`: Filtrado eficiente por agente
 - `idx_estado`: Filtrado por estado de conversación
 

@@ -154,7 +154,7 @@ def obtener_agente_asignado(numero_telefono):
         cur = conn.cursor()
 
         cur.execute(
-            "SELECT agente_asignado FROM conversaciones_whatsapp WHERE numero_telefono = %s",
+            "SELECT agente_asignado FROM conversaciones_whatsapp WHERE celular = %s",
             (numero_telefono,)
         )
         result = cur.fetchone()
@@ -209,12 +209,12 @@ def asignar_conversacion_round_robin(numero_telefono):
         # Insertar asignación (o actualizar si ya existe)
         cur.execute(
             """
-            INSERT INTO conversaciones_whatsapp (numero_telefono, agente_asignado, estado)
+            INSERT INTO conversaciones_whatsapp (celular, agente_asignado, estado)
             VALUES (%s, %s, 'activa')
-            ON CONFLICT (numero_telefono) DO UPDATE
+            ON CONFLICT (celular) DO UPDATE
             SET agente_asignado = EXCLUDED.agente_asignado,
                 fecha_asignacion = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
+                fecha_ultima_actividad = CURRENT_TIMESTAMP
             """,
             (numero_telefono, agente_asignado)
         )
@@ -248,9 +248,8 @@ def actualizar_actividad_conversacion(numero_telefono):
         cur.execute(
             """
             UPDATE conversaciones_whatsapp
-            SET fecha_ultima_actividad = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE numero_telefono = %s
+            SET fecha_ultima_actividad = CURRENT_TIMESTAMP
+            WHERE celular = %s
             """,
             (numero_telefono,)
         )
@@ -278,7 +277,7 @@ def obtener_conversaciones_por_agente(username):
 
         cur.execute(
             """
-            SELECT numero_telefono
+            SELECT celular
             FROM conversaciones_whatsapp
             WHERE agente_asignado = %s AND estado = 'activa'
             ORDER BY fecha_ultima_actividad DESC
