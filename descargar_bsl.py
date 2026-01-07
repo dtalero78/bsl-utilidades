@@ -8706,6 +8706,8 @@ def ejecutar_migracion_chat():
     ELIMINAR ESTE ENDPOINT DESPUÉS DE LA MIGRACIÓN
     """
     try:
+        import psycopg2
+
         logger.info("🔧 Iniciando migración del chat de agentes...")
 
         # SQL de migración
