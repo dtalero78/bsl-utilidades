@@ -1799,7 +1799,7 @@ const puppeteer = require('puppeteer');
             ['node', temp_script_path],
             capture_output=True,
             text=True,
-            timeout=90,  # 90 segundos para dar tiempo a que carguen las imágenes de Wix
+            timeout=180,  # 180 segundos para certificados complejos con audiogramas y visiometría
             env=env
         )
 
@@ -5874,11 +5874,10 @@ def enviar_certificado_whatsapp():
         print(f"📄 Generando certificado: {pdf_url}")
 
         # Cache-busting para evitar PDFs antiguos
-        import time
         cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
 
-        # Generar el PDF (hacer request al endpoint)
-        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}", timeout=60)
+        # Generar el PDF (hacer request al endpoint) - Timeout aumentado a 180s por certificados complejos
+        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}", timeout=180)
 
         if pdf_response.status_code != 200:
             return jsonify({
