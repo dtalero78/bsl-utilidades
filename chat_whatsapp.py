@@ -1096,9 +1096,10 @@ def whapi_webhook():
                 chat_id = msg.get('chat_id', '')
                 from_number = msg.get('from', '')
 
-                # Extraer número limpio
+                # Extraer número limpio (SIN el +, como está en la BD)
                 numero_clean = chat_id.replace('@s.whatsapp.net', '').replace('@g.us', '')
-                numero_normalizado = '+' + numero_clean if not numero_clean.startswith('+') else numero_clean
+                # Remover + si existe para que coincida con la BD
+                numero_normalizado = numero_clean.lstrip('+')
 
                 # Verificar asignación existente
                 agente = obtener_agente_asignado(numero_normalizado)
