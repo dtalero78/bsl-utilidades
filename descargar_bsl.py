@@ -4629,7 +4629,7 @@ def api_generar_certificado_pdf(wix_id):
             },
             "JUAN 134": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
+                "registro": "C.C.: 7.472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -4647,7 +4647,7 @@ def api_generar_certificado_pdf(wix_id):
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
+                "registro": "C.C.: 7.472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -5598,7 +5598,7 @@ def preview_certificado_html(wix_id):
             },
             "JUAN 134": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
+                "registro": "C.C.: 7.472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
@@ -5616,7 +5616,7 @@ def preview_certificado_html(wix_id):
             },
             "NUBIA": {
                 "nombre": "JUAN JOSE REATIGA",
-                "registro": "CC. 7472.676 - REGISTRO MEDICO NO 14791",
+                "registro": "C.C.: 7.472.676 - REGISTRO MEDICO NO 14791",
                 "licencia": "LICENCIA SALUD OCUPACIONAL 460",
                 "fecha": "6 DE JULIO DE 2020"
             },
