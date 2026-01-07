@@ -279,7 +279,7 @@ def obtener_conversaciones_por_agente(username):
             """
             SELECT celular
             FROM conversaciones_whatsapp
-            WHERE agente_asignado = %s AND estado = 'activa'
+            WHERE agente_asignado = %s
             ORDER BY fecha_ultima_actividad DESC
             """,
             (username,)
