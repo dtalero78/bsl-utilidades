@@ -8618,6 +8618,16 @@ def inicializar_tablas_conversaciones():
     try:
         import psycopg2
 
+        print("📋 Verificando variables de entorno de PostgreSQL...")
+        pg_vars = ['POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_USER', 'POSTGRES_DB']
+        for var in pg_vars:
+            val = os.getenv(var)
+            if val:
+                print(f"   ✅ {var}: {val}")
+            else:
+                print(f"   ❌ {var}: NO DEFINIDA")
+
+        print("📡 Conectando a PostgreSQL...")
         # Construir conexión desde variables de entorno
         conn = psycopg2.connect(
             host=os.getenv("POSTGRES_HOST"),
@@ -8627,34 +8637,62 @@ def inicializar_tablas_conversaciones():
             database=os.getenv("POSTGRES_DB"),
             sslmode="require"
         )
+        print("   ✅ Conectado exitosamente")
 
         cur = conn.cursor()
 
         # Leer y ejecutar script SQL
         sql_path = os.path.join(os.path.dirname(__file__), 'sql', 'init_conversaciones_whatsapp.sql')
+        print(f"📄 Buscando archivo SQL en: {sql_path}")
 
         if not os.path.exists(sql_path):
-            logger.warning(f"⚠️ No se encontró el archivo SQL: {sql_path}")
+            msg = f"⚠️ No se encontró el archivo SQL: {sql_path}"
+            logger.warning(msg)
+            print(f"   ❌ {msg}")
+            print(f"   📂 Directorio actual: {os.path.dirname(__file__)}")
+            print(f"   📂 Archivos en directorio: {os.listdir(os.path.dirname(__file__))[:10]}")
             return
 
+        print("   ✅ Archivo SQL encontrado")
+
+        print("🔧 Ejecutando script SQL...")
         with open(sql_path, 'r', encoding='utf-8') as f:
             sql_script = f.read()
+            print(f"   📝 Script SQL: {len(sql_script)} caracteres")
             cur.execute(sql_script)
 
         conn.commit()
+        print("   ✅ Script ejecutado y cambios confirmados")
+
+        # Verificar que las tablas se crearon
+        cur.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name IN ('conversaciones_whatsapp', 'sistema_asignacion')
+        """)
+        tables = [row[0] for row in cur.fetchall()]
+        print(f"📊 Tablas creadas: {tables}")
+
         cur.close()
         conn.close()
 
         logger.info("✅ Tablas de conversaciones WhatsApp inicializadas correctamente")
+        print("✅ INICIALIZACIÓN COMPLETADA EXITOSAMENTE")
 
     except Exception as e:
         logger.error(f"❌ Error inicializando tablas de conversaciones: {e}")
+        print(f"❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
     # Inicializar tablas de conversaciones al arrancar
+    print("\n" + "=" * 70)
+    print("🔧 INICIALIZANDO TABLAS DE CONVERSACIONES WHATSAPP")
+    print("=" * 70)
     inicializar_tablas_conversaciones()
+    print("=" * 70 + "\n")
 
     # Usar socketio.run() en lugar de app.run() para soportar WebSockets
     socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
