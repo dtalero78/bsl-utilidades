@@ -23,8 +23,20 @@ const API_BASE = window.API_BASE || window.location.origin;
 // INITIALIZATION
 // ============================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('Twilio-BSL Chat initialized');
+
+    // ========== VERIFICAR SESIÓN ANTES DE CONTINUAR ==========
+    const sessionCheck = await verificarSesion();
+    if (!sessionCheck.logged_in) {
+        console.log('❌ No hay sesión activa, redirigiendo a login...');
+        window.location.href = '/twilio-chat/login';
+        return;
+    }
+
+    // Mostrar nombre del agente
+    console.log('✅ Sesión activa:', sessionCheck.nombre);
+    mostrarInfoAgente(sessionCheck.nombre);
 
     // Inicializar sonido de notificación
     inicializarSonidoNotificacion();
@@ -403,7 +415,8 @@ function renderizarConversaciones() {
         listContainer.innerHTML = `
             <div class="loading">
                 <i class="fab fa-whatsapp"></i>
-                <p>No hay conversaciones disponibles</p>
+                <p>No tienes conversaciones asignadas</p>
+                <small style="color: #999; font-size: 12px; margin-top: 8px;">Las nuevas conversaciones se asignarán automáticamente</small>
             </div>
         `;
         return;
@@ -1420,3 +1433,50 @@ window.addEventListener('beforeunload', () => {
         socket.disconnect();
     }
 });
+
+// ============================================================================
+// AUTENTICACIÓN Y SESIÓN
+// ============================================================================
+
+/**
+ * Verifica si hay una sesión activa
+ */
+async function verificarSesion() {
+    try {
+        const response = await fetch(`${API_BASE}/api/session`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error verificando sesión:', error);
+        return { logged_in: false };
+    }
+}
+
+/**
+ * Muestra la información del agente en el header
+ */
+function mostrarInfoAgente(nombre) {
+    const elem = document.getElementById('nombreAgente');
+    if (elem) {
+        elem.textContent = nombre;
+    }
+}
+
+/**
+ * Cierra la sesión del usuario
+ */
+async function cerrarSesion() {
+    if (!confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        return;
+    }
+
+    try {
+        await fetch(`${API_BASE}/api/logout`, { method: 'POST' });
+        console.log('✅ Sesión cerrada');
+        window.location.href = '/twilio-chat/login';
+    } catch (error) {
+        console.error('Error cerrando sesión:', error);
+        // Redirigir de todas formas
+        window.location.href = '/twilio-chat/login';
+    }
+}

@@ -20,8 +20,19 @@
             <div class="sidebar-header">
                 <h2><i class="fab fa-whatsapp"></i> BSL WhatsApp</h2>
                 <div class="header-actions">
+                    <!-- Información del agente -->
+                    <div class="agente-info" id="agenteInfo">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="nombreAgente">Cargando...</span>
+                    </div>
+
                     <button class="btn-refresh" onclick="cargarConversaciones()" title="Actualizar">
                         <i class="fas fa-sync-alt"></i>
+                    </button>
+
+                    <!-- Botón de logout -->
+                    <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar Sesión">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
             </div>
@@ -55,8 +66,8 @@
                 <div class="messages-placeholder">
                     <i class="fab fa-whatsapp"></i>
                     <h2>WhatsApp BSL</h2>
-                    <p>Gestiona todas las conversaciones de WhatsApp desde aquí</p>
-                    <p class="placeholder-number">+57 315 336 9631</p>
+                    <p>Gestiona tus conversaciones asignadas</p>
+                    <p class="placeholder-number">+57 300 802 1701</p>
                 </div>
             </div>
 
