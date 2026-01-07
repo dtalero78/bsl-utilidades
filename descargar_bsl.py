@@ -4596,6 +4596,12 @@ def api_generar_certificado_pdf(wix_id):
             # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
             if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
                 descripcion = observaciones_sin_analisis
+            # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
+            elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
+                if datos_audiometria and datos_audiometria.get('diagnostico'):
+                    descripcion = datos_audiometria['diagnostico']
+                else:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             else:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
@@ -5565,6 +5571,12 @@ def preview_certificado_html(wix_id):
             # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
             if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
                 descripcion = observaciones_sin_analisis
+            # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
+            elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
+                if datos_audiometria and datos_audiometria.get('diagnostico'):
+                    descripcion = datos_audiometria['diagnostico']
+                else:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             else:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
