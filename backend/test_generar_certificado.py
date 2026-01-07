@@ -76,7 +76,7 @@ datos_certificado = {
     "medico_registro": "REGISTRO MEDICO NO 14791",
     "medico_licencia": "LICENCIA SALUD OCUPACIONAL 460",
     "optometra_nombre": "Dr. Miguel Garzón Rincón",
-    "optometra_registro": "Optómetra Ocupacional Res. 6473 04/07/2017",
+    "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
 
     # ========== OPCIONES DE ALMACENAMIENTO ==========
     "guardar_drive": True,

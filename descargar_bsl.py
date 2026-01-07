@@ -2535,7 +2535,7 @@ def generar_certificado_medico():
             "firma_paciente_url": data.get("firma_paciente_url"),
 
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
-            "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
+            "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
 
             # Exámenes detallados (página 2, opcional)
@@ -2806,7 +2806,7 @@ def generar_certificado_medico_puppeteer():
             "firma_paciente_url": data.get("firma_paciente_url"),
 
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
-            "optometra_registro": data.get("optometra_registro", "Optómetra Ocupacional Res. 6473 04/07/2017"),
+            "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
 
             # Exámenes detallados (página 2, opcional)
@@ -5686,7 +5686,7 @@ def preview_certificado_html(wix_id):
             "firma_medico_url": firma_medico_url,
             "firma_paciente_url": firma_paciente_url,
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
-            "optometra_registro": "Optómetra Ocupacional Res. 6473 04/07/2017",
+            "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
             "examenes_detallados": [],
             "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
