@@ -911,7 +911,8 @@ def twilio_get_conversacion(numero):
         username = session.get('username')
 
         # Verificar que el agente tenga permiso para ver esta conversación
-        numero_normalizado = numero if numero.startswith('+') else '+' + numero.replace('whatsapp:', '')
+        # Normalizar SIN el + para que coincida con la BD
+        numero_normalizado = numero.replace('whatsapp:', '').lstrip('+')
         agente_asignado = obtener_agente_asignado(numero_normalizado)
 
         if agente_asignado != username:
