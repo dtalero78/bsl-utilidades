@@ -8697,6 +8697,89 @@ def inicializar_tablas_conversaciones():
         import traceback
         traceback.print_exc()
 
+@app.route("/ejecutar-migracion-chat", methods=["POST", "GET"])
+def ejecutar_migracion_chat():
+    """
+    Endpoint TEMPORAL para ejecutar la migración del chat de agentes.
+    Agrega las columnas faltantes a conversaciones_whatsapp.
+
+    ELIMINAR ESTE ENDPOINT DESPUÉS DE LA MIGRACIÓN
+    """
+    try:
+        logger.info("🔧 Iniciando migración del chat de agentes...")
+
+        # SQL de migración
+        sql_migracion = """
+        -- Agregar columnas necesarias para el chat de agentes
+        ALTER TABLE conversaciones_whatsapp
+        ADD COLUMN IF NOT EXISTS agente_asignado VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS notas TEXT;
+
+        -- Crear índice para mejorar rendimiento
+        CREATE INDEX IF NOT EXISTS idx_agente_asignado ON conversaciones_whatsapp(agente_asignado);
+
+        -- Crear tabla para el contador round-robin
+        CREATE TABLE IF NOT EXISTS sistema_asignacion (
+            id SERIAL PRIMARY KEY,
+            clave VARCHAR(50) UNIQUE NOT NULL,
+            valor INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Insertar contador inicial
+        INSERT INTO sistema_asignacion (clave, valor)
+        VALUES ('contador_round_robin', 0)
+        ON CONFLICT (clave) DO NOTHING;
+        """
+
+        # Ejecutar migración
+        conn = psycopg2.connect(
+            host=os.getenv('POSTGRES_HOST'),
+            port=int(os.getenv('POSTGRES_PORT', 25060)),
+            user=os.getenv('POSTGRES_USER'),
+            password=os.getenv('POSTGRES_PASSWORD'),
+            database=os.getenv('POSTGRES_DB'),
+            sslmode='require'
+        )
+
+        cur = conn.cursor()
+        cur.execute(sql_migracion)
+        conn.commit()
+
+        # Verificar columnas
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'conversaciones_whatsapp'
+            AND column_name IN ('agente_asignado', 'fecha_asignacion', 'notas')
+        """)
+        columnas = [row[0] for row in cur.fetchall()]
+
+        # Verificar tabla sistema_asignacion
+        cur.execute("SELECT COUNT(*) FROM sistema_asignacion WHERE clave = 'contador_round_robin'")
+        contador_existe = cur.fetchone()[0] > 0
+
+        cur.close()
+        conn.close()
+
+        resultado = {
+            "success": True,
+            "message": "Migración ejecutada exitosamente",
+            "columnas_agregadas": columnas,
+            "contador_round_robin": "OK" if contador_existe else "NO CREADO"
+        }
+
+        logger.info(f"✅ Migración completada: {resultado}")
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error en migración: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 if __name__ == "__main__":
     # Inicializar tablas de conversaciones al arrancar
     print("\n" + "=" * 70)
