@@ -4593,8 +4593,8 @@ def api_generar_certificado_pdf(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
-            # Para el primer examen: si hay observaciones del médico, usar esas en lugar del texto hardcodeado
-            if i == 0 and observaciones_sin_analisis:
+            # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
+            if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
                 descripcion = observaciones_sin_analisis
             else:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
@@ -5562,8 +5562,8 @@ def preview_certificado_html(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
-            # Para el primer examen: si hay observaciones del médico, usar esas en lugar del texto hardcodeado
-            if i == 0 and observaciones_sin_analisis:
+            # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
+            if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
                 descripcion = observaciones_sin_analisis
             else:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
