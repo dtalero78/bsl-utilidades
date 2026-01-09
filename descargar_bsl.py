@@ -4228,6 +4228,9 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix['hijos'] = datos_postgres.get('hijos')
             if datos_postgres.get('email'):
                 datos_wix['email'] = datos_postgres.get('email')
+            if datos_postgres.get('celular'):
+                datos_wix['celular'] = datos_postgres.get('celular')
+                print(f"  ✓ Celular: {datos_postgres.get('celular')}")
             if datos_postgres.get('profesionUOficio'):
                 datos_wix['profesionUOficio'] = datos_postgres.get('profesionUOficio')
             if datos_postgres.get('ciudadDeResidencia'):
@@ -4725,6 +4728,7 @@ def api_generar_certificado_pdf(wix_id):
             "hijos": str(datos_wix.get('hijos', '0')),
             "profesion": datos_wix.get('profesionUOficio', ''),
             "email": datos_wix.get('email', ''),
+            "celular": datos_wix.get('celular', ''),
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
 
@@ -5710,6 +5714,7 @@ def preview_certificado_html(wix_id):
             "hijos": str(datos_wix.get('hijos', '0')),
             "profesion": datos_wix.get('profesionUOficio', ''),
             "email": datos_wix.get('email', ''),
+            "celular": datos_wix.get('celular', ''),
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
