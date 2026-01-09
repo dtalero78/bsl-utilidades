@@ -550,7 +550,7 @@ def obtener_datos_formulario_postgres(wix_id):
                 numero_id = historia_row[0]
                 print(f"🔍 [PostgreSQL] Encontrado numero_id: {numero_id}, buscando en formularios...")
 
-                # Buscar en formularios por numero_id
+                # Buscar en formularios por numero_id (ordenar por fecha para tomar el más reciente)
                 cur.execute("""
                     SELECT
                         foto,
@@ -573,6 +573,7 @@ def obtener_datos_formulario_postgres(wix_id):
                         celular
                     FROM formularios
                     WHERE numero_id = %s
+                    ORDER BY created_at DESC
                     LIMIT 1;
                 """, (numero_id,))
                 row = cur.fetchone()
@@ -5832,7 +5833,17 @@ def enviar_certificado_whatsapp():
                 cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
             else:
                 print(f"   Buscando por Cédula: {numero_id}")
-                cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE "numeroId" = %s ORDER BY _createdDate DESC LIMIT 1', (numero_id,))
+                # Priorizar registros que tengan datos en formularios usando LEFT JOIN
+                cur.execute('''
+                    SELECT h._id, h."numeroId", h.celular
+                    FROM "HistoriaClinica" h
+                    LEFT JOIN formularios f ON h._id = f.wix_id
+                    WHERE h."numeroId" = %s
+                    ORDER BY
+                        CASE WHEN f.wix_id IS NOT NULL THEN 0 ELSE 1 END,
+                        h._createdDate DESC
+                    LIMIT 1
+                ''', (numero_id,))
 
             row = cur.fetchone()
             cur.close()
