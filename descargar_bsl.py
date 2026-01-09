@@ -527,7 +527,8 @@ def obtener_datos_formulario_postgres(wix_id):
                 arl,
                 pensiones,
                 nivel_educativo,
-                foto_url
+                foto_url,
+                celular
             FROM formularios
             WHERE wix_id = %s
             LIMIT 1;
@@ -568,7 +569,8 @@ def obtener_datos_formulario_postgres(wix_id):
                         arl,
                         pensiones,
                         nivel_educativo,
-                        foto_url
+                        foto_url,
+                        celular
                     FROM formularios
                     WHERE numero_id = %s
                     LIMIT 1;
@@ -582,7 +584,7 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id} ni por numero_id")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url, celular = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
@@ -621,6 +623,10 @@ def obtener_datos_formulario_postgres(wix_id):
         if email:
             datos_formulario['email'] = email
             print(f"📧 [PostgreSQL] Email: {email}")
+
+        if celular:
+            datos_formulario['celular'] = celular
+            print(f"📞 [PostgreSQL] Teléfono: {celular}")
 
         if profesion_oficio:
             datos_formulario['profesionUOficio'] = profesion_oficio
@@ -2568,7 +2574,7 @@ def generar_certificado_medico():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia']:
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia', 'celular']:
                     if key in datos_postgres and datos_postgres[key]:
                         # Mapear campos con nombres diferentes en la plantilla
                         if key == 'nivelEducativo':
@@ -2592,6 +2598,11 @@ def generar_certificado_medico():
                             print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
                         print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+
+                # También agregar ciudadDeResidencia como dirección para el certificado
+                if 'ciudadDeResidencia' in datos_postgres and datos_postgres['ciudadDeResidencia']:
+                    datos_certificado['direccion'] = datos_postgres['ciudadDeResidencia']
+                    print(f"✅ Dirección desde PostgreSQL: {datos_postgres['ciudadDeResidencia']}")
             else:
                 print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
@@ -2839,7 +2850,7 @@ def generar_certificado_medico_puppeteer():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia']:
+                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo', 'ciudadDeResidencia', 'celular']:
                     if key in datos_postgres and datos_postgres[key]:
                         # Mapear campos con nombres diferentes en la plantilla
                         if key == 'nivelEducativo':
@@ -2863,6 +2874,11 @@ def generar_certificado_medico_puppeteer():
                             print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
                     else:
                         print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+
+                # También agregar ciudadDeResidencia como dirección para el certificado
+                if 'ciudadDeResidencia' in datos_postgres and datos_postgres['ciudadDeResidencia']:
+                    datos_certificado['direccion'] = datos_postgres['ciudadDeResidencia']
+                    print(f"✅ Dirección desde PostgreSQL: {datos_postgres['ciudadDeResidencia']}")
             else:
                 print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
