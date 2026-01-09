@@ -3130,7 +3130,7 @@ def procesar_csv():
         hora_base = datetime.strptime("08:00", "%H:%M")
 
         # Lista de médicos por defecto (se puede personalizar desde el frontend)
-        medicos_disponibles = ["SIXTA", "JUAN 134", "CESAR", "MARY", "NUBIA", "PRESENCIAL"]
+        medicos_disponibles = ["SIXTA", "JUAN 134", "CESAR", "MARY", "NUBIA", "PRESENCIAL", "PILAR"]
 
         # Contador para registros que NO son BOGOTA (para distribución equitativa)
         contador_no_bogota = 0
@@ -4622,7 +4622,8 @@ def api_generar_certificado_pdf(wix_id):
             "CESAR": "FIRMA-CESAR.jpeg",
             "MARY": "FIRMA-MARY.jpeg",
             "NUBIA": "FIRMA-JUAN134.jpeg",
-            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
+            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg",
+            "PILAR": "FIRMA_PILAR.png"
         }
 
         # Datos de cada médico
@@ -4662,6 +4663,12 @@ def api_generar_certificado_pdf(wix_id):
                 "registro": "",
                 "licencia": "",
                 "fecha": ""
+            },
+            "PILAR": {
+                "nombre": "DRA. MARIA DEL PILAR PEROZO HERNANDEZ",
+                "registro": "C.C.: 1.090.419.867 - MÉDICO OCUPACIONAL",
+                "licencia": "Resolución No. 27293",
+                "fecha": "05 DE AGOSTO DE 2025"
             }
         }
 
@@ -5597,7 +5604,8 @@ def preview_certificado_html(wix_id):
             "CESAR": "FIRMA-CESAR.jpeg",
             "MARY": "FIRMA-MARY.jpeg",
             "NUBIA": "FIRMA-JUAN134.jpeg",
-            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg"
+            "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg",
+            "PILAR": "FIRMA_PILAR.png"
         }
 
         # Datos de cada médico
@@ -5637,6 +5645,12 @@ def preview_certificado_html(wix_id):
                 "registro": "",
                 "licencia": "",
                 "fecha": ""
+            },
+            "PILAR": {
+                "nombre": "DRA. MARIA DEL PILAR PEROZO HERNANDEZ",
+                "registro": "C.C.: 1.090.419.867 - MÉDICO OCUPACIONAL",
+                "licencia": "Resolución No. 27293",
+                "fecha": "05 DE AGOSTO DE 2025"
             }
         }
 
