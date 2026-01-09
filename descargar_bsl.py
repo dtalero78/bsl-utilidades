@@ -2501,6 +2501,7 @@ def generar_certificado_medico():
             "hijos": data.get("hijos", "0"),
             "profesion": data.get("profesion", ""),
             "email": data.get("email", ""),
+            "celular": data.get("celular", ""),
             "tipo_examen": data.get("tipo_examen", "Ingreso"),
             "foto_paciente": obtener_foto_desde_postgres(data.get("wix_id")) if data.get("wix_id") else data.get("foto_paciente", None),
 
@@ -2777,6 +2778,7 @@ def generar_certificado_medico_puppeteer():
             "hijos": data.get("hijos", "0"),
             "profesion": data.get("profesion", ""),
             "email": data.get("email", ""),
+            "celular": data.get("celular", ""),
             "tipo_examen": data.get("tipo_examen", "Ingreso"),
             "foto_paciente": obtener_foto_desde_postgres(data.get("wix_id")) if data.get("wix_id") else data.get("foto_paciente", None),
 
