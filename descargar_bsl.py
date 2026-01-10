@@ -1903,12 +1903,20 @@ def determinar_mostrar_sin_soporte(datos_wix):
     """
     pv_estado_wix = datos_wix.get('pvEstado', '')
     cod_empresa = datos_wix.get('codEmpresa', '')
+    medico = datos_wix.get('medico', '')
     wix_id = datos_wix.get('_id', '')
 
     print(f"🔍 DEBUG determinar_mostrar_sin_soporte:")
     print(f"   wix_id: '{wix_id}'")
     print(f"   pvEstado (Wix): '{pv_estado_wix}' (tipo: {type(pv_estado_wix).__name__})")
     print(f"   codEmpresa: '{cod_empresa}'")
+    print(f"   medico: '{medico}'")
+
+    # CONDICIÓN ESPECIAL: PARTICULAR + NUBIA siempre muestra aviso rojo
+    if cod_empresa == 'PARTICULAR' and medico == 'NUBIA':
+        print(f"   ⚠️ MOSTRAR AVISO ROJO (PARTICULAR + NUBIA)")
+        texto = "ESTE CERTIFICADO AÚN NO REGISTRA PAGO. PARA LIBERARLO REMITE EL SOPORTE DE CONSIGNACIÓN"
+        return True, texto
 
     # PRIORIDAD 1: Verificar si es empresa especial (siempre mostrar certificado completo)
     es_especial = es_empresa_especial(cod_empresa)
@@ -4290,6 +4298,9 @@ def api_generar_certificado_pdf(wix_id):
                 datos_wix['pvEstado'] = datos_historia_postgres.get('pvEstado')
             if datos_historia_postgres.get('pagado'):
                 datos_wix['pagado'] = datos_historia_postgres.get('pagado')
+            if datos_historia_postgres.get('medico'):
+                datos_wix['medico'] = datos_historia_postgres.get('medico')
+                print(f"  ✓ Médico (PostgreSQL HistoriaClinica): {datos_historia_postgres.get('medico')}")
             if datos_historia_postgres.get('ciudad'):
                 datos_wix['ciudad'] = datos_historia_postgres.get('ciudad')
                 print(f"  ✓ Ciudad (PostgreSQL HistoriaClinica): {datos_historia_postgres.get('ciudad')}")
