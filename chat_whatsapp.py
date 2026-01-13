@@ -206,18 +206,34 @@ def asignar_conversacion_round_robin(numero_telefono):
             (nuevo_contador,)
         )
 
-        # Insertar asignación (o actualizar si ya existe)
+        # Verificar si la conversación ya existe
         cur.execute(
-            """
-            INSERT INTO conversaciones_whatsapp (celular, agente_asignado, estado)
-            VALUES (%s, %s, 'activa')
-            ON CONFLICT (celular) DO UPDATE
-            SET agente_asignado = EXCLUDED.agente_asignado,
-                fecha_asignacion = CURRENT_TIMESTAMP,
-                fecha_ultima_actividad = CURRENT_TIMESTAMP
-            """,
-            (numero_telefono, agente_asignado)
+            "SELECT id FROM conversaciones_whatsapp WHERE celular = %s",
+            (numero_telefono,)
         )
+        existe = cur.fetchone()
+
+        if existe:
+            # Si existe, actualizar agente_asignado
+            cur.execute(
+                """
+                UPDATE conversaciones_whatsapp
+                SET agente_asignado = %s,
+                    fecha_asignacion = CURRENT_TIMESTAMP,
+                    fecha_ultima_actividad = CURRENT_TIMESTAMP
+                WHERE celular = %s
+                """,
+                (agente_asignado, numero_telefono)
+            )
+        else:
+            # Si no existe, insertar nueva conversación
+            cur.execute(
+                """
+                INSERT INTO conversaciones_whatsapp (celular, agente_asignado, estado)
+                VALUES (%s, %s, 'activa')
+                """,
+                (numero_telefono, agente_asignado)
+            )
 
         conn.commit()
         cur.close()
@@ -912,7 +928,7 @@ def twilio_get_conversacion(numero):
 
         # Verificar que el agente tenga permiso para ver esta conversación
         # Normalizar SIN el + para que coincida con la BD
-        numero_normalizado = numero.replace('whatsapp:', '').lstrip('+')
+        numero_normalizado = numero.replace('whatsapp:', '').replace('+', '').strip()
         agente_asignado = obtener_agente_asignado(numero_normalizado)
 
         if agente_asignado != username:
@@ -1039,7 +1055,8 @@ def twilio_enviar_mensaje():
             }), 400
 
         # Verificar que el agente tenga permiso para esta conversación
-        numero_normalizado = to_number if to_number.startswith('+') else '+' + to_number.replace('whatsapp:', '')
+        # Normalizar número SIN + para que coincida con la BD
+        numero_normalizado = to_number.replace('whatsapp:', '').replace('+', '').strip()
         agente_asignado = obtener_agente_asignado(numero_normalizado)
 
         if agente_asignado != username:
