@@ -440,7 +440,8 @@ function renderizarConversaciones() {
 
 function crearElementoConversacion(numero, conversacion) {
     const lastMessage = getLastMessage(conversacion);
-    const nombre = conversacion.nombre || conversacion.wix_data?.nombre || formatPhoneNumber(numero);
+    // Mostrar siempre el número formateado en lugar del nombre
+    const nombre = formatPhoneNumber(numero);
     const preview = conversacion.last_message || (lastMessage ? truncateText(lastMessage.body || lastMessage.mensaje, 50) : 'Sin mensajes');
     const time = conversacion.last_message_time ? formatTime(conversacion.last_message_time) : (lastMessage ? formatTime(lastMessage.date_sent || lastMessage.timestamp) : '');
     const isActive = conversacionActual === numero ? 'active' : '';
@@ -563,8 +564,8 @@ function renderizarChat(numero, data) {
     const chatHeader = document.getElementById('chatHeader');
     const messagesContainer = document.getElementById('messagesContainer');
 
-    // Update header
-    const nombre = data.wix_data?.nombre || formatPhoneNumber(numero);
+    // Update header - Mostrar siempre el número formateado
+    const nombre = formatPhoneNumber(numero);
     const stopBot = data.wix_data?.stopBot ? '(Bot detenido)' : '(Bot activo)';
 
     // Obtener foto de perfil de la conversación actual
@@ -585,7 +586,7 @@ function renderizarChat(numero, data) {
             </div>
             <div class="chat-contact-info">
                 <h3>${nombre}</h3>
-                <p>${formatPhoneNumber(numero)} ${stopBot}</p>
+                <p>${stopBot}</p>
             </div>
         </div>
         <div class="chat-actions">
