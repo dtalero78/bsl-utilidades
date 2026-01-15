@@ -573,7 +573,7 @@ def obtener_datos_formulario_postgres(wix_id):
                         celular
                     FROM formularios
                     WHERE numero_id = %s
-                    ORDER BY created_at DESC
+                    ORDER BY COALESCE(updated_at, fecha_registro) DESC
                     LIMIT 1;
                 """, (numero_id,))
                 row = cur.fetchone()
