@@ -5952,61 +5952,68 @@ def enviar_certificado_whatsapp():
         # Para simplificar, vamos a usar la URL del preview como link CON CACHE-BUSTING
         certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}"
 
-        # Enviar por WhatsApp
-        print(f"📤 Enviando certificado por WhatsApp a {celular}")
-
-        whatsapp_url = "https://gate.whapi.cloud/messages/document"
-        whatsapp_headers = {
-            "accept": "application/json",
-            "authorization": "Bearer due3eWCwuBM2Xqd6cPujuTRqSbMb68lt",
-            "content-type": "application/json"
-        }
+        # Enviar por WhatsApp usando Twilio
+        print(f"📤 Enviando certificado por WhatsApp via Twilio a {celular}")
 
         # Obtener nombre del paciente y cédula
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
         cedula = numero_id if numero_id else datos_wix.get('numeroId', 'N/A')
 
-        whatsapp_payload = {
-            "to": celular,
-            "media": certificado_url,
-            "caption": f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
-        }
+        # Mensaje con el certificado
+        mensaje_whatsapp = f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
 
         try:
-            whatsapp_response = requests.post(
-                whatsapp_url,
-                headers=whatsapp_headers,
-                json=whatsapp_payload,
-                timeout=10  # Reducido a 10 segundos
-            )
+            # Importar y usar cliente Twilio
+            from twilio.rest import Client as TwilioClient
 
-            if whatsapp_response.status_code in [200, 201]:
-                print(f"✅ Certificado enviado exitosamente por WhatsApp")
-                return jsonify({
-                    "success": True,
-                    "message": "Certificado enviado exitosamente por WhatsApp"
-                }), 200
-            else:
-                print(f"❌ Error enviando por WhatsApp: {whatsapp_response.status_code}")
-                print(f"   Respuesta: {whatsapp_response.text}")
+            twilio_account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+            twilio_auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+            twilio_whatsapp_from = os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+573008021701')
+
+            if not twilio_account_sid or not twilio_auth_token:
+                print("❌ Credenciales de Twilio no configuradas")
                 return jsonify({
                     "success": False,
-                    "message": "Error al enviar el mensaje por WhatsApp. Verifica el número."
+                    "message": "Error de configuración del servicio de WhatsApp"
                 }), 500
 
-        except requests.exceptions.Timeout:
-            # Timeout en la respuesta de WhatsApp, pero el mensaje probablemente se envió
-            print(f"⏱️  Timeout esperando respuesta de WhatsApp (mensaje probablemente enviado)")
+            twilio_client = TwilioClient(twilio_account_sid, twilio_auth_token)
+
+            # Formatear número de destino
+            formatted_number = celular
+            if not formatted_number.startswith('whatsapp:'):
+                if not formatted_number.startswith('+'):
+                    formatted_number = f'+{formatted_number}' if formatted_number.startswith('57') else f'+57{formatted_number}'
+                formatted_number = f'whatsapp:{formatted_number}'
+
+            # Enviar mensaje con media (PDF del certificado)
+            message = twilio_client.messages.create(
+                from_=twilio_whatsapp_from,
+                to=formatted_number,
+                body=mensaje_whatsapp,
+                media_url=[certificado_url]
+            )
+
+            print(f"✅ Certificado enviado exitosamente por WhatsApp via Twilio. SID: {message.sid}")
             return jsonify({
                 "success": True,
-                "message": "Certificado enviado por WhatsApp (confirmación pendiente)"
+                "message": "Certificado enviado exitosamente por WhatsApp"
             }), 200
 
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Error de conexión con WhatsApp: {str(e)}")
+        except ImportError:
+            print("❌ Twilio no está instalado")
             return jsonify({
                 "success": False,
-                "message": "Error de conexión con WhatsApp. Intenta nuevamente."
+                "message": "Error de configuración del servicio de WhatsApp"
+            }), 500
+
+        except Exception as twilio_error:
+            print(f"❌ Error enviando por WhatsApp via Twilio: {str(twilio_error)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "success": False,
+                "message": "Error al enviar el mensaje por WhatsApp. Verifica el número."
             }), 500
 
     except Exception as e:
