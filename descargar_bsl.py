@@ -5995,6 +5995,55 @@ def enviar_certificado_whatsapp():
             )
 
             print(f"✅ Certificado enviado exitosamente por WhatsApp via Twilio. SID: {message.sid}")
+
+            # Guardar mensaje en base de datos para que aparezca en BSL-PLATAFORMA
+            try:
+                import psycopg2
+
+                # Normalizar número
+                numero_limpio = celular.replace('whatsapp:', '').replace('+', '').strip()
+                if not numero_limpio.startswith('57') and len(numero_limpio) == 10:
+                    numero_limpio = '57' + numero_limpio
+                numero_normalizado = '+' + numero_limpio
+
+                conn = psycopg2.connect(
+                    host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+                    port=int(os.getenv("POSTGRES_PORT", "25060")),
+                    user=os.getenv("POSTGRES_USER", "doadmin"),
+                    password=os.getenv("POSTGRES_PASSWORD"),
+                    database=os.getenv("POSTGRES_DB", "defaultdb"),
+                    sslmode="require"
+                )
+                cur = conn.cursor()
+
+                # Buscar o crear conversación
+                cur.execute("SELECT id FROM conversaciones_whatsapp WHERE celular = %s", (numero_normalizado,))
+                result = cur.fetchone()
+
+                if result:
+                    conversacion_id = result[0]
+                    cur.execute("UPDATE conversaciones_whatsapp SET fecha_ultima_actividad = NOW() WHERE id = %s", (conversacion_id,))
+                else:
+                    cur.execute("""
+                        INSERT INTO conversaciones_whatsapp (celular, nombre_paciente, estado_actual, fecha_inicio, fecha_ultima_actividad, bot_activo)
+                        VALUES (%s, %s, 'activa', NOW(), NOW(), false) RETURNING id
+                    """, (numero_normalizado, nombre_completo or 'Cliente WhatsApp'))
+                    conversacion_id = cur.fetchone()[0]
+
+                # Guardar mensaje saliente
+                cur.execute("""
+                    INSERT INTO mensajes_whatsapp (conversacion_id, contenido, direccion, sid_twilio, tipo_mensaje, media_url, timestamp)
+                    VALUES (%s, %s, 'saliente', %s, 'document', %s, NOW())
+                """, (conversacion_id, mensaje_whatsapp, message.sid, certificado_url))
+
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"✅ Mensaje guardado en BD para conversación {conversacion_id}")
+
+            except Exception as db_error:
+                print(f"⚠️ Error guardando mensaje en BD (no crítico): {db_error}")
+
             return jsonify({
                 "success": True,
                 "message": "Certificado enviado exitosamente por WhatsApp"
