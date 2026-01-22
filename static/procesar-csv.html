@@ -423,6 +423,10 @@
                                 <input type="checkbox" value="PRESENCIAL" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
                                 <span>PRESENCIAL</span>
                             </label>
+                            <label style="display: inline-flex; align-items: center; padding: 6px 12px; background: white; border: 2px solid #667eea; border-radius: 20px; cursor: pointer; transition: all 0.2s;">
+                                <input type="checkbox" value="PILAR" checked onchange="actualizarMedicosSeleccionados()" style="margin-right: 6px;">
+                                <span>PILAR</span>
+                            </label>
                         </div>
                         <div id="medicosSeleccionadosInfo" style="margin-top: 8px; color: #666; font-size: 14px;"></div>
                     </div>
@@ -542,6 +546,7 @@
                             <option value="MARY">MARY</option>
                             <option value="NUBIA">NUBIA</option>
                             <option value="PRESENCIAL">PRESENCIAL</option>
+                            <option value="PILAR">PILAR</option>
                         </select>
                         <div style="display: flex; gap: 10px;">
                             <button onclick="guardarMedico()" style="flex: 1; background: #10b981; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600;">Guardar</button>
