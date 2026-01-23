@@ -8031,8 +8031,8 @@ def informe_condiciones_salud():
 
         logger.info(f"📊 Generando informe para empresa: {cod_empresa}, período: {fecha_inicio} - {fecha_fin}")
 
-        # Paso 1: Obtener datos de HistoriaClinica desde Wix
-        historia_clinica_items = obtener_historia_clinica_wix(cod_empresa, fecha_inicio, fecha_fin)
+        # Paso 1: Obtener datos de HistoriaClinica desde PostgreSQL
+        historia_clinica_items = obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin)
         total_atenciones = len(historia_clinica_items)
 
         logger.info(f"✅ Total atenciones encontradas: {total_atenciones}")
@@ -8048,14 +8048,14 @@ def informe_condiciones_salud():
                 'fechaFin': fecha_fin
             })
 
-        # Obtener IDs para cruzar con FORMULARIO
+        # Obtener IDs (_id de HistoriaClinica) para cruzar con FORMULARIO (wix_id)
         historia_ids = [item.get('_id') for item in historia_clinica_items if item.get('_id')]
 
         # Paso 2: Obtener datos de la empresa
         empresa_info = obtener_empresa_wix(cod_empresa)
 
-        # Paso 3: Obtener datos de FORMULARIO
-        formulario_items = obtener_formularios_por_ids_wix(historia_ids)
+        # Paso 3: Obtener datos de FORMULARIO desde PostgreSQL
+        formulario_items = obtener_formularios_por_ids_postgres(historia_ids)
         total_formularios = len(formulario_items)
 
         logger.info(f"✅ Total formularios encontrados: {total_formularios}")
@@ -8096,6 +8096,115 @@ def informe_condiciones_salud():
             'success': False,
             'error': str(e)
         }), 500
+
+
+def obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin):
+    """Obtiene registros de HistoriaClinica desde PostgreSQL"""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            logger.warning("⚠️ POSTGRES_PASSWORD no configurada")
+            return []
+
+        # Conectar a PostgreSQL
+        logger.info(f"🔌 [PostgreSQL] Conectando para obtener HistoriaClinica")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Consultar HistoriaClinica
+        query = """
+            SELECT *
+            FROM "HistoriaClinica"
+            WHERE "codEmpresa" = %s
+              AND "fechaAtencion" >= %s::date
+              AND "fechaAtencion" <= %s::date
+            ORDER BY "fechaAtencion" DESC
+        """
+
+        cur.execute(query, (cod_empresa, fecha_inicio, fecha_fin))
+        rows = cur.fetchall()
+
+        # Convertir a lista de diccionarios
+        items = [dict(row) for row in rows]
+
+        cur.close()
+        conn.close()
+
+        logger.info(f"✅ [PostgreSQL] Obtenidos {len(items)} registros de HistoriaClinica")
+        return items
+
+    except ImportError:
+        logger.error("⚠️ [PostgreSQL] psycopg2 no está instalado")
+        return []
+    except Exception as e:
+        logger.error(f"❌ [PostgreSQL] Error obteniendo HistoriaClinica: {e}")
+        traceback.print_exc()
+        return []
+
+
+def obtener_formularios_por_ids_postgres(historia_ids):
+    """Obtiene formularios por wix_ids de HistoriaClinica desde PostgreSQL"""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        if not historia_ids:
+            return []
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            logger.warning("⚠️ POSTGRES_PASSWORD no configurada")
+            return []
+
+        # Conectar a PostgreSQL
+        logger.info(f"🔌 [PostgreSQL] Conectando para obtener Formularios")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Los _id de HistoriaClinica corresponden a wix_id en formularios
+        # Consultar formularios por wix_id
+        query = """
+            SELECT *
+            FROM formularios
+            WHERE wix_id = ANY(%s)
+        """
+
+        cur.execute(query, (historia_ids,))
+        rows = cur.fetchall()
+
+        # Convertir a lista de diccionarios
+        items = [dict(row) for row in rows]
+
+        cur.close()
+        conn.close()
+
+        logger.info(f"✅ [PostgreSQL] Obtenidos {len(items)} formularios")
+        return items
+
+    except ImportError:
+        logger.error("⚠️ [PostgreSQL] psycopg2 no está instalado")
+        return []
+    except Exception as e:
+        logger.error(f"❌ [PostgreSQL] Error obteniendo formularios: {e}")
+        traceback.print_exc()
+        return []
 
 
 def obtener_historia_clinica_wix(cod_empresa, fecha_inicio, fecha_fin):
@@ -8247,7 +8356,8 @@ def contar_estado_civil(items):
     estados = {'soltero': 0, 'casado': 0, 'divorciado': 0, 'viudo': 0, 'unionLibre': 0}
 
     for item in items:
-        estado = str(item.get('estadoCivil', '')).upper().strip()
+        # PostgreSQL usa estado_civil, Wix usa estadoCivil
+        estado = str(item.get('estado_civil', item.get('estadoCivil', ''))).upper().strip()
         if estado == 'SOLTERO':
             estados['soltero'] += 1
         elif estado == 'CASADO':
@@ -8275,7 +8385,8 @@ def contar_nivel_educativo(items):
     niveles = {'primaria': 0, 'secundaria': 0, 'universitario': 0, 'postgrado': 0}
 
     for item in items:
-        nivel = str(item.get('nivelEducativo', '')).upper().strip()
+        # PostgreSQL usa nivel_educativo, Wix usa nivelEducativo
+        nivel = str(item.get('nivel_educativo', item.get('nivelEducativo', ''))).upper().strip()
         if nivel == 'PRIMARIA':
             niveles['primaria'] += 1
         elif nivel == 'SECUNDARIA':
@@ -8330,7 +8441,8 @@ def contar_ciudad_residencia(items):
     ciudades_map = {}
 
     for item in items:
-        ciudad = str(item.get('ciudadDeResidencia', '')).upper().strip()
+        # PostgreSQL usa ciudad_residencia, Wix usa ciudadDeResidencia
+        ciudad = str(item.get('ciudad_residencia', item.get('ciudadDeResidencia', ''))).upper().strip()
         if ciudad:
             ciudades_map[ciudad] = ciudades_map.get(ciudad, 0) + 1
 
@@ -8351,7 +8463,8 @@ def contar_profesion(items):
     profesiones_map = {}
 
     for item in items:
-        profesion = str(item.get('profesionUOficio', '')).upper().strip()
+        # PostgreSQL usa profesion_oficio, Wix usa profesionUOficio
+        profesion = str(item.get('profesion_oficio', item.get('profesionUOficio', ''))).upper().strip()
         if profesion:
             profesiones_map[profesion] = profesiones_map.get(profesion, 0) + 1
 
@@ -8371,13 +8484,47 @@ def contar_encuesta_salud(items):
     total = len(items)
     respuestas_map = {}
 
+    # Campos de salud en PostgreSQL (snake_case) vs Wix (camelCase o array)
+    campos_salud_postgres = [
+        ('dolor_cabeza', 'Dolor de Cabeza'),
+        ('dolor_espalda', 'Dolor de Espalda'),
+        ('ruido_jaqueca', 'Ruido/Jaqueca'),
+        ('problemas_sueno', 'Problemas de Sueño'),
+        ('presion_alta', 'Presión Alta'),
+        ('problemas_azucar', 'Problemas de Azúcar'),
+        ('problemas_cardiacos', 'Problemas Cardíacos'),
+        ('enfermedad_pulmonar', 'Enfermedad Pulmonar'),
+        ('enfermedad_higado', 'Enfermedad del Hígado'),
+        ('hernias', 'Hernias'),
+        ('hormigueos', 'Hormigueos'),
+        ('varices', 'Varices'),
+        ('hepatitis', 'Hepatitis'),
+        ('cirugia_ocular', 'Cirugía Ocular'),
+        ('cirugia_programada', 'Cirugía Programada'),
+        ('condicion_medica', 'Condición Médica'),
+        ('embarazo', 'Embarazo'),
+        ('fuma', 'Fuma'),
+        ('consumo_licor', 'Consumo de Licor'),
+        ('ejercicio', 'Ejercicio'),
+        ('usa_anteojos', 'Usa Anteojos'),
+        ('usa_lentes_contacto', 'Usa Lentes de Contacto')
+    ]
+
     for item in items:
+        # Intentar primero el formato Wix (array encuestaSalud)
         encuesta = item.get('encuestaSalud', [])
-        if isinstance(encuesta, list):
+        if isinstance(encuesta, list) and len(encuesta) > 0:
             for respuesta in encuesta:
                 resp = str(respuesta).upper().strip()
                 if resp:
                     respuestas_map[resp] = respuestas_map.get(resp, 0) + 1
+        else:
+            # Formato PostgreSQL (campos individuales)
+            for campo_db, nombre_display in campos_salud_postgres:
+                valor = str(item.get(campo_db, '')).upper().strip()
+                # Solo contar respuestas afirmativas (SÍ, SI, S, TRUE, 1, etc.)
+                if valor in ['SÍ', 'SI', 'S', 'TRUE', '1', 'YES', 'Y']:
+                    respuestas_map[nombre_display.upper()] = respuestas_map.get(nombre_display.upper(), 0) + 1
 
     respuestas = sorted([
         {
