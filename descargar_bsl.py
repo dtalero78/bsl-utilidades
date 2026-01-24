@@ -8048,15 +8048,20 @@ def informe_condiciones_salud():
                 'fechaFin': fecha_fin
             })
 
-        # Obtener IDs (_id de HistoriaClinica) para cruzar con FORMULARIO (wix_id)
-        historia_ids = [item.get('_id') for item in historia_clinica_items if item.get('_id')]
-
         # Paso 2: Obtener datos de la empresa
         empresa_info = obtener_empresa_wix(cod_empresa)
 
         # Paso 3: Obtener datos de FORMULARIO desde PostgreSQL
-        formulario_items = obtener_formularios_por_ids_postgres(historia_ids)
+        # Estrategia 1: Por empresa y rango de fechas (más confiable)
+        formulario_items = obtener_formularios_por_empresa_postgres(cod_empresa, fecha_inicio, fecha_fin)
         total_formularios = len(formulario_items)
+
+        # Estrategia 2 (fallback): Si no hay formularios, intentar por wix_id
+        if total_formularios == 0:
+            logger.info("⚠️ No se encontraron formularios por empresa, intentando por wix_id")
+            historia_ids = [item.get('_id') for item in historia_clinica_items if item.get('_id')]
+            formulario_items = obtener_formularios_por_ids_postgres(historia_ids)
+            total_formularios = len(formulario_items)
 
         logger.info(f"✅ Total formularios encontrados: {total_formularios}")
 
@@ -8148,6 +8153,59 @@ def obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin):
         return []
     except Exception as e:
         logger.error(f"❌ [PostgreSQL] Error obteniendo HistoriaClinica: {e}")
+        traceback.print_exc()
+        return []
+
+
+def obtener_formularios_por_empresa_postgres(cod_empresa, fecha_inicio, fecha_fin):
+    """Obtiene formularios por codEmpresa y rango de fechas desde PostgreSQL"""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            logger.warning("⚠️ POSTGRES_PASSWORD no configurada")
+            return []
+
+        # Conectar a PostgreSQL
+        logger.info(f"🔌 [PostgreSQL] Conectando para obtener Formularios por empresa")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Consultar formularios por cod_empresa y rango de fechas
+        query = """
+            SELECT *
+            FROM formularios
+            WHERE cod_empresa = %s
+              AND fecha_registro >= %s::date
+              AND fecha_registro <= %s::date
+        """
+
+        cur.execute(query, (cod_empresa, fecha_inicio, fecha_fin))
+        rows = cur.fetchall()
+
+        # Convertir a lista de diccionarios
+        items = [dict(row) for row in rows]
+
+        cur.close()
+        conn.close()
+
+        logger.info(f"✅ [PostgreSQL] Obtenidos {len(items)} formularios por empresa")
+        return items
+
+    except ImportError:
+        logger.error("⚠️ [PostgreSQL] psycopg2 no está instalado")
+        return []
+    except Exception as e:
+        logger.error(f"❌ [PostgreSQL] Error obteniendo formularios por empresa: {e}")
         traceback.print_exc()
         return []
 
