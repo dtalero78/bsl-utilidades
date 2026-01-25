@@ -917,5 +917,60 @@
         {% endif %}
     </section>
 
+    <!-- CONCLUSIONES Y RECOMENDACIONES FINALES -->
+    <section class="page-break">
+        <div class="section-header" style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+            <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Conclusiones y Recomendaciones</h2>
+            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Análisis General y Recomendaciones para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
+        </div>
+
+        {% if conclusiones_finales %}
+        <div style="margin-bottom: 40px;">
+            {% for conclusion in conclusiones_finales %}
+            <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                <p style="margin: 0; line-height: 1.6; text-align: justify;">
+                    <strong style="color: #1e40af;">{{ loop.index }}.</strong> {{ conclusion }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Firma del Médico -->
+        <div style="margin-top: 50px; page-break-inside: avoid;">
+            <div style="border-top: 2px solid #e5e7eb; padding-top: 30px;">
+                <div style="text-align: center;">
+                    {% if firma_medico_base64 %}
+                    <div style="margin-bottom: 10px;">
+                        <img src="data:image/jpeg;base64,{{ firma_medico_base64 }}" alt="Firma" style="max-width: 200px; height: auto;">
+                    </div>
+                    {% endif %}
+
+                    <div style="border-top: 2px solid #1e40af; width: 300px; margin: 0 auto 10px auto;"></div>
+
+                    <p style="margin: 5px 0; font-weight: bold; font-size: 16px; color: #1e40af;">
+                        {{ medico_firmante.nombre }}
+                    </p>
+                    <p style="margin: 3px 0; font-size: 13px; color: #64748b;">
+                        {{ medico_firmante.registro }}
+                    </p>
+                    <p style="margin: 3px 0; font-size: 13px; color: #64748b;">
+                        {{ medico_firmante.licencia }}
+                    </p>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #94a3b8;">
+                        Médico Especialista en Salud Ocupacional
+                    </p>
+                </div>
+            </div>
+
+            <!-- Fecha de elaboración -->
+            <div style="margin-top: 30px; text-align: center; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+                <p style="margin: 0; font-size: 13px; color: #475569;">
+                    Elaborado el: <strong>{{ fecha_elaboracion }}</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
 </body>
 </html>

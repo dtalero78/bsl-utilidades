@@ -8976,6 +8976,114 @@ def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel
     return image_base64
 
 
+def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
+    """
+    Genera conclusiones y recomendaciones finales basadas en las estadísticas del informe.
+
+    Args:
+        estadisticas: dict con todas las estadísticas calculadas
+        total_atenciones: int número total de atenciones
+        cod_empresa: str código de la empresa
+
+    Returns:
+        list de conclusiones/recomendaciones
+    """
+    conclusiones = []
+
+    # 1. Conclusión sobre cobertura
+    conclusiones.append(
+        f"Durante el período analizado se realizaron {total_atenciones} evaluaciones médicas ocupacionales "
+        f"a los trabajadores de {cod_empresa}, cumpliendo con los requisitos establecidos en la normatividad vigente "
+        f"de salud ocupacional y seguridad en el trabajo."
+    )
+
+    # 2. Conclusión sobre demografía de género
+    if estadisticas.get('genero'):
+        masculino_pct = estadisticas['genero'].get('masculino', {}).get('porcentaje', 0)
+        femenino_pct = estadisticas['genero'].get('femenino', {}).get('porcentaje', 0)
+        genero_predominante = "masculina" if masculino_pct > femenino_pct else "femenina"
+        conclusiones.append(
+            f"La población trabajadora evaluada presenta una composición predominantemente {genero_predominante} "
+            f"({max(masculino_pct, femenino_pct):.1f}%), lo cual debe considerarse para el diseño de programas "
+            f"de prevención y promoción de la salud enfocados en las necesidades específicas de cada grupo."
+        )
+
+    # 3. Conclusión sobre edad
+    if estadisticas.get('edad'):
+        rangos = estadisticas['edad'].get('rangos', {})
+        rango_mayor = max(rangos.items(), key=lambda x: x[1].get('cantidad', 0))
+        rango_nombre = {
+            '15-20': 'joven (15-20 años)',
+            '21-30': 'joven adulto (21-30 años)',
+            '31-40': 'adulto (31-40 años)',
+            '41-50': 'adulto maduro (41-50 años)',
+            'mayor50': 'mayor de 50 años'
+        }.get(rango_mayor[0], rango_mayor[0])
+
+        conclusiones.append(
+            f"El grupo etario más representativo corresponde a población {rango_nombre} "
+            f"({rango_mayor[1].get('porcentaje', 0):.1f}%), lo que implica la necesidad de implementar "
+            f"estrategias preventivas específicas para este rango de edad, considerando los factores "
+            f"de riesgo ocupacional asociados."
+        )
+
+    # 4. Conclusión sobre diagnósticos (si hay)
+    if estadisticas.get('diagnosticos'):
+        diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
+        if diagnosticos_list:
+            total_diagnosticos = len([d for d in diagnosticos_list if d.get('total', 0) > 0])
+            conclusiones.append(
+                f"Se identificaron {total_diagnosticos} diferentes condiciones de salud en la población evaluada, "
+                f"siendo fundamental establecer un sistema de vigilancia epidemiológica que permita el seguimiento "
+                f"y control de las condiciones más prevalentes, con énfasis en aquellas relacionadas con el trabajo."
+            )
+
+    # 5. Recomendación sobre exámenes periódicos
+    conclusiones.append(
+        "Se recomienda mantener la periodicidad de las evaluaciones médicas ocupacionales según lo establecido "
+        "en la normatividad vigente, con el fin de realizar seguimiento continuo al estado de salud de los trabajadores "
+        "y detectar oportunamente cualquier alteración relacionada con las condiciones de trabajo."
+    )
+
+    # 6. Recomendación sobre sistemas de vigilancia
+    conclusiones.append(
+        "Es necesario fortalecer los Sistemas de Vigilancia Epidemiológica (SVE) existentes, particularmente "
+        "en conservación visual, auditiva y osteomuscular, garantizando que todos los trabajadores expuestos "
+        "a factores de riesgo específicos sean monitoreados de manera sistemática y oportuna."
+    )
+
+    # 7. Recomendación sobre capacitación
+    conclusiones.append(
+        "Se debe implementar un programa continuo de capacitación en prevención de riesgos laborales, "
+        "autocuidado y estilos de vida saludable, adaptado a las características demográficas y ocupacionales "
+        "de la población trabajadora identificadas en este informe."
+    )
+
+    # 8. Recomendación sobre equipos de protección
+    conclusiones.append(
+        "Garantizar la dotación, uso adecuado y mantenimiento de los elementos de protección personal (EPP) "
+        "requeridos según el análisis de riesgos de cada puesto de trabajo, realizando inspecciones periódicas "
+        "y reforzando la cultura de seguridad en toda la organización."
+    )
+
+    # 9. Recomendación sobre seguimiento
+    conclusiones.append(
+        "Establecer un sistema de seguimiento sistemático para todos los casos que requieran restricciones "
+        "o recomendaciones médico-laborales, asegurando el cumplimiento de las mismas y la reubicación "
+        "adecuada cuando sea necesario, en cumplimiento de la normatividad de inclusión laboral."
+    )
+
+    # 10. Conclusión final
+    conclusiones.append(
+        "La información presentada en este informe constituye una herramienta fundamental para la toma "
+        "de decisiones en materia de seguridad y salud en el trabajo, permitiendo a la empresa priorizar "
+        "acciones preventivas y correctivas que contribuyan al bienestar integral de sus trabajadores "
+        "y al cumplimiento de la normatividad vigente en salud ocupacional."
+    )
+
+    return conclusiones
+
+
 @app.route('/api/generar-pdf-informe', methods=['POST', 'OPTIONS'])
 def generar_pdf_informe():
     """
@@ -9145,6 +9253,16 @@ def generar_pdf_informe():
             with open(logo_path, 'rb') as f:
                 logo_base64 = base64.b64encode(f.read()).decode('utf-8')
 
+        # 2.1 Convertir firma del Dr. Reátiga a base64
+        firma_reatiga_path = os.path.join(os.path.dirname(__file__), 'static', 'FIRMA-JUAN134.jpeg')
+        firma_reatiga_base64 = ''
+        if os.path.exists(firma_reatiga_path):
+            with open(firma_reatiga_path, 'rb') as f:
+                firma_reatiga_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+        # 2.2 Generar conclusiones finales
+        conclusiones_finales = generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa)
+
         # 2.5 Generar gráficos con matplotlib
         logger.info("📊 Generando gráficos con matplotlib...")
         graficos = {}
@@ -9303,6 +9421,14 @@ def generar_pdf_informe():
             template_content = f.read()
 
         template = Template(template_content)
+        # Datos del médico firmante
+        medico_firmante = {
+            'nombre': 'JUAN JOSE REATIGA',
+            'registro': 'C.C.: 7.472.676 - REGISTRO MEDICO NO 14791',
+            'licencia': 'LICENCIA SALUD OCUPACIONAL 460',
+            'fecha': '6 DE JULIO DE 2020'
+        }
+
         html_rendered = template.render(
             empresa_nombre=cod_empresa,
             empresa_nit='',  # TODO: obtener NIT de la empresa si está disponible
@@ -9315,7 +9441,10 @@ def generar_pdf_informe():
             logo_base64=logo_base64,
             info_teorica=info_teorica,
             stats=estadisticas,
-            graficos=graficos
+            graficos=graficos,
+            conclusiones_finales=conclusiones_finales,
+            medico_firmante=medico_firmante,
+            firma_medico_base64=firma_reatiga_base64
         )
 
         # 5. Guardar HTML temporal
