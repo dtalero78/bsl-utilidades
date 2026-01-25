@@ -8770,10 +8770,216 @@ def serve_informes():
     return send_from_directory('static', 'informes.html')
 
 
+def generar_grafico_pie(datos, titulo, colores=None):
+    """
+    Genera un gráfico de torta (pie chart) y retorna la imagen en base64.
+
+    Args:
+        datos: dict con formato {'label': valor}
+        titulo: str con el título del gráfico
+        colores: list de colores hexadecimales (opcional)
+
+    Returns:
+        str: imagen en formato base64
+    """
+    import matplotlib
+    matplotlib.use('Agg')  # Backend sin GUI
+    import matplotlib.pyplot as plt
+    from io import BytesIO
+
+    # Filtrar valores vacíos o cero
+    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
+
+    if not datos_filtrados:
+        return None
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    labels = list(datos_filtrados.keys())
+    sizes = list(datos_filtrados.values())
+
+    # Colores por defecto (BSL palette)
+    if not colores:
+        colores = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#fee2e2', '#fca5a5', '#f87171']
+
+    # Crear el gráfico
+    wedges, texts, autotexts = ax.pie(
+        sizes,
+        labels=labels,
+        autopct='%1.1f%%',
+        colors=colores[:len(sizes)],
+        startangle=90,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+
+    # Hacer el texto de porcentaje blanco
+    for autotext in autotexts:
+        autotext.set_color('white')
+
+    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
+
+    # Convertir a base64
+    buffer = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    plt.close(fig)
+
+    return image_base64
+
+
+def generar_grafico_barras(datos, titulo, xlabel='', ylabel='Cantidad', colores=None):
+    """
+    Genera un gráfico de barras y retorna la imagen en base64.
+
+    Args:
+        datos: dict con formato {'label': valor}
+        titulo: str con el título del gráfico
+        xlabel: str con etiqueta del eje X
+        ylabel: str con etiqueta del eje Y
+        colores: list de colores hexadecimales (opcional)
+
+    Returns:
+        str: imagen en formato base64
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from io import BytesIO
+
+    # Filtrar valores vacíos o cero
+    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
+
+    if not datos_filtrados:
+        return None
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    labels = list(datos_filtrados.keys())
+    values = list(datos_filtrados.values())
+
+    # Colores por defecto
+    if not colores:
+        colores = ['#1e40af'] * len(values)
+
+    # Crear el gráfico
+    bars = ax.bar(labels, values, color=colores[:len(values)], edgecolor='white', linewidth=1.5)
+
+    # Agregar valores encima de las barras
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.,
+            height,
+            f'{int(height)}',
+            ha='center',
+            va='bottom',
+            fontsize=10,
+            weight='bold'
+        )
+
+    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
+    ax.set_xlabel(xlabel, fontsize=11, weight='bold')
+    ax.set_ylabel(ylabel, fontsize=11, weight='bold')
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+
+    # Rotar etiquetas si son largas
+    plt.xticks(rotation=45, ha='right')
+
+    # Convertir a base64
+    buffer = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    plt.close(fig)
+
+    return image_base64
+
+
+def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel='', colores=None, max_items=15):
+    """
+    Genera un gráfico de barras horizontales y retorna la imagen en base64.
+    Útil para datos con muchas categorías o etiquetas largas.
+
+    Args:
+        datos: dict con formato {'label': valor}
+        titulo: str con el título del gráfico
+        xlabel: str con etiqueta del eje X
+        ylabel: str con etiqueta del eje Y
+        colores: list de colores hexadecimales (opcional)
+        max_items: int número máximo de items a mostrar
+
+    Returns:
+        str: imagen en formato base64
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from io import BytesIO
+
+    # Filtrar valores vacíos o cero
+    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
+
+    if not datos_filtrados:
+        return None
+
+    # Ordenar por valor descendente y tomar top N
+    datos_ordenados = dict(sorted(datos_filtrados.items(), key=lambda x: x[1], reverse=True)[:max_items])
+
+    labels = list(datos_ordenados.keys())
+    values = list(datos_ordenados.values())
+
+    # Ajustar altura de figura según número de items
+    altura = max(6, len(labels) * 0.4)
+    fig, ax = plt.subplots(figsize=(10, altura))
+
+    # Colores por defecto
+    if not colores:
+        colores = ['#1e40af'] * len(values)
+
+    # Crear el gráfico (invertir para que el mayor esté arriba)
+    y_pos = range(len(labels))
+    bars = ax.barh(y_pos, values, color=colores[:len(values)], edgecolor='white', linewidth=1.5)
+
+    # Agregar valores al final de las barras
+    for i, (bar, value) in enumerate(zip(bars, values)):
+        width = bar.get_width()
+        ax.text(
+            width,
+            bar.get_y() + bar.get_height() / 2.,
+            f' {int(value)}',
+            ha='left',
+            va='center',
+            fontsize=9,
+            weight='bold'
+        )
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(labels)
+    ax.invert_yaxis()  # Mayor valor arriba
+    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
+    ax.set_xlabel(xlabel, fontsize=11, weight='bold')
+    if ylabel:
+        ax.set_ylabel(ylabel, fontsize=11, weight='bold')
+    ax.grid(axis='x', alpha=0.3, linestyle='--')
+
+    # Convertir a base64
+    buffer = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    plt.close(fig)
+
+    return image_base64
+
+
 @app.route('/api/generar-pdf-informe', methods=['POST', 'OPTIONS'])
 def generar_pdf_informe():
     """
-    Genera un PDF profesional del informe de condiciones de salud usando Playwright.
+    Genera un PDF profesional del informe de condiciones de salud usando WeasyPrint con gráficos matplotlib.
 
     Recibe:
         - codEmpresa: Código de la empresa
@@ -8939,6 +9145,98 @@ def generar_pdf_informe():
             with open(logo_path, 'rb') as f:
                 logo_base64 = base64.b64encode(f.read()).decode('utf-8')
 
+        # 2.5 Generar gráficos con matplotlib
+        logger.info("📊 Generando gráficos con matplotlib...")
+        graficos = {}
+
+        # Gráfico de género (pie chart)
+        if estadisticas.get('genero'):
+            genero_data = estadisticas['genero'].get('conteos', {})
+            graficos['genero'] = generar_grafico_pie(
+                genero_data,
+                'Distribución por Género',
+                colores=['#3b82f6', '#ec4899', '#a855f7']
+            )
+
+        # Gráfico de edad (bar chart)
+        if estadisticas.get('edad'):
+            edad_data = estadisticas['edad'].get('conteos', {})
+            graficos['edad'] = generar_grafico_barras(
+                edad_data,
+                'Distribución por Edad',
+                xlabel='Rango de Edad',
+                ylabel='Cantidad de Trabajadores',
+                colores=['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe']
+            )
+
+        # Gráfico de estado civil (pie chart)
+        if estadisticas.get('estadoCivil'):
+            estado_civil_data = estadisticas['estadoCivil'].get('conteos', {})
+            graficos['estadoCivil'] = generar_grafico_pie(
+                estado_civil_data,
+                'Distribución por Estado Civil',
+                colores=['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+            )
+
+        # Gráfico de nivel educativo (bar chart)
+        if estadisticas.get('nivelEducativo'):
+            nivel_educativo_data = estadisticas['nivelEducativo'].get('conteos', {})
+            graficos['nivelEducativo'] = generar_grafico_barras(
+                nivel_educativo_data,
+                'Distribución por Nivel Educativo',
+                xlabel='Nivel Educativo',
+                ylabel='Cantidad de Trabajadores',
+                colores=['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0']
+            )
+
+        # Gráfico de hijos (bar chart)
+        if estadisticas.get('hijos'):
+            hijos_data = estadisticas['hijos'].get('conteos', {})
+            graficos['hijos'] = generar_grafico_barras(
+                hijos_data,
+                'Distribución por Número de Hijos',
+                xlabel='Número de Hijos',
+                ylabel='Cantidad de Trabajadores',
+                colores=['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7']
+            )
+
+        # Gráfico de ciudad de residencia (barras horizontales - puede haber muchas)
+        if estadisticas.get('ciudadResidencia'):
+            ciudad_data = estadisticas['ciudadResidencia'].get('conteos', {})
+            graficos['ciudadResidencia'] = generar_grafico_barras_horizontales(
+                ciudad_data,
+                'Top 15 Ciudades de Residencia',
+                xlabel='Cantidad de Trabajadores',
+                colores=['#6366f1'],
+                max_items=15
+            )
+
+        # Gráfico de profesión (barras horizontales - puede haber muchas)
+        if estadisticas.get('profesionUOficio'):
+            profesion_data = estadisticas['profesionUOficio'].get('conteos', {})
+            graficos['profesionUOficio'] = generar_grafico_barras_horizontales(
+                profesion_data,
+                'Top 15 Profesiones u Oficios',
+                xlabel='Cantidad de Trabajadores',
+                colores=['#8b5cf6'],
+                max_items=15
+            )
+
+        # Gráfico de diagnósticos (barras horizontales - suelen ser muchos)
+        if estadisticas.get('diagnosticos'):
+            diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
+            # Convertir lista a dict para el gráfico
+            diagnosticos_data = {diag['diagnostico']: diag['total'] for diag in diagnosticos_list if diag.get('total', 0) > 0}
+            graficos['diagnosticos'] = generar_grafico_barras_horizontales(
+                diagnosticos_data,
+                'Top 15 Diagnósticos Encontrados',
+                xlabel='Número de Casos',
+                colores=['#ef4444'],
+                max_items=15
+            )
+
+        logger.info(f"✅ Gráficos generados: {list(graficos.keys())}")
+
         # 3. Formatear fechas en español
         def formatear_fecha_espanol(fecha_str):
             try:
@@ -8978,7 +9276,8 @@ def generar_pdf_informe():
             total_diagnosticos=len(estadisticas.get('diagnosticos', {}).get('diagnosticos', [])),
             logo_base64=logo_base64,
             info_teorica=info_teorica,
-            stats=estadisticas
+            stats=estadisticas,
+            graficos=graficos
         )
 
         # 5. Guardar HTML temporal

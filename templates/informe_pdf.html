@@ -570,6 +570,12 @@
                 <div class="distribution-label">Femenino ({{ stats.genero.femenino.cantidad }})</div>
             </div>
         </div>
+
+        {% if graficos.genero %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.genero }}" alt="Gráfico de Género" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- EDAD -->
@@ -612,6 +618,12 @@
                 </tr>
             </tbody>
         </table>
+
+        {% if graficos.edad %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.edad }}" alt="Gráfico de Edad" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- ESTADO CIVIL -->
@@ -654,6 +666,12 @@
                 </tr>
             </tbody>
         </table>
+
+        {% if graficos.estadoCivil %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.estadoCivil }}" alt="Gráfico de Estado Civil" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- NIVEL EDUCATIVO -->
@@ -691,6 +709,12 @@
                 </tr>
             </tbody>
         </table>
+
+        {% if graficos.nivelEducativo %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.nivelEducativo }}" alt="Gráfico de Nivel Educativo" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- HIJOS -->
@@ -728,6 +752,12 @@
                 </tr>
             </tbody>
         </table>
+
+        {% if graficos.hijos %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.hijos }}" alt="Gráfico de Número de Hijos" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- CIUDAD DE RESIDENCIA -->
@@ -752,6 +782,12 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if graficos.ciudadResidencia %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.ciudadResidencia }}" alt="Gráfico de Ciudad de Residencia" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- PROFESIÓN U OFICIO -->
@@ -776,6 +812,12 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if graficos.profesionUOficio %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.profesionUOficio }}" alt="Gráfico de Profesión u Oficio" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- ENCUESTA DE SALUD -->
@@ -824,6 +866,12 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if graficos.diagnosticos %}
+        <div style="text-align: center; margin-top: 30px;">
+            <img src="data:image/png;base64,{{ graficos.diagnosticos }}" alt="Gráfico de Diagnósticos" style="max-width: 100%; height: auto;">
+        </div>
+        {% endif %}
     </section>
 
     <!-- SISTEMA DE VIGILANCIA EPIDEMIOLÓGICA -->
