@@ -9193,7 +9193,7 @@ def generar_pdf_informe():
                 )
                 cursor_pg = conn_empresa.cursor(cursor_factory=RealDictCursor)
                 cursor_pg.execute(
-                    "SELECT razon_social, nit FROM empresa WHERE cod_empresa = %s",
+                    "SELECT empresa, nit FROM empresas WHERE cod_empresa = %s",
                     (cod_empresa,)
                 )
                 empresa_row = cursor_pg.fetchone()
@@ -9201,7 +9201,7 @@ def generar_pdf_informe():
                 conn_empresa.close()
 
                 if empresa_row:
-                    empresa_razon_social = empresa_row.get('razon_social') or cod_empresa
+                    empresa_razon_social = empresa_row.get('empresa') or cod_empresa
                     empresa_nit = empresa_row.get('nit') or ''
                     logger.info(f"✅ Empresa encontrada: {empresa_razon_social} (NIT: {empresa_nit})")
                 else:
