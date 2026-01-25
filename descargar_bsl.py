@@ -8986,83 +8986,41 @@ def generar_pdf_informe():
             temp_html.write(html_rendered)
             temp_html_path = temp_html.name
 
-        # 6. Generar PDF con Playwright
+        # 6. Generar PDF con WeasyPrint
+        from weasyprint import HTML, CSS
+
         pdf_path = temp_html_path.replace('.html', '.pdf')
 
-        # Script Node.js para Playwright
-        playwright_script = f"""
-const {{ chromium }} = require('playwright');
-
-(async () => {{
-    const browser = await chromium.launch({{
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }});
-
-    const page = await browser.newPage();
-
-    // Cargar el HTML
-    await page.goto('file://{temp_html_path}', {{ waitUntil: 'networkidle' }});
-
-    // Esperar a que se carguen todas las fuentes
-    await page.waitForTimeout(2000);
-
-    // Generar PDF con opciones optimizadas
-    await page.pdf({{
-        path: '{pdf_path}',
-        format: 'A4',
-        printBackground: true,
-        margin: {{
-            top: '20mm',
-            right: '15mm',
-            bottom: '25mm',
-            left: '15mm'
-        }},
-        preferCSSPageSize: true
-    }});
-
-    await browser.close();
-    console.log('PDF generado exitosamente');
-}})();
-"""
-
-        # Guardar script temporal
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_script:
-            temp_script.write(playwright_script)
-            temp_script_path = temp_script.name
-
-        # Ejecutar Playwright
         try:
-            # Ruta a node_modules
-            node_modules_path = os.path.join(os.path.dirname(__file__), 'node_modules')
+            logger.info(f"🔄 Generando PDF con WeasyPrint...")
 
-            result = subprocess.run(
-                ['node', temp_script_path],
-                capture_output=True,
-                text=True,
-                timeout=90,
-                env={**os.environ, 'NODE_PATH': node_modules_path}
+            # Generar PDF directamente desde el HTML
+            HTML(filename=temp_html_path).write_pdf(
+                pdf_path,
+                stylesheets=[
+                    # CSS adicional para mejorar la impresión
+                    CSS(string='''
+                        @page {
+                            size: A4;
+                            margin: 20mm 15mm 25mm 15mm;
+                        }
+                        body {
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                        }
+                    ''')
+                ]
             )
 
-            if result.returncode != 0:
-                logger.error(f"❌ Error ejecutando Playwright: {result.stderr}")
-                raise Exception(f"Error generando PDF: {result.stderr}")
-
-            logger.info(f"✅ PDF generado exitosamente: {pdf_path}")
-
-        except subprocess.TimeoutExpired:
-            logger.error("❌ Timeout generando PDF con Playwright")
-            raise Exception("Timeout generando PDF")
+            logger.info(f"✅ PDF generado exitosamente con WeasyPrint: {pdf_path}")
 
         except Exception as e:
-            logger.error(f"❌ Error ejecutando Playwright: {str(e)}")
+            logger.error(f"❌ Error generando PDF con WeasyPrint: {str(e)}")
             raise
 
         finally:
-            # Limpiar archivos temporales del script
+            # Limpiar archivo HTML temporal
             try:
                 os.unlink(temp_html_path)
-                os.unlink(temp_script_path)
             except:
                 pass
 

@@ -16,3 +16,4 @@ twilio
 boto3
 psycopg2-binary
 openai
+weasyprint
