@@ -448,7 +448,7 @@
         <h1>Informe de Condiciones de Salud</h1>
         <h2>{{ empresa_nombre }}</h2>
         <div class="portada-info">
-            <p>NIT: {{ empresa_nit }}</p>
+            <p>NIT: {% if empresa_nit %}{{ empresa_nit }}{% else %}N/A{% endif %}</p>
             <p class="periodo">Período: {{ fecha_inicio_formato }} - {{ fecha_fin_formato }}</p>
             <p style="margin-top: 30px; font-size: 11pt;">Fecha de elaboración: {{ fecha_elaboracion }}</p>
         </div>
