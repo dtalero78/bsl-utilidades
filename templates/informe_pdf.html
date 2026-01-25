@@ -54,7 +54,7 @@
             }
 
             @bottom-right {
-                content: "BSL - Sistema de Vigilancia Epidemiológica";
+                content: "BSL - Bienestar y Salud Laboral";
                 font-size: 8pt;
                 color: #a0aec0;
                 font-family: 'Inter', sans-serif;
@@ -69,7 +69,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #00668e 0%, #03978f 100%);
+            background: white;
             text-align: center;
             padding: 60px;
             margin: -20mm -15mm;
@@ -78,13 +78,12 @@
         .portada-logo {
             width: 180px;
             margin-bottom: 40px;
-            background: white;
             padding: 20px;
             border-radius: 15px;
         }
 
         .portada h1 {
-            color: white;
+            color: #00668e;
             font-size: 36pt;
             font-weight: 800;
             margin-bottom: 20px;
@@ -92,22 +91,22 @@
         }
 
         .portada h2 {
-            color: rgba(255, 255, 255, 0.95);
+            color: #03978f;
             font-size: 24pt;
             font-weight: 600;
             margin-bottom: 50px;
         }
 
         .portada-info {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
             padding: 30px 50px;
             border-radius: 15px;
             margin-top: 40px;
         }
 
         .portada-info p {
-            color: white;
+            color: #2d3748;
             font-size: 14pt;
             margin: 10px 0;
         }
@@ -115,7 +114,7 @@
         .portada-info .periodo {
             font-size: 18pt;
             font-weight: 600;
-            color: #d4f1ef;
+            color: #00668e;
             margin-top: 20px;
         }
 
@@ -449,7 +448,6 @@
         <h1>Informe de Condiciones de Salud</h1>
         <h2>{{ empresa_nombre }}</h2>
         <div class="portada-info">
-            <p><strong>Sistema de Vigilancia Epidemiológica Ocupacional</strong></p>
             <p>NIT: {{ empresa_nit }}</p>
             <p class="periodo">Período: {{ fecha_inicio_formato }} - {{ fecha_fin_formato }}</p>
             <p style="margin-top: 30px; font-size: 11pt;">Fecha de elaboración: {{ fecha_elaboracion }}</p>
