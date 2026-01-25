@@ -1110,6 +1110,16 @@
             });
 
             console.log('📝 Recomendaciones IA recopiladas:', Object.keys(recomendacionesIA).length);
+            console.log('📝 Detalle de recomendaciones:', recomendacionesIA);
+
+            const payload = {
+                codEmpresa: datosInforme.codEmpresa,
+                fechaInicio: datosInforme.fechaInicio,
+                fechaFin: datosInforme.fechaFin,
+                recomendacionesIA: recomendacionesIA
+            };
+
+            console.log('📤 Enviando payload al servidor:', payload);
 
             try {
                 const response = await fetch('/api/generar-pdf-informe', {
@@ -1117,12 +1127,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        codEmpresa: datosInforme.codEmpresa,
-                        fechaInicio: datosInforme.fechaInicio,
-                        fechaFin: datosInforme.fechaFin,
-                        recomendacionesIA: recomendacionesIA
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
