@@ -9181,22 +9181,37 @@ def generar_pdf_informe():
         empresa_nit = ''
 
         try:
-            cursor_pg = conexion_pg.cursor(cursor_factory=RealDictCursor)
-            cursor_pg.execute(
-                "SELECT razon_social, nit FROM empresa WHERE cod_empresa = %s",
-                (cod_empresa,)
-            )
-            empresa_row = cursor_pg.fetchone()
-            cursor_pg.close()
+            postgres_password = os.getenv("POSTGRES_PASSWORD")
+            if postgres_password:
+                conn_empresa = psycopg2.connect(
+                    host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+                    port=int(os.getenv("POSTGRES_PORT", "25060")),
+                    user=os.getenv("POSTGRES_USER", "doadmin"),
+                    password=postgres_password,
+                    database=os.getenv("POSTGRES_DB", "defaultdb"),
+                    sslmode='require'
+                )
+                cursor_pg = conn_empresa.cursor(cursor_factory=RealDictCursor)
+                cursor_pg.execute(
+                    "SELECT razon_social, nit FROM empresa WHERE cod_empresa = %s",
+                    (cod_empresa,)
+                )
+                empresa_row = cursor_pg.fetchone()
+                cursor_pg.close()
+                conn_empresa.close()
 
-            if empresa_row:
-                empresa_razon_social = empresa_row.get('razon_social') or cod_empresa
-                empresa_nit = empresa_row.get('nit') or ''
-                logger.info(f"✅ Empresa encontrada: {empresa_razon_social} (NIT: {empresa_nit})")
+                if empresa_row:
+                    empresa_razon_social = empresa_row.get('razon_social') or cod_empresa
+                    empresa_nit = empresa_row.get('nit') or ''
+                    logger.info(f"✅ Empresa encontrada: {empresa_razon_social} (NIT: {empresa_nit})")
+                else:
+                    logger.warning(f"⚠️ No se encontró empresa con código {cod_empresa}, usando código como nombre")
             else:
-                logger.warning(f"⚠️ No se encontró empresa con código {cod_empresa}, usando código como nombre")
+                logger.warning(f"⚠️ POSTGRES_PASSWORD no configurada, usando codEmpresa como nombre")
         except Exception as e:
             logger.error(f"❌ Error al obtener datos de empresa: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
         # 2. Obtener los datos del informe (reutilizar la lógica existente)
         historia_clinica_items = obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin)
