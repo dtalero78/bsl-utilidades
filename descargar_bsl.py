@@ -9115,6 +9115,9 @@ def generar_pdf_informe():
         logger.info(f"📄 Generando PDF del informe para {cod_empresa} ({fecha_inicio} - {fecha_fin})")
         if recomendaciones_ia:
             logger.info(f"📝 Incluidas {len(recomendaciones_ia)} recomendaciones de IA")
+            logger.info(f"📝 Tipos de recomendaciones: {list(recomendaciones_ia.keys())}")
+        else:
+            logger.info(f"⚠️ No se recibieron recomendaciones de IA")
 
         # 1. Obtener los datos del informe (reutilizar la lógica existente)
         historia_clinica_items = obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin)
@@ -9431,6 +9434,11 @@ def generar_pdf_informe():
             'fecha': '6 DE JULIO DE 2020'
         }
 
+        logger.info(f"🎨 Renderizando template con {len(graficos)} gráficos y {len(recomendaciones_ia)} recomendaciones IA")
+        if recomendaciones_ia:
+            for key, value in recomendaciones_ia.items():
+                logger.info(f"  - {key}: {len(value)} caracteres")
+
         html_rendered = template.render(
             empresa_nombre=cod_empresa,
             empresa_nit='',  # TODO: obtener NIT de la empresa si está disponible
@@ -9454,6 +9462,14 @@ def generar_pdf_informe():
         with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
             temp_html.write(html_rendered)
             temp_html_path = temp_html.name
+
+        logger.info(f"💾 HTML temporal guardado en: {temp_html_path}")
+
+        # También guardar una copia para debug
+        debug_html_path = os.path.join(os.path.dirname(__file__), 'debug_informe.html')
+        with open(debug_html_path, 'w', encoding='utf-8') as f:
+            f.write(html_rendered)
+        logger.info(f"🔍 Copia de debug guardada en: {debug_html_path}")
 
         # 6. Generar PDF con WeasyPrint
         from weasyprint import HTML, CSS
