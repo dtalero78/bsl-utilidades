@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Jinja2</title>
+</head>
+<body>
+    <h1>Prueba de Recomendaciones IA</h1>
+
+    <!-- Test 1: Verificar si recomendaciones_ia existe -->
+    <p>recomendaciones_ia = {{ recomendaciones_ia }}</p>
+    <p>length = {{ recomendaciones_ia|length if recomendaciones_ia else 'None' }}</p>
+
+    <!-- Test 2: Condición completa -->
+    {% if recomendaciones_ia and recomendaciones_ia|length > 0 %}
+    <div style="background: #d4edda; padding: 20px; border: 2px solid #28a745; margin: 20px 0;">
+        <h2>✅ ÉXITO: Recomendaciones IA detectadas ({{ recomendaciones_ia|length }})</h2>
+
+        {% if recomendaciones_ia.genero %}
+        <div style="margin: 10px 0; padding: 10px; background: white;">
+            <h3>Género:</h3>
+            <p>{{ recomendaciones_ia.genero }}</p>
+        </div>
+        {% endif %}
+
+        {% if recomendaciones_ia.edad %}
+        <div style="margin: 10px 0; padding: 10px; background: white;">
+            <h3>Edad:</h3>
+            <p>{{ recomendaciones_ia.edad }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div style="background: #fff3cd; padding: 20px; border: 2px solid #ffc107; margin: 20px 0;">
+        <h2>⚠️ No hay recomendaciones IA</h2>
+        <p>recomendaciones_ia = {{ recomendaciones_ia }}</p>
+        <p>Tipo: {{ recomendaciones_ia.__class__.__name__ if recomendaciones_ia else 'None' }}</p>
+    </div>
+    {% endif %}
+</body>
+</html>
