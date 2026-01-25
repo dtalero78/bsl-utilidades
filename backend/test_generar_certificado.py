@@ -30,7 +30,7 @@ datos_certificado = {
     # ========== INFORMACIÓN DE LA CONSULTA ==========
     "fecha_atencion": "FECHA_CONSULTA_DESDE_WIX",
     "ciudad": "Bogotá",
-    "vigencia": "Tres años",
+    "vigencia": "1 año",
     "ips_sede": "Sede norte DHSS0244914",
 
     # ========== FOTO DEL PACIENTE (OPCIONAL) ==========
