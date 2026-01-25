@@ -8793,8 +8793,7 @@ def generar_grafico_pie(datos, titulo, colores=None):
     if not datos_filtrados:
         return None
 
-    # Configurar estilo moderno
-    plt.style.use('seaborn-v0_8-darkgrid')
+    # Configurar figura con fondo blanco
     fig, ax = plt.subplots(figsize=(8, 6), facecolor='white')
 
     labels = list(datos_filtrados.keys())
@@ -8870,8 +8869,7 @@ def generar_grafico_barras(datos, titulo, xlabel='', ylabel='Cantidad', colores=
     if not datos_filtrados:
         return None
 
-    # Estilo moderno
-    plt.style.use('seaborn-v0_8-whitegrid')
+    # Configurar figura con fondo blanco
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
 
     labels = list(datos_filtrados.keys())
@@ -8969,7 +8967,6 @@ def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel
 
     # Ajustar altura de figura según número de items
     altura = max(6, len(labels) * 0.5)
-    plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(figsize=(10, altura), facecolor='white')
 
     # Crear gradiente de colores del más oscuro al más claro
