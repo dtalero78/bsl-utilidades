@@ -592,34 +592,28 @@
             <thead>
                 <tr>
                     <th>Rango de Edad</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>15-20 años</td>
-                    <td>{{ stats.edad.rangos['15-20'].cantidad }}</td>
                     <td>{{ stats.edad.rangos['15-20'].porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>21-30 años</td>
-                    <td>{{ stats.edad.rangos['21-30'].cantidad }}</td>
                     <td>{{ stats.edad.rangos['21-30'].porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>31-40 años</td>
-                    <td>{{ stats.edad.rangos['31-40'].cantidad }}</td>
                     <td>{{ stats.edad.rangos['31-40'].porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>41-50 años</td>
-                    <td>{{ stats.edad.rangos['41-50'].cantidad }}</td>
                     <td>{{ stats.edad.rangos['41-50'].porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Mayor de 50 años</td>
-                    <td>{{ stats.edad.rangos['mayor50'].cantidad }}</td>
                     <td>{{ stats.edad.rangos['mayor50'].porcentaje|round(1) }}%</td>
                 </tr>
             </tbody>
@@ -648,34 +642,28 @@
             <thead>
                 <tr>
                     <th>Estado Civil</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Soltero</td>
-                    <td>{{ stats.estadoCivil.estados.soltero.cantidad }}</td>
                     <td>{{ stats.estadoCivil.estados.soltero.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Casado</td>
-                    <td>{{ stats.estadoCivil.estados.casado.cantidad }}</td>
                     <td>{{ stats.estadoCivil.estados.casado.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Unión Libre</td>
-                    <td>{{ stats.estadoCivil.estados.unionLibre.cantidad }}</td>
                     <td>{{ stats.estadoCivil.estados.unionLibre.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Divorciado</td>
-                    <td>{{ stats.estadoCivil.estados.divorciado.cantidad }}</td>
                     <td>{{ stats.estadoCivil.estados.divorciado.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Viudo</td>
-                    <td>{{ stats.estadoCivil.estados.viudo.cantidad }}</td>
                     <td>{{ stats.estadoCivil.estados.viudo.porcentaje|round(1) }}%</td>
                 </tr>
             </tbody>
@@ -704,29 +692,24 @@
             <thead>
                 <tr>
                     <th>Nivel Educativo</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Primaria</td>
-                    <td>{{ stats.nivelEducativo.niveles.primaria.cantidad }}</td>
                     <td>{{ stats.nivelEducativo.niveles.primaria.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Secundaria</td>
-                    <td>{{ stats.nivelEducativo.niveles.secundaria.cantidad }}</td>
                     <td>{{ stats.nivelEducativo.niveles.secundaria.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Universitario</td>
-                    <td>{{ stats.nivelEducativo.niveles.universitario.cantidad }}</td>
                     <td>{{ stats.nivelEducativo.niveles.universitario.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>Postgrado</td>
-                    <td>{{ stats.nivelEducativo.niveles.postgrado.cantidad }}</td>
                     <td>{{ stats.nivelEducativo.niveles.postgrado.porcentaje|round(1) }}%</td>
                 </tr>
             </tbody>
@@ -755,29 +738,24 @@
             <thead>
                 <tr>
                     <th>Número de Hijos</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Sin hijos</td>
-                    <td>{{ stats.hijos.grupos.sinHijos.cantidad }}</td>
                     <td>{{ stats.hijos.grupos.sinHijos.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>1 hijo</td>
-                    <td>{{ stats.hijos.grupos.unHijo.cantidad }}</td>
                     <td>{{ stats.hijos.grupos.unHijo.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>2 hijos</td>
-                    <td>{{ stats.hijos.grupos.dosHijos.cantidad }}</td>
                     <td>{{ stats.hijos.grupos.dosHijos.porcentaje|round(1) }}%</td>
                 </tr>
                 <tr>
                     <td>3 o más hijos</td>
-                    <td>{{ stats.hijos.grupos.tresOMas.cantidad }}</td>
                     <td>{{ stats.hijos.grupos.tresOMas.porcentaje|round(1) }}%</td>
                 </tr>
             </tbody>
@@ -806,7 +784,6 @@
             <thead>
                 <tr>
                     <th>Ciudad</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
@@ -814,7 +791,6 @@
                 {% for ciudad in stats.ciudadResidencia.ciudades[:15] %}
                 <tr>
                     <td>{{ ciudad.nombre }}</td>
-                    <td>{{ ciudad.cantidad }}</td>
                     <td>{{ ciudad.porcentaje|round(1) }}%</td>
                 </tr>
                 {% endfor %}
@@ -844,7 +820,6 @@
             <thead>
                 <tr>
                     <th>Profesión u Oficio</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
@@ -852,7 +827,6 @@
                 {% for profesion in stats.profesionUOficio.profesiones[:15] %}
                 <tr>
                     <td>{{ profesion.nombre }}</td>
-                    <td>{{ profesion.cantidad }}</td>
                     <td>{{ profesion.porcentaje|round(1) }}%</td>
                 </tr>
                 {% endfor %}
@@ -882,7 +856,6 @@
             <thead>
                 <tr>
                     <th>Condición</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
@@ -890,7 +863,6 @@
                 {% for respuesta in stats.encuestaSalud.respuestas[:20] %}
                 <tr>
                     <td>{{ respuesta.nombre }}</td>
-                    <td>{{ respuesta.cantidad }}</td>
                     <td>{{ respuesta.porcentaje|round(1) }}%</td>
                 </tr>
                 {% endfor %}
@@ -906,7 +878,6 @@
             <thead>
                 <tr>
                     <th>Diagnóstico</th>
-                    <th>Cantidad</th>
                     <th>Porcentaje</th>
                 </tr>
             </thead>
@@ -914,7 +885,6 @@
                 {% for diagnostico in stats.diagnosticos.diagnosticos[:20] %}
                 <tr>
                     <td>{{ diagnostico.nombre }}</td>
-                    <td>{{ diagnostico.cantidad }}</td>
                     <td>{{ diagnostico.porcentaje|round(1) }}%</td>
                 </tr>
                 {% endfor %}
