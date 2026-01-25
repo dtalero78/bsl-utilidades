@@ -573,7 +573,15 @@
 
         {% if graficos.genero %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.genero }}" alt="Gráfico de Género" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.genero }}" alt="Gráfico de Género" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Género -->
+        {% if recomendaciones_ia and recomendaciones_ia.genero %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.genero }}</p>
         </div>
         {% endif %}
     </section>
@@ -621,7 +629,15 @@
 
         {% if graficos.edad %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.edad }}" alt="Gráfico de Edad" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.edad }}" alt="Gráfico de Edad" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Edad -->
+        {% if recomendaciones_ia and recomendaciones_ia.edad %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.edad }}</p>
         </div>
         {% endif %}
     </section>
@@ -669,7 +685,15 @@
 
         {% if graficos.estadoCivil %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.estadoCivil }}" alt="Gráfico de Estado Civil" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.estadoCivil }}" alt="Gráfico de Estado Civil" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Estado Civil -->
+        {% if recomendaciones_ia and recomendaciones_ia.estadoCivil %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.estadoCivil }}</p>
         </div>
         {% endif %}
     </section>
@@ -712,7 +736,15 @@
 
         {% if graficos.nivelEducativo %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.nivelEducativo }}" alt="Gráfico de Nivel Educativo" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.nivelEducativo }}" alt="Gráfico de Nivel Educativo" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Nivel Educativo -->
+        {% if recomendaciones_ia and recomendaciones_ia.nivelEducativo %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.nivelEducativo }}</p>
         </div>
         {% endif %}
     </section>
@@ -755,7 +787,15 @@
 
         {% if graficos.hijos %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.hijos }}" alt="Gráfico de Número de Hijos" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.hijos }}" alt="Gráfico de Número de Hijos" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Hijos -->
+        {% if recomendaciones_ia and recomendaciones_ia.hijos %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.hijos }}</p>
         </div>
         {% endif %}
     </section>
@@ -785,7 +825,15 @@
 
         {% if graficos.ciudadResidencia %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.ciudadResidencia }}" alt="Gráfico de Ciudad de Residencia" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.ciudadResidencia }}" alt="Gráfico de Ciudad de Residencia" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Ciudad -->
+        {% if recomendaciones_ia and recomendaciones_ia.ciudad %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.ciudad }}</p>
         </div>
         {% endif %}
     </section>
@@ -815,7 +863,15 @@
 
         {% if graficos.profesionUOficio %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.profesionUOficio }}" alt="Gráfico de Profesión u Oficio" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.profesionUOficio }}" alt="Gráfico de Profesión u Oficio" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Profesión -->
+        {% if recomendaciones_ia and recomendaciones_ia.profesion %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.profesion }}</p>
         </div>
         {% endif %}
     </section>
@@ -869,7 +925,15 @@
 
         {% if graficos.diagnosticos %}
         <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.diagnosticos }}" alt="Gráfico de Diagnósticos" style="max-width: 100%; height: auto;">
+            <img src="data:image/png;base64,{{ graficos.diagnosticos }}" alt="Gráfico de Diagnósticos" style="max-width: 70%; height: auto;">
+        </div>
+        {% endif %}
+
+        <!-- Recomendación IA para Diagnósticos -->
+        {% if recomendaciones_ia and recomendaciones_ia.diagnosticos %}
+        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
+            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
+            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.diagnosticos }}</p>
         </div>
         {% endif %}
     </section>
@@ -917,126 +981,15 @@
         {% endif %}
     </section>
 
-    <!-- CONCLUSIONES Y RECOMENDACIONES FINALES -->
+    <!-- CONCLUSIONES FINALES -->
     <section class="page-break">
         <div class="section-header" style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-            <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Conclusiones y Recomendaciones</h2>
-            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Análisis General y Recomendaciones para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
+            <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Conclusiones Generales</h2>
+            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Análisis General para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
         </div>
-
-        <!-- Recomendaciones generadas por IA (si existen) -->
-        <!-- DEBUG: recomendaciones_ia={{ recomendaciones_ia }}, length={{ recomendaciones_ia|length if recomendaciones_ia else 0 }} -->
-        {% if recomendaciones_ia and recomendaciones_ia|length > 0 %}
-        <div style="margin-bottom: 50px;">
-            <h3 style="color: #1e40af; font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
-                Recomendaciones Específicas por Área ({{ recomendaciones_ia|length }} recomendaciones)
-            </h3>
-
-            {% if recomendaciones_ia.genero %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Género</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.genero }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.edad %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Edad</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.edad }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.estadoCivil %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Estado Civil</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.estadoCivil }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.nivelEducativo %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Nivel Educativo</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.nivelEducativo }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.hijos %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Número de Hijos</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.hijos }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.ciudad %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución Geográfica</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.ciudad }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.cargo %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Cargo</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.cargo }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.profesion %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Profesión</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.profesion }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.encuestaSalud %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Encuesta de Salud</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.encuestaSalud }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if recomendaciones_ia.diagnosticos %}
-            <div style="margin-bottom: 30px;">
-                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Diagnósticos y Hallazgos</h4>
-                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
-                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.diagnosticos }}</p>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <!-- DEBUG: No se recibieron recomendaciones IA o el diccionario está vacío -->
-        <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107;">
-            <p style="margin: 0; color: #856404;">
-                <strong>DEBUG:</strong> No se generaron recomendaciones de IA para este informe.
-                <br>recomendaciones_ia = {{ recomendaciones_ia }}
-            </p>
-        </div>
-        {% endif %}
 
         {% if conclusiones_finales %}
         <div style="margin-bottom: 40px;">
-            <h3 style="color: #1e40af; font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
-                Conclusiones Generales
-            </h3>
             {% for conclusion in conclusiones_finales %}
             <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
                 <p style="margin: 0; line-height: 1.6; text-align: justify;">
