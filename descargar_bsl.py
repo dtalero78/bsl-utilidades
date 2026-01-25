@@ -8793,35 +8793,50 @@ def generar_grafico_pie(datos, titulo, colores=None):
     if not datos_filtrados:
         return None
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    # Configurar estilo moderno
+    plt.style.use('seaborn-v0_8-darkgrid')
+    fig, ax = plt.subplots(figsize=(8, 6), facecolor='white')
 
     labels = list(datos_filtrados.keys())
     sizes = list(datos_filtrados.values())
 
-    # Colores por defecto (BSL palette)
+    # Paleta de colores profesional para salud ocupacional (tonos azules, verdes, naranjas suaves)
     if not colores:
-        colores = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#fee2e2', '#fca5a5', '#f87171']
+        colores = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#ec4899', '#6366f1']
 
-    # Crear el gráfico
+    # Crear el gráfico con efecto de explosión sutil en el segmento más grande
+    explode = [0.05 if size == max(sizes) else 0 for size in sizes]
+
     wedges, texts, autotexts = ax.pie(
         sizes,
         labels=labels,
         autopct='%1.1f%%',
         colors=colores[:len(sizes)],
         startangle=90,
-        textprops={'fontsize': 10, 'weight': 'bold'}
+        explode=explode,
+        textprops={'fontsize': 11, 'weight': '600', 'family': 'sans-serif'},
+        wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'antialiased': True}
     )
 
-    # Hacer el texto de porcentaje blanco
+    # Hacer el texto de porcentaje blanco y más legible
     for autotext in autotexts:
         autotext.set_color('white')
+        autotext.set_fontsize(10)
+        autotext.set_weight('bold')
 
-    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
+    # Mejorar etiquetas de categorías
+    for text in texts:
+        text.set_fontsize(11)
+        text.set_weight('600')
+        text.set_color('#1f2937')
+
+    # Título moderno con mejor tipografía
+    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
 
     # Convertir a base64
     buffer = BytesIO()
-    plt.tight_layout()
-    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    plt.tight_layout(pad=1.5)
+    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
     plt.close(fig)
@@ -8847,6 +8862,7 @@ def generar_grafico_barras(datos, titulo, xlabel='', ylabel='Cantidad', colores=
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from io import BytesIO
+    import numpy as np
 
     # Filtrar valores vacíos o cero
     datos_filtrados = {k: v for k, v in datos.items() if v > 0}
@@ -8854,43 +8870,62 @@ def generar_grafico_barras(datos, titulo, xlabel='', ylabel='Cantidad', colores=
     if not datos_filtrados:
         return None
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Estilo moderno
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
 
     labels = list(datos_filtrados.keys())
     values = list(datos_filtrados.values())
 
-    # Colores por defecto
+    # Gradiente de colores moderno (azul a verde)
     if not colores:
-        colores = ['#1e40af'] * len(values)
+        colores = ['#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b']
 
-    # Crear el gráfico
-    bars = ax.bar(labels, values, color=colores[:len(values)], edgecolor='white', linewidth=1.5)
+    # Crear el gráfico con bordes redondeados y sombra
+    x_pos = np.arange(len(labels))
+    bars = ax.bar(x_pos, values, color=colores[:len(values)],
+                   edgecolor='white', linewidth=2.5, alpha=0.9,
+                   width=0.7)
 
-    # Agregar valores encima de las barras
-    for bar in bars:
+    # Agregar valores encima de las barras con mejor formato
+    for i, (bar, value) in enumerate(zip(bars, values)):
         height = bar.get_height()
         ax.text(
             bar.get_x() + bar.get_width() / 2.,
-            height,
+            height + (max(values) * 0.01),
             f'{int(height)}',
             ha='center',
             va='bottom',
-            fontsize=10,
-            weight='bold'
+            fontsize=11,
+            weight='bold',
+            color='#374151'
         )
 
-    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
-    ax.set_xlabel(xlabel, fontsize=11, weight='bold')
-    ax.set_ylabel(ylabel, fontsize=11, weight='bold')
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    # Títulos y etiquetas con mejor tipografía
+    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
+    if xlabel:
+        ax.set_xlabel(xlabel, fontsize=12, weight='600', color='#374151', labelpad=10)
+    ax.set_ylabel(ylabel, fontsize=12, weight='600', color='#374151', labelpad=10)
 
-    # Rotar etiquetas si son largas
-    plt.xticks(rotation=45, ha='right')
+    # Grid más sutil y profesional
+    ax.grid(axis='y', alpha=0.2, linestyle='-', linewidth=0.8, color='#cbd5e1')
+    ax.set_axisbelow(True)
+
+    # Mejorar ejes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#cbd5e1')
+    ax.spines['bottom'].set_color('#cbd5e1')
+
+    # Etiquetas del eje X
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=10, color='#4b5563')
+    ax.tick_params(axis='y', labelsize=10, colors='#4b5563')
 
     # Convertir a base64
     buffer = BytesIO()
-    plt.tight_layout()
-    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    plt.tight_layout(pad=1.5)
+    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
     plt.close(fig)
@@ -8918,6 +8953,7 @@ def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from io import BytesIO
+    import numpy as np
 
     # Filtrar valores vacíos o cero
     datos_filtrados = {k: v for k, v in datos.items() if v > 0}
@@ -8932,43 +8968,67 @@ def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel
     values = list(datos_ordenados.values())
 
     # Ajustar altura de figura según número de items
-    altura = max(6, len(labels) * 0.4)
-    fig, ax = plt.subplots(figsize=(10, altura))
+    altura = max(6, len(labels) * 0.5)
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(10, altura), facecolor='white')
 
-    # Colores por defecto
+    # Crear gradiente de colores del más oscuro al más claro
     if not colores:
-        colores = ['#1e40af'] * len(values)
+        # Gradiente azul-turquesa para barras horizontales
+        base_colors = ['#0369a1', '#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc']
+        n_bars = len(values)
+        if n_bars <= len(base_colors):
+            colores = base_colors[:n_bars]
+        else:
+            # Interpolar colores si hay muchas barras
+            colores = [base_colors[int(i * (len(base_colors) - 1) / (n_bars - 1))] for i in range(n_bars)]
 
     # Crear el gráfico (invertir para que el mayor esté arriba)
-    y_pos = range(len(labels))
-    bars = ax.barh(y_pos, values, color=colores[:len(values)], edgecolor='white', linewidth=1.5)
+    y_pos = np.arange(len(labels))
+    bars = ax.barh(y_pos, values, color=colores[:len(values)],
+                    edgecolor='white', linewidth=2.5, alpha=0.9,
+                    height=0.7)
 
-    # Agregar valores al final de las barras
+    # Agregar valores al final de las barras con mejor formato
     for i, (bar, value) in enumerate(zip(bars, values)):
         width = bar.get_width()
         ax.text(
-            width,
+            width + (max(values) * 0.01),
             bar.get_y() + bar.get_height() / 2.,
             f' {int(value)}',
             ha='left',
             va='center',
-            fontsize=9,
-            weight='bold'
+            fontsize=10,
+            weight='bold',
+            color='#374151'
         )
 
+    # Configurar ejes y etiquetas
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels(labels, fontsize=10, color='#4b5563')
     ax.invert_yaxis()  # Mayor valor arriba
-    ax.set_title(titulo, fontsize=14, weight='bold', pad=20)
-    ax.set_xlabel(xlabel, fontsize=11, weight='bold')
+
+    # Títulos con mejor tipografía
+    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
+    ax.set_xlabel(xlabel, fontsize=12, weight='600', color='#374151', labelpad=10)
     if ylabel:
-        ax.set_ylabel(ylabel, fontsize=11, weight='bold')
-    ax.grid(axis='x', alpha=0.3, linestyle='--')
+        ax.set_ylabel(ylabel, fontsize=12, weight='600', color='#374151', labelpad=10)
+
+    # Grid más sutil
+    ax.grid(axis='x', alpha=0.2, linestyle='-', linewidth=0.8, color='#cbd5e1')
+    ax.set_axisbelow(True)
+
+    # Mejorar ejes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#cbd5e1')
+    ax.spines['bottom'].set_color('#cbd5e1')
+    ax.tick_params(axis='x', labelsize=10, colors='#4b5563')
 
     # Convertir a base64
     buffer = BytesIO()
-    plt.tight_layout()
-    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    plt.tight_layout(pad=1.5)
+    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
     plt.close(fig)
