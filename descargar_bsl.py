@@ -8053,6 +8053,9 @@ def informe_condiciones_salud():
         empresa_nit = ''
 
         try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+
             postgres_password = os.getenv("POSTGRES_PASSWORD")
             logger.info(f"🔍 Intentando obtener empresa desde PostgreSQL para cod_empresa={cod_empresa}")
             logger.info(f"🔑 POSTGRES_PASSWORD configurada: {bool(postgres_password)}")
