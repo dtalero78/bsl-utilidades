@@ -925,10 +925,11 @@
         </div>
 
         <!-- Recomendaciones generadas por IA (si existen) -->
-        {% if recomendaciones_ia %}
+        <!-- DEBUG: recomendaciones_ia={{ recomendaciones_ia }}, length={{ recomendaciones_ia|length if recomendaciones_ia else 0 }} -->
+        {% if recomendaciones_ia and recomendaciones_ia|length > 0 %}
         <div style="margin-bottom: 50px;">
             <h3 style="color: #1e40af; font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
-                Recomendaciones Específicas por Área
+                Recomendaciones Específicas por Área ({{ recomendaciones_ia|length }} recomendaciones)
             </h3>
 
             {% if recomendaciones_ia.genero %}
@@ -1020,6 +1021,14 @@
                 </div>
             </div>
             {% endif %}
+        </div>
+        {% else %}
+        <!-- DEBUG: No se recibieron recomendaciones IA o el diccionario está vacío -->
+        <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; color: #856404;">
+                <strong>DEBUG:</strong> No se generaron recomendaciones de IA para este informe.
+                <br>recomendaciones_ia = {{ recomendaciones_ia }}
+            </p>
         </div>
         {% endif %}
 
