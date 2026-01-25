@@ -9338,8 +9338,7 @@ def generar_pdf_informe():
                 }
                 graficos['genero'] = generar_grafico_pie(
                     genero_data,
-                    'Distribución por Género',
-                    colores=['#3b82f6', '#ec4899']
+                    'Distribución por Género'
                 )
 
             # Gráfico de edad (bar chart)
@@ -9356,8 +9355,7 @@ def generar_pdf_informe():
                     edad_data,
                     'Distribución por Edad',
                     xlabel='Rango de Edad',
-                    ylabel='Cantidad de Trabajadores',
-                    colores=['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe']
+                    ylabel='Cantidad de Trabajadores'
                 )
 
             # Gráfico de estado civil (pie chart)
@@ -9372,8 +9370,7 @@ def generar_pdf_informe():
                 }
                 graficos['estadoCivil'] = generar_grafico_pie(
                     estado_civil_data,
-                    'Distribución por Estado Civil',
-                    colores=['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+                    'Distribución por Estado Civil'
                 )
 
             # Gráfico de nivel educativo (bar chart)
@@ -9389,8 +9386,7 @@ def generar_pdf_informe():
                     nivel_educativo_data,
                     'Distribución por Nivel Educativo',
                     xlabel='Nivel Educativo',
-                    ylabel='Cantidad de Trabajadores',
-                    colores=['#059669', '#10b981', '#34d399', '#6ee7b7']
+                    ylabel='Cantidad de Trabajadores'
                 )
 
             # Gráfico de hijos (bar chart)
@@ -9406,8 +9402,7 @@ def generar_pdf_informe():
                     hijos_data,
                     'Distribución por Número de Hijos',
                     xlabel='Número de Hijos',
-                    ylabel='Cantidad de Trabajadores',
-                    colores=['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a']
+                    ylabel='Cantidad de Trabajadores'
                 )
 
             # Gráfico de ciudad de residencia (barras horizontales - puede haber muchas)
@@ -9418,7 +9413,6 @@ def generar_pdf_informe():
                     ciudad_data,
                     'Top 15 Ciudades de Residencia',
                     xlabel='Cantidad de Trabajadores',
-                    colores=['#6366f1'],
                     max_items=15
                 )
 
@@ -9430,7 +9424,6 @@ def generar_pdf_informe():
                     profesion_data,
                     'Top 15 Profesiones u Oficios',
                     xlabel='Cantidad de Trabajadores',
-                    colores=['#8b5cf6'],
                     max_items=15
                 )
 
@@ -9443,7 +9436,6 @@ def generar_pdf_informe():
                     diagnosticos_data,
                     'Top 15 Diagnósticos Encontrados',
                     xlabel='Número de Casos',
-                    colores=['#ef4444'],
                     max_items=15
                 )
 
