@@ -9521,6 +9521,9 @@ def generar_pdf_informe():
         }
 
         logger.info(f"🎨 Renderizando template con {len(graficos)} gráficos y {len(recomendaciones_ia)} recomendaciones IA")
+        logger.info(f"📋 Datos de empresa para template:")
+        logger.info(f"  - empresa_nombre: '{empresa_razon_social}'")
+        logger.info(f"  - empresa_nit: '{empresa_nit}'")
         if recomendaciones_ia:
             for key, value in recomendaciones_ia.items():
                 logger.info(f"  - {key}: {len(value)} caracteres")
