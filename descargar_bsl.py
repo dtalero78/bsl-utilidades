@@ -8092,6 +8092,8 @@ def informe_condiciones_salud():
             'codEmpresa': cod_empresa
         }
 
+        logger.info(f"📋 empresa_info creado: {empresa_info}")
+
         # Paso 3: Obtener datos de FORMULARIO desde PostgreSQL
         # Estrategia 1: Por empresa y rango de fechas (más confiable)
         formulario_items = obtener_formularios_por_empresa_postgres(cod_empresa, fecha_inicio, fecha_fin)
