@@ -9232,6 +9232,9 @@ def generar_pdf_informe():
         empresa_nit = ''
 
         try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+
             postgres_password = os.getenv("POSTGRES_PASSWORD")
             if postgres_password:
                 conn_empresa = psycopg2.connect(
