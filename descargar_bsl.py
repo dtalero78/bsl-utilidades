@@ -8079,6 +8079,107 @@ def informe_condiciones_salud():
             'sve': generar_sve(historia_clinica_items)
         }
 
+        # Agregar información teórica del informe
+        informacion_teorica = {
+            'marcoGeneral': {
+                'titulo': 'Marco General',
+                'descripcion': 'La calidad institucional en BIENESTAR Y SALUD LABORAL SAS se enmarca en la atención pertinente, oportuna, segura y eficaz emitida al usuario remitido por el cliente empresarial. Los exámenes de preingreso y periódicos son una herramienta indispensable para la implementación de los Sistemas de Vigilancia Epidemiológica.'
+            },
+            'objetivos': [
+                {
+                    'numero': '01',
+                    'titulo': 'Conocer las características demográficas de la población trabajadora',
+                    'icono': 'demographics'
+                },
+                {
+                    'numero': '02',
+                    'titulo': 'Evaluar las condiciones de salud de la población trabajadora de la empresa',
+                    'icono': 'health'
+                },
+                {
+                    'numero': '03',
+                    'titulo': 'Detectar de forma oportuna, alteraciones de salud en los trabajadores',
+                    'icono': 'detection'
+                },
+                {
+                    'numero': '04',
+                    'titulo': 'Determinar los hábitos más frecuentes que puedan favorecer enfermedades en la población evaluada',
+                    'icono': 'habits'
+                },
+                {
+                    'numero': '05',
+                    'titulo': 'Identificar la prevalencia de enfermedad relacionada con el trabajo',
+                    'icono': 'prevalence'
+                }
+            ],
+            'metodologia': {
+                'titulo': 'Metodología para evaluar',
+                'descripcion': 'De acuerdo a su sistema de vigilancia epidemiológica de conservación de la salud de sus trabajadores realizará los exámenes médicos ocupacionales correspondientes al año mencionado, con el fin de dar cumplimiento a la legislación vigente e investigar y monitorear las condiciones de salud de sus trabajadores.',
+                'pruebas': [
+                    {
+                        'nombre': 'Evaluación médica',
+                        'descripcion': 'Se realizan con el fin de determinar en forma preventiva, posibles alteraciones temporales, permanentes o agravadas del estado de salud del trabajador que en contacto con su puesto de trabajo alterarían el perfil biológico de cada persona'
+                    },
+                    {
+                        'nombre': 'Prueba Osteomuscular',
+                        'descripcion': 'Se tiene como herramienta fundamental de trabajo, la realización del examen postural y osteomuscular bien sea de ingreso, periódico o de retiro'
+                    },
+                    {
+                        'nombre': 'Optometría',
+                        'descripcion': 'Es un examen de alta sensibilidad que evalúa la capacidad visual tanto en el joven como en el adulto, y permite identificar si la visión es normal o si presenta alguna patología que deba ser diagnosticada'
+                    },
+                    {
+                        'nombre': 'Audiometría tamiz',
+                        'descripcion': 'Es una prueba subjetiva utilizada para saber si la audición de un sujeto es normal o anormal, a través de ella se puede establecer el umbral mínimo de audición.'
+                    }
+                ]
+            },
+            'contenidoInforme': [
+                'Información sociodemográfica de la población trabajadora (sexo, grupos etarios, composición familiar, estrato socioeconómico)',
+                'Información de antecedentes de exposición laboral a diferentes factores de riesgos ocupacionales',
+                'Información de exposición laboral actual, según la manifestación de los trabajadores y los resultados objetivos analizados durante la evaluación médica',
+                'Sintomatología reportada por los trabajadores',
+                'Resultados generales de las pruebas clínicas o paraclínicas complementarias a los exámenes físicos realizados',
+                'Diagnósticos encontrados en la población trabajadora',
+                'Análisis y conclusiones de la evaluación',
+                'Recomendaciones'
+            ],
+            'conceptosMedicos': [
+                {
+                    'concepto': 'Elegible para el cargo sin recomendaciones laborales',
+                    'descripcion': 'En BSL usamos este concepto para describir a una persona que cumple con los requisitos necesarios para ocupar un puesto de trabajo sin necesidad de recomendaciones adicionales relacionadas con su capacidad física o mental.',
+                    'color': 'green'
+                },
+                {
+                    'concepto': 'Elegible para el cargo con recomendaciones laborales',
+                    'descripcion': 'Se refiere a una persona que cumple con los requisitos mínimos para ocupar un puesto de trabajo, pero con ciertas recomendaciones o consideraciones específicas en relación con su capacidad física o mental.',
+                    'color': 'yellow'
+                },
+                {
+                    'concepto': 'No elegible para el cargo por fuera del profesiograma',
+                    'descripcion': 'Se refiere a una situación en la que una persona no cumple con los requisitos establecidos en el profesiograma para ocupar un determinado puesto de trabajo.',
+                    'color': 'red'
+                },
+                {
+                    'concepto': 'Pendiente',
+                    'descripcion': 'Se refiere a una situación en la que una persona no ha sido evaluada o se requiere más información antes de determinar su elegibilidad para ocupar un cargo específico.',
+                    'color': 'orange'
+                }
+            ],
+            'sugerenciasGenerales': [
+                'Proporcionar equipos de protección personal adecuados para todos los trabajadores',
+                'Establecer un programa de ejercicios de estiramiento y fortalecimiento para los trabajadores',
+                'Establecer un programa de vigilancia auditiva para los trabajadores expuestos a ruido',
+                'Establecer un programa de prevención de estrés laboral para los trabajadores',
+                'Establecer un programa de educación para los trabajadores sobre cómo prevenir lesiones musculoesqueléticas',
+                'Establecer un programa de evaluación de riesgos para identificar y evaluar los riesgos para la salud y la seguridad en el lugar de trabajo',
+                'Establecer un programa de capacitación para los trabajadores sobre cómo prevenir lesiones y enfermedades relacionadas con el trabajo',
+                'Establecer un programa de vigilancia de la salud para los trabajadores expuestos a sustancias químicas peligrosas',
+                'Establecer un programa de vigilancia de la salud para los trabajadores expuestos a la radiación',
+                'Establecer un programa de vigilancia de la salud para los trabajadores expuestos a la exposición a temperaturas extremas'
+            ]
+        }
+
         response_data = {
             'success': True,
             'totalAtenciones': total_atenciones,
@@ -8087,7 +8188,8 @@ def informe_condiciones_salud():
             'codEmpresa': cod_empresa,
             'fechaInicio': fecha_inicio,
             'fechaFin': fecha_fin,
-            'estadisticas': estadisticas
+            'estadisticas': estadisticas,
+            'informacionTeorica': informacion_teorica
         }
 
         response = jsonify(response_data)
