@@ -1159,19 +1159,22 @@
             let datos = {};
             switch(tipo) {
                 case 'genero':
-                    datos = datosInforme.estadisticas?.genero || [];
+                    datos = datosInforme.estadisticas?.genero || {};
                     break;
                 case 'edad':
-                    datos = datosInforme.estadisticas?.edad || [];
+                    datos = datosInforme.estadisticas?.edad || {};
                     break;
                 case 'estadoCivil':
-                    datos = datosInforme.estadisticas?.estadoCivil || [];
+                    // Enviar la subestructura 'estados'
+                    datos = datosInforme.estadisticas?.estadoCivil?.estados || {};
                     break;
                 case 'nivelEducativo':
-                    datos = datosInforme.estadisticas?.nivelEducativo || [];
+                    // Enviar la subestructura 'niveles'
+                    datos = datosInforme.estadisticas?.nivelEducativo?.niveles || {};
                     break;
                 case 'hijos':
-                    datos = datosInforme.estadisticas?.hijos || [];
+                    // Enviar la subestructura 'grupos'
+                    datos = datosInforme.estadisticas?.hijos?.grupos || {};
                     break;
                 case 'ciudad':
                     datos = datosInforme.estadisticas?.ciudadResidencia || {};
@@ -1183,7 +1186,7 @@
                     datos = datosInforme.estadisticas?.encuestaSalud || {};
                     break;
                 case 'diagnosticos':
-                    datos = datosInforme.estadisticas?.diagnosticos || [];
+                    datos = datosInforme.estadisticas?.diagnosticos || {};
                     break;
                 default:
                     alert('Tipo de recomendación no válido');
@@ -1209,7 +1212,8 @@
 
                 if (result.success) {
                     // Formatear el texto de la recomendación con saltos de línea
-                    const textoFormateado = result.content
+                    const contenido = result.recomendacion || result.content || '';
+                    const textoFormateado = contenido
                         .replace(/\n/g, '<br>')
                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\*(.*?)\*/g, '<em>$1</em>');
