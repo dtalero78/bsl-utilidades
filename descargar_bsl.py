@@ -8048,8 +8048,49 @@ def informe_condiciones_salud():
                 'fechaFin': fecha_fin
             })
 
-        # Paso 2: Obtener datos de la empresa
-        empresa_info = obtener_empresa_wix(cod_empresa)
+        # Paso 2: Obtener datos de la empresa desde PostgreSQL
+        empresa_nombre = cod_empresa  # Fallback
+        empresa_nit = ''
+
+        try:
+            postgres_password = os.getenv("POSTGRES_PASSWORD")
+            if postgres_password:
+                conn_empresa = psycopg2.connect(
+                    host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+                    port=int(os.getenv("POSTGRES_PORT", "25060")),
+                    user=os.getenv("POSTGRES_USER", "doadmin"),
+                    password=postgres_password,
+                    database=os.getenv("POSTGRES_DB", "defaultdb"),
+                    sslmode='require'
+                )
+                cursor_pg = conn_empresa.cursor(cursor_factory=RealDictCursor)
+                cursor_pg.execute(
+                    "SELECT empresa, nit FROM empresas WHERE cod_empresa = %s",
+                    (cod_empresa,)
+                )
+                empresa_row = cursor_pg.fetchone()
+                cursor_pg.close()
+                conn_empresa.close()
+
+                if empresa_row:
+                    empresa_nombre = empresa_row.get('empresa') or cod_empresa
+                    empresa_nit = empresa_row.get('nit') or ''
+                    logger.info(f"✅ Empresa encontrada en PostgreSQL: {empresa_nombre} (NIT: {empresa_nit})")
+                else:
+                    logger.warning(f"⚠️ No se encontró empresa con código {cod_empresa} en PostgreSQL, usando código como nombre")
+            else:
+                logger.warning(f"⚠️ POSTGRES_PASSWORD no configurada, usando codEmpresa como nombre")
+        except Exception as e:
+            logger.error(f"❌ Error al obtener datos de empresa desde PostgreSQL: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+        # Mantener estructura compatible con código anterior
+        empresa_info = {
+            'nombre': empresa_nombre,
+            'nit': empresa_nit,
+            'codEmpresa': cod_empresa
+        }
 
         # Paso 3: Obtener datos de FORMULARIO desde PostgreSQL
         # Estrategia 1: Por empresa y rango de fechas (más confiable)
