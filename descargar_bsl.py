@@ -8986,23 +8986,23 @@ def generar_pdf_informe():
             temp_html.write(html_rendered)
             temp_html_path = temp_html.name
 
-        # 6. Generar PDF con Puppeteer
+        # 6. Generar PDF con Playwright
         pdf_path = temp_html_path.replace('.html', '.pdf')
 
-        # Script Node.js para Puppeteer
-        puppeteer_script = f"""
-const puppeteer = require('puppeteer');
+        # Script Node.js para Playwright
+        playwright_script = f"""
+const {{ chromium }} = require('playwright');
 
 (async () => {{
-    const browser = await puppeteer.launch({{
+    const browser = await chromium.launch({{
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
     }});
 
     const page = await browser.newPage();
 
     // Cargar el HTML
-    await page.goto('file://{temp_html_path}', {{ waitUntil: 'networkidle0' }});
+    await page.goto('file://{temp_html_path}', {{ waitUntil: 'networkidle' }});
 
     // Esperar a que se carguen todas las fuentes
     await page.waitForTimeout(2000);
@@ -9028,10 +9028,10 @@ const puppeteer = require('puppeteer');
 
         # Guardar script temporal
         with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_script:
-            temp_script.write(puppeteer_script)
+            temp_script.write(playwright_script)
             temp_script_path = temp_script.name
 
-        # Ejecutar Puppeteer
+        # Ejecutar Playwright
         try:
             # Ruta a node_modules
             node_modules_path = os.path.join(os.path.dirname(__file__), 'node_modules')
@@ -9045,17 +9045,17 @@ const puppeteer = require('puppeteer');
             )
 
             if result.returncode != 0:
-                logger.error(f"❌ Error ejecutando Puppeteer: {result.stderr}")
+                logger.error(f"❌ Error ejecutando Playwright: {result.stderr}")
                 raise Exception(f"Error generando PDF: {result.stderr}")
 
             logger.info(f"✅ PDF generado exitosamente: {pdf_path}")
 
         except subprocess.TimeoutExpired:
-            logger.error("❌ Timeout generando PDF con Puppeteer")
+            logger.error("❌ Timeout generando PDF con Playwright")
             raise Exception("Timeout generando PDF")
 
         except Exception as e:
-            logger.error(f"❌ Error ejecutando Puppeteer: {str(e)}")
+            logger.error(f"❌ Error ejecutando Playwright: {str(e)}")
             raise
 
         finally:
