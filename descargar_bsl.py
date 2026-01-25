@@ -8770,6 +8770,242 @@ def serve_informes():
     return send_from_directory('static', 'informes.html')
 
 
+@app.route('/api/generar-pdf-informe', methods=['POST', 'OPTIONS'])
+def generar_pdf_informe():
+    """
+    Genera un PDF profesional del informe de condiciones de salud usando Playwright.
+
+    Recibe:
+        - codEmpresa: Código de la empresa
+        - fechaInicio: Fecha de inicio del período
+        - fechaFin: Fecha fin del período
+
+    Retorna:
+        - PDF file para descarga directa
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    try:
+        data = request.get_json()
+        cod_empresa = data.get('codEmpresa')
+        fecha_inicio = data.get('fechaInicio')
+        fecha_fin = data.get('fechaFin')
+
+        if not cod_empresa or not fecha_inicio or not fecha_fin:
+            return jsonify({
+                'success': False,
+                'error': 'Faltan parámetros requeridos: codEmpresa, fechaInicio, fechaFin'
+            }), 400
+
+        logger.info(f"📄 Generando PDF del informe para {cod_empresa} ({fecha_inicio} - {fecha_fin})")
+
+        # 1. Obtener los datos del informe (reutilizar la lógica existente)
+        historia_clinica_items = obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin)
+        total_atenciones = len(historia_clinica_items)
+
+        # Obtener formularios por empresa y fecha
+        formulario_items = obtener_formularios_por_empresa_postgres(cod_empresa, fecha_inicio, fecha_fin)
+        total_formularios = len(formulario_items)
+
+        # Fallback: si no hay formularios con Strategy 1, intentar Strategy 2
+        if total_formularios == 0:
+            logger.info("⚠️ Strategy 1 (cod_empresa + fecha) retornó 0 formularios. Intentando Strategy 2 (wix_id)...")
+            historia_ids = [item.get('_id') for item in historia_clinica_items if item.get('_id')]
+            formulario_items = obtener_formularios_por_ids_postgres(historia_ids)
+            total_formularios = len(formulario_items)
+
+        logger.info(f"✅ Encontrados {total_atenciones} atenciones y {total_formularios} formularios")
+
+        # Calcular estadísticas
+        stats_genero = calcular_estadisticas_genero(formulario_items)
+        stats_edad = calcular_estadisticas_edad(formulario_items)
+        stats_estado_civil = calcular_estadisticas_estado_civil(formulario_items)
+        stats_nivel_educativo = calcular_estadisticas_nivel_educativo(formulario_items)
+        stats_hijos = calcular_estadisticas_hijos(formulario_items)
+        stats_ciudad = calcular_estadisticas_ciudad(formulario_items)
+        stats_profesion = calcular_estadisticas_profesion(formulario_items)
+        stats_encuesta = calcular_estadisticas_encuesta_salud(formulario_items)
+        stats_diagnosticos = calcular_estadisticas_diagnosticos(historia_clinica_items)
+        stats_sve = calcular_estadisticas_sve(historia_clinica_items)
+
+        # Información teórica
+        info_teorica = obtener_informacion_teorica()
+
+        # 2. Convertir logo BSL a base64
+        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo-bsl.png')
+        logo_base64 = ''
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                logo_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+        # 3. Formatear fechas en español
+        def formatear_fecha_espanol(fecha_str):
+            try:
+                fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+                dia = fecha.day
+                mes = MESES_ESPANOL.get(fecha.month, str(fecha.month))
+                año = fecha.year
+                return f"{dia} de {mes} de {año}"
+            except:
+                return fecha_str
+
+        fecha_inicio_formato = formatear_fecha_espanol(fecha_inicio)
+        fecha_fin_formato = formatear_fecha_espanol(fecha_fin)
+        fecha_elaboracion = datetime.now().strftime('%d de %B de %Y')
+
+        # Intentar usar locale si está disponible
+        try:
+            fecha_elaboracion = datetime.now().strftime('%d de %B de %Y')
+        except:
+            mes_actual = MESES_ESPANOL.get(datetime.now().month, str(datetime.now().month))
+            fecha_elaboracion = f"{datetime.now().day} de {mes_actual} de {datetime.now().year}"
+
+        # 4. Renderizar template HTML con Jinja2
+        template_path = os.path.join(os.path.dirname(__file__), 'templates', 'informe_pdf.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+
+        template = Template(template_content)
+        html_rendered = template.render(
+            empresa_nombre=cod_empresa,
+            empresa_nit='',  # TODO: obtener NIT de la empresa si está disponible
+            fecha_inicio_formato=fecha_inicio_formato,
+            fecha_fin_formato=fecha_fin_formato,
+            fecha_elaboracion=fecha_elaboracion,
+            total_atenciones=total_atenciones,
+            total_formularios=total_formularios,
+            total_diagnosticos=len(stats_diagnosticos.get('diagnosticos', [])),
+            logo_base64=logo_base64,
+            info_teorica=info_teorica,
+            stats={
+                'genero': stats_genero,
+                'edad': stats_edad,
+                'estadoCivil': stats_estado_civil,
+                'nivelEducativo': stats_nivel_educativo,
+                'hijos': stats_hijos,
+                'ciudadResidencia': stats_ciudad,
+                'profesionUOficio': stats_profesion,
+                'encuestaSalud': stats_encuesta,
+                'diagnosticos': stats_diagnosticos,
+                'sve': stats_sve
+            }
+        )
+
+        # 5. Guardar HTML temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
+            temp_html.write(html_rendered)
+            temp_html_path = temp_html.name
+
+        # 6. Generar PDF con Playwright
+        pdf_path = temp_html_path.replace('.html', '.pdf')
+
+        # Script Node.js para Playwright
+        playwright_script = f"""
+const {{ chromium }} = require('playwright');
+
+(async () => {{
+    const browser = await chromium.launch({{
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }});
+
+    const page = await browser.newPage();
+
+    // Cargar el HTML
+    await page.goto('file://{temp_html_path}', {{ waitUntil: 'networkidle' }});
+
+    // Esperar a que se carguen todas las fuentes
+    await page.waitForTimeout(1000);
+
+    // Generar PDF con opciones optimizadas
+    await page.pdf({{
+        path: '{pdf_path}',
+        format: 'A4',
+        printBackground: true,
+        margin: {{
+            top: '20mm',
+            right: '15mm',
+            bottom: '25mm',
+            left: '15mm'
+        }},
+        preferCSSPageSize: true
+    }});
+
+    await browser.close();
+    console.log('PDF generado exitosamente');
+}})();
+"""
+
+        # Guardar script temporal
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_script:
+            temp_script.write(playwright_script)
+            temp_script_path = temp_script.name
+
+        # Ejecutar Playwright
+        try:
+            # Ruta a node_modules/puppeteer (asumiendo que está instalado localmente)
+            node_modules_path = os.path.join(os.path.dirname(__file__), 'node_modules')
+
+            result = subprocess.run(
+                ['node', temp_script_path],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env={**os.environ, 'NODE_PATH': node_modules_path}
+            )
+
+            if result.returncode != 0:
+                logger.error(f"❌ Error ejecutando Playwright: {result.stderr}")
+                raise Exception(f"Error generando PDF: {result.stderr}")
+
+            logger.info(f"✅ PDF generado exitosamente: {pdf_path}")
+
+        except subprocess.TimeoutExpired:
+            logger.error("❌ Timeout generando PDF con Playwright")
+            raise Exception("Timeout generando PDF")
+
+        except Exception as e:
+            logger.error(f"❌ Error ejecutando Playwright: {str(e)}")
+            raise
+
+        finally:
+            # Limpiar archivos temporales del script
+            try:
+                os.unlink(temp_html_path)
+                os.unlink(temp_script_path)
+            except:
+                pass
+
+        # 7. Enviar PDF como respuesta
+        filename = f"Informe_{cod_empresa}_{fecha_inicio}_{fecha_fin}.pdf"
+
+        response = send_file(
+            pdf_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+
+        # Registrar callback para eliminar el PDF temporal después de enviarlo
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.unlink(pdf_path)
+            except:
+                pass
+
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ Error generando PDF del informe: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ============================================================================
 # FUNCIONES DE OPENAI PARA RECOMENDACIONES
 # ============================================================================

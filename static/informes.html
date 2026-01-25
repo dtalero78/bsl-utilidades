@@ -671,8 +671,11 @@
 
         <!-- Botones de Acción -->
         <section class="no-print flex justify-center gap-4 mb-8">
+            <button onclick="descargarPDFProfesional()" id="btnPDF" class="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition font-medium shadow-lg">
+                📥 Descargar PDF Profesional
+            </button>
             <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">
-                📄 Imprimir Informe Completo
+                🖨️ Imprimir desde Navegador
             </button>
             <button onclick="exportarJSON()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
                 💾 Exportar JSON
@@ -1071,6 +1074,60 @@
             a.download = `informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.json`;
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // Descargar PDF profesional con Playwright
+        async function descargarPDFProfesional() {
+            if (!datosInforme) {
+                alert('Primero genera el informe antes de descargar el PDF');
+                return;
+            }
+
+            const btn = document.getElementById('btnPDF');
+            const originalHTML = btn.innerHTML;
+
+            // Mostrar loading
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Generando PDF profesional...';
+            mostrarLoading(true);
+
+            try {
+                const response = await fetch('/api/generar-pdf-informe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        codEmpresa: datosInforme.codEmpresa,
+                        fechaInicio: datosInforme.fechaInicio,
+                        fechaFin: datosInforme.fechaFin
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+                }
+
+                // Descargar el PDF
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                console.log('✅ PDF descargado exitosamente');
+
+            } catch (error) {
+                console.error('❌ Error descargando PDF:', error);
+                alert(`Error al generar el PDF: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                mostrarLoading(false);
+            }
         }
 
         // Generar recomendaciones con IA
