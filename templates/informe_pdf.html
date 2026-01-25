@@ -924,8 +924,110 @@
             <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Análisis General y Recomendaciones para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
         </div>
 
+        <!-- Recomendaciones generadas por IA (si existen) -->
+        {% if recomendaciones_ia %}
+        <div style="margin-bottom: 50px;">
+            <h3 style="color: #1e40af; font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
+                Recomendaciones Específicas por Área
+            </h3>
+
+            {% if recomendaciones_ia.genero %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Género</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.genero }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.edad %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Edad</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.edad }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.estadoCivil %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Estado Civil</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.estadoCivil }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.nivelEducativo %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Nivel Educativo</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.nivelEducativo }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.hijos %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Número de Hijos</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.hijos }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.ciudad %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución Geográfica</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.ciudad }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.cargo %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Cargo</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.cargo }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.profesion %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Distribución por Profesión</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.profesion }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.encuestaSalud %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Encuesta de Salud</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.encuestaSalud }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recomendaciones_ia.diagnosticos %}
+            <div style="margin-bottom: 30px;">
+                <h4 style="color: #3b82f6; font-size: 16px; margin-bottom: 10px;">Diagnósticos y Hallazgos</h4>
+                <div style="padding: 15px; background: #f8fafc; border-left: 4px solid #10b981; border-radius: 4px;">
+                    <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line;">{{ recomendaciones_ia.diagnosticos }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if conclusiones_finales %}
         <div style="margin-bottom: 40px;">
+            <h3 style="color: #1e40af; font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
+                Conclusiones Generales
+            </h3>
             {% for conclusion in conclusiones_finales %}
             <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
                 <p style="margin: 0; line-height: 1.6; text-align: justify;">

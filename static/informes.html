@@ -1091,6 +1091,26 @@
             btn.innerHTML = '<span class="loading-spinner"></span> Generando PDF profesional...';
             mostrarLoading(true);
 
+            // Recopilar todas las recomendaciones IA generadas
+            const recomendacionesIA = {};
+            const tipos = ['genero', 'edad', 'estadoCivil', 'nivelEducativo', 'hijos', 'ciudad', 'profesion', 'encuestaSalud', 'diagnosticos'];
+
+            tipos.forEach(tipo => {
+                const recomendacionBox = document.getElementById(`recomendacion-${tipo}`);
+                if (recomendacionBox && !recomendacionBox.classList.contains('hidden')) {
+                    const textElement = recomendacionBox.querySelector('.recomendacion-text');
+                    if (textElement && textElement.innerHTML) {
+                        // Extraer el texto sin HTML y guardar
+                        const textoSinHTML = textElement.innerText || textElement.textContent;
+                        if (textoSinHTML && !textoSinHTML.includes('Error') && !textoSinHTML.includes('Analizando')) {
+                            recomendacionesIA[tipo] = textoSinHTML;
+                        }
+                    }
+                }
+            });
+
+            console.log('📝 Recomendaciones IA recopiladas:', Object.keys(recomendacionesIA).length);
+
             try {
                 const response = await fetch('/api/generar-pdf-informe', {
                     method: 'POST',
@@ -1100,7 +1120,8 @@
                     body: JSON.stringify({
                         codEmpresa: datosInforme.codEmpresa,
                         fechaInicio: datosInforme.fechaInicio,
-                        fechaFin: datosInforme.fechaFin
+                        fechaFin: datosInforme.fechaFin,
+                        recomendacionesIA: recomendacionesIA
                     })
                 });
 

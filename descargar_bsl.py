@@ -8990,9 +8990,9 @@ def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
     """
     conclusiones = []
 
-    # 1. Conclusión sobre cobertura
+    # 1. Conclusión sobre cobertura (sin mencionar cantidad específica)
     conclusiones.append(
-        f"Durante el período analizado se realizaron {total_atenciones} evaluaciones médicas ocupacionales "
+        f"Durante el período analizado se realizaron evaluaciones médicas ocupacionales "
         f"a los trabajadores de {cod_empresa}, cumpliendo con los requisitos establecidos en la normatividad vigente "
         f"de salud ocupacional y seguridad en el trabajo."
     )
@@ -9027,13 +9027,12 @@ def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
             f"de riesgo ocupacional asociados."
         )
 
-    # 4. Conclusión sobre diagnósticos (si hay)
+    # 4. Conclusión sobre diagnósticos (si hay) - sin mencionar cantidad
     if estadisticas.get('diagnosticos'):
         diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
         if diagnosticos_list:
-            total_diagnosticos = len([d for d in diagnosticos_list if d.get('total', 0) > 0])
             conclusiones.append(
-                f"Se identificaron {total_diagnosticos} diferentes condiciones de salud en la población evaluada, "
+                f"Se identificaron diversas condiciones de salud en la población evaluada, "
                 f"siendo fundamental establecer un sistema de vigilancia epidemiológica que permita el seguimiento "
                 f"y control de las condiciones más prevalentes, con énfasis en aquellas relacionadas con el trabajo."
             )
@@ -9105,6 +9104,7 @@ def generar_pdf_informe():
         cod_empresa = data.get('codEmpresa')
         fecha_inicio = data.get('fechaInicio')
         fecha_fin = data.get('fechaFin')
+        recomendaciones_ia = data.get('recomendacionesIA', {})  # Recomendaciones generadas por OpenAI (opcional)
 
         if not cod_empresa or not fecha_inicio or not fecha_fin:
             return jsonify({
@@ -9113,6 +9113,8 @@ def generar_pdf_informe():
             }), 400
 
         logger.info(f"📄 Generando PDF del informe para {cod_empresa} ({fecha_inicio} - {fecha_fin})")
+        if recomendaciones_ia:
+            logger.info(f"📝 Incluidas {len(recomendaciones_ia)} recomendaciones de IA")
 
         # 1. Obtener los datos del informe (reutilizar la lógica existente)
         historia_clinica_items = obtener_historia_clinica_postgres(cod_empresa, fecha_inicio, fecha_fin)
@@ -9444,7 +9446,8 @@ def generar_pdf_informe():
             graficos=graficos,
             conclusiones_finales=conclusiones_finales,
             medico_firmante=medico_firmante,
-            firma_medico_base64=firma_reatiga_base64
+            firma_medico_base64=firma_reatiga_base64,
+            recomendaciones_ia=recomendaciones_ia
         )
 
         # 5. Guardar HTML temporal
