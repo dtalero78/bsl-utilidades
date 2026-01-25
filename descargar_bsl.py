@@ -8054,7 +8054,10 @@ def informe_condiciones_salud():
 
         try:
             postgres_password = os.getenv("POSTGRES_PASSWORD")
+            logger.info(f"🔍 Intentando obtener empresa desde PostgreSQL para cod_empresa={cod_empresa}")
+            logger.info(f"🔑 POSTGRES_PASSWORD configurada: {bool(postgres_password)}")
             if postgres_password:
+                logger.info(f"🔌 Conectando a PostgreSQL...")
                 conn_empresa = psycopg2.connect(
                     host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
                     port=int(os.getenv("POSTGRES_PORT", "25060")),
@@ -8064,11 +8067,13 @@ def informe_condiciones_salud():
                     sslmode='require'
                 )
                 cursor_pg = conn_empresa.cursor(cursor_factory=RealDictCursor)
+                logger.info(f"📊 Ejecutando query: SELECT empresa, nit FROM empresas WHERE cod_empresa = '{cod_empresa}'")
                 cursor_pg.execute(
                     "SELECT empresa, nit FROM empresas WHERE cod_empresa = %s",
                     (cod_empresa,)
                 )
                 empresa_row = cursor_pg.fetchone()
+                logger.info(f"📦 Resultado de query: {empresa_row}")
                 cursor_pg.close()
                 conn_empresa.close()
 
