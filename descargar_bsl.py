@@ -9149,93 +9149,131 @@ def generar_pdf_informe():
         logger.info("📊 Generando gráficos con matplotlib...")
         graficos = {}
 
-        # Gráfico de género (pie chart)
-        if estadisticas.get('genero'):
-            genero_data = estadisticas['genero'].get('conteos', {})
-            graficos['genero'] = generar_grafico_pie(
-                genero_data,
-                'Distribución por Género',
-                colores=['#3b82f6', '#ec4899', '#a855f7']
-            )
+        try:
+            # Gráfico de género (pie chart)
+            if estadisticas.get('genero'):
+                genero_data = {
+                    'Masculino': estadisticas['genero'].get('masculino', {}).get('cantidad', 0),
+                    'Femenino': estadisticas['genero'].get('femenino', {}).get('cantidad', 0)
+                }
+                graficos['genero'] = generar_grafico_pie(
+                    genero_data,
+                    'Distribución por Género',
+                    colores=['#3b82f6', '#ec4899']
+                )
 
-        # Gráfico de edad (bar chart)
-        if estadisticas.get('edad'):
-            edad_data = estadisticas['edad'].get('conteos', {})
-            graficos['edad'] = generar_grafico_barras(
-                edad_data,
-                'Distribución por Edad',
-                xlabel='Rango de Edad',
-                ylabel='Cantidad de Trabajadores',
-                colores=['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe']
-            )
+            # Gráfico de edad (bar chart)
+            if estadisticas.get('edad'):
+                edad_rangos = estadisticas['edad'].get('rangos', {})
+                edad_data = {
+                    '15-20': edad_rangos.get('15-20', {}).get('cantidad', 0),
+                    '21-30': edad_rangos.get('21-30', {}).get('cantidad', 0),
+                    '31-40': edad_rangos.get('31-40', {}).get('cantidad', 0),
+                    '41-50': edad_rangos.get('41-50', {}).get('cantidad', 0),
+                    'Mayor 50': edad_rangos.get('mayor50', {}).get('cantidad', 0)
+                }
+                graficos['edad'] = generar_grafico_barras(
+                    edad_data,
+                    'Distribución por Edad',
+                    xlabel='Rango de Edad',
+                    ylabel='Cantidad de Trabajadores',
+                    colores=['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe']
+                )
 
-        # Gráfico de estado civil (pie chart)
-        if estadisticas.get('estadoCivil'):
-            estado_civil_data = estadisticas['estadoCivil'].get('conteos', {})
-            graficos['estadoCivil'] = generar_grafico_pie(
-                estado_civil_data,
-                'Distribución por Estado Civil',
-                colores=['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
-            )
+            # Gráfico de estado civil (pie chart)
+            if estadisticas.get('estadoCivil'):
+                estados = estadisticas['estadoCivil'].get('estados', {})
+                estado_civil_data = {
+                    'Soltero': estados.get('soltero', {}).get('cantidad', 0),
+                    'Casado': estados.get('casado', {}).get('cantidad', 0),
+                    'Unión Libre': estados.get('unionLibre', {}).get('cantidad', 0),
+                    'Divorciado': estados.get('divorciado', {}).get('cantidad', 0),
+                    'Viudo': estados.get('viudo', {}).get('cantidad', 0)
+                }
+                graficos['estadoCivil'] = generar_grafico_pie(
+                    estado_civil_data,
+                    'Distribución por Estado Civil',
+                    colores=['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+                )
 
-        # Gráfico de nivel educativo (bar chart)
-        if estadisticas.get('nivelEducativo'):
-            nivel_educativo_data = estadisticas['nivelEducativo'].get('conteos', {})
-            graficos['nivelEducativo'] = generar_grafico_barras(
-                nivel_educativo_data,
-                'Distribución por Nivel Educativo',
-                xlabel='Nivel Educativo',
-                ylabel='Cantidad de Trabajadores',
-                colores=['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0']
-            )
+            # Gráfico de nivel educativo (bar chart)
+            if estadisticas.get('nivelEducativo'):
+                niveles = estadisticas['nivelEducativo'].get('niveles', {})
+                nivel_educativo_data = {
+                    'Primaria': niveles.get('primaria', {}).get('cantidad', 0),
+                    'Secundaria': niveles.get('secundaria', {}).get('cantidad', 0),
+                    'Universitario': niveles.get('universitario', {}).get('cantidad', 0),
+                    'Postgrado': niveles.get('postgrado', {}).get('cantidad', 0)
+                }
+                graficos['nivelEducativo'] = generar_grafico_barras(
+                    nivel_educativo_data,
+                    'Distribución por Nivel Educativo',
+                    xlabel='Nivel Educativo',
+                    ylabel='Cantidad de Trabajadores',
+                    colores=['#059669', '#10b981', '#34d399', '#6ee7b7']
+                )
 
-        # Gráfico de hijos (bar chart)
-        if estadisticas.get('hijos'):
-            hijos_data = estadisticas['hijos'].get('conteos', {})
-            graficos['hijos'] = generar_grafico_barras(
-                hijos_data,
-                'Distribución por Número de Hijos',
-                xlabel='Número de Hijos',
-                ylabel='Cantidad de Trabajadores',
-                colores=['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7']
-            )
+            # Gráfico de hijos (bar chart)
+            if estadisticas.get('hijos'):
+                grupos = estadisticas['hijos'].get('grupos', {})
+                hijos_data = {
+                    'Sin hijos': grupos.get('sinHijos', {}).get('cantidad', 0),
+                    '1 hijo': grupos.get('unHijo', {}).get('cantidad', 0),
+                    '2 hijos': grupos.get('dosHijos', {}).get('cantidad', 0),
+                    '3+ hijos': grupos.get('tresOMas', {}).get('cantidad', 0)
+                }
+                graficos['hijos'] = generar_grafico_barras(
+                    hijos_data,
+                    'Distribución por Número de Hijos',
+                    xlabel='Número de Hijos',
+                    ylabel='Cantidad de Trabajadores',
+                    colores=['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a']
+                )
 
-        # Gráfico de ciudad de residencia (barras horizontales - puede haber muchas)
-        if estadisticas.get('ciudadResidencia'):
-            ciudad_data = estadisticas['ciudadResidencia'].get('conteos', {})
-            graficos['ciudadResidencia'] = generar_grafico_barras_horizontales(
-                ciudad_data,
-                'Top 15 Ciudades de Residencia',
-                xlabel='Cantidad de Trabajadores',
-                colores=['#6366f1'],
-                max_items=15
-            )
+            # Gráfico de ciudad de residencia (barras horizontales - puede haber muchas)
+            if estadisticas.get('ciudadResidencia'):
+                ciudades_list = estadisticas['ciudadResidencia'].get('ciudades', [])
+                ciudad_data = {ciudad['nombre']: ciudad['cantidad'] for ciudad in ciudades_list if ciudad.get('cantidad', 0) > 0}
+                graficos['ciudadResidencia'] = generar_grafico_barras_horizontales(
+                    ciudad_data,
+                    'Top 15 Ciudades de Residencia',
+                    xlabel='Cantidad de Trabajadores',
+                    colores=['#6366f1'],
+                    max_items=15
+                )
 
-        # Gráfico de profesión (barras horizontales - puede haber muchas)
-        if estadisticas.get('profesionUOficio'):
-            profesion_data = estadisticas['profesionUOficio'].get('conteos', {})
-            graficos['profesionUOficio'] = generar_grafico_barras_horizontales(
-                profesion_data,
-                'Top 15 Profesiones u Oficios',
-                xlabel='Cantidad de Trabajadores',
-                colores=['#8b5cf6'],
-                max_items=15
-            )
+            # Gráfico de profesión (barras horizontales - puede haber muchas)
+            if estadisticas.get('profesionUOficio'):
+                profesiones_list = estadisticas['profesionUOficio'].get('profesiones', [])
+                profesion_data = {prof['nombre']: prof['cantidad'] for prof in profesiones_list if prof.get('cantidad', 0) > 0}
+                graficos['profesionUOficio'] = generar_grafico_barras_horizontales(
+                    profesion_data,
+                    'Top 15 Profesiones u Oficios',
+                    xlabel='Cantidad de Trabajadores',
+                    colores=['#8b5cf6'],
+                    max_items=15
+                )
 
-        # Gráfico de diagnósticos (barras horizontales - suelen ser muchos)
-        if estadisticas.get('diagnosticos'):
-            diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
-            # Convertir lista a dict para el gráfico
-            diagnosticos_data = {diag['diagnostico']: diag['total'] for diag in diagnosticos_list if diag.get('total', 0) > 0}
-            graficos['diagnosticos'] = generar_grafico_barras_horizontales(
-                diagnosticos_data,
-                'Top 15 Diagnósticos Encontrados',
-                xlabel='Número de Casos',
-                colores=['#ef4444'],
-                max_items=15
-            )
+            # Gráfico de diagnósticos (barras horizontales - suelen ser muchos)
+            if estadisticas.get('diagnosticos'):
+                diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
+                # Convertir lista a dict para el gráfico
+                diagnosticos_data = {diag['diagnostico']: diag['total'] for diag in diagnosticos_list if diag.get('total', 0) > 0}
+                graficos['diagnosticos'] = generar_grafico_barras_horizontales(
+                    diagnosticos_data,
+                    'Top 15 Diagnósticos Encontrados',
+                    xlabel='Número de Casos',
+                    colores=['#ef4444'],
+                    max_items=15
+                )
 
-        logger.info(f"✅ Gráficos generados: {list(graficos.keys())}")
+            logger.info(f"✅ Gráficos generados: {list(graficos.keys())}")
+
+        except Exception as e:
+            logger.error(f"❌ Error generando gráficos: {str(e)}")
+            logger.error(traceback.format_exc())
+            # Continuar sin gráficos si hay un error
+            graficos = {}
 
         # 3. Formatear fechas en español
         def formatear_fecha_espanol(fecha_str):

@@ -1115,8 +1115,16 @@
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `Informe_${datosInforme.codEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.pdf`;
+
+                // Agregar al DOM, hacer click, y remover (funciona en todos los navegadores)
+                document.body.appendChild(a);
                 a.click();
-                URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Limpiar después de un delay
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 100);
 
                 console.log('✅ PDF descargado exitosamente');
 
