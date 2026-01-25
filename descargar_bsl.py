@@ -8087,7 +8087,7 @@ def informe_condiciones_salud():
 
         # Mantener estructura compatible con código anterior
         empresa_info = {
-            'nombre': empresa_nombre,
+            'empresa': empresa_nombre,
             'nit': empresa_nit,
             'codEmpresa': cod_empresa
         }
