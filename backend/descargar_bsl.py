@@ -10,6 +10,7 @@ import traceback
 from jinja2 import Template
 import uuid
 from datetime import datetime, timedelta
+import pytz
 import tempfile
 import csv
 import io
@@ -46,6 +47,17 @@ def crear_sesion_con_retry():
 # Sesión global con retry
 requests_session = crear_sesion_con_retry()
 logger.info("✅ Sesión de requests configurada con retry automático (3 intentos)")
+
+# Zona horaria de Colombia
+COLOMBIA_TZ = pytz.timezone('America/Bogota')
+
+def obtener_fecha_colombia():
+    """
+    Obtiene la fecha y hora actual en la zona horaria de Colombia (America/Bogota)
+    Returns:
+        datetime object con timezone de Colombia
+    """
+    return datetime.now(COLOMBIA_TZ)
 
 # Intentar importar Twilio (opcional)
 try:

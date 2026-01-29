@@ -5,6 +5,7 @@ flask-compress
 simple-websocket
 requests
 python-dotenv
+pytz
 google-api-python-client
 google-auth
 google-auth-httplib2
