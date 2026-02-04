@@ -1278,6 +1278,16 @@
                         f.wix_id === hc._id || f.numeroId === hc.numeroId
                     );
 
+                    // Procesar exámenes (puede venir como string o array)
+                    let examenesStr = '';
+                    if (hc.examenes) {
+                        if (Array.isArray(hc.examenes)) {
+                            examenesStr = hc.examenes.join(', ');
+                        } else if (typeof hc.examenes === 'string') {
+                            examenesStr = hc.examenes;
+                        }
+                    }
+
                     // Construir fila con las columnas requeridas
                     const fila = {
                         'Tipo Examen': hc.tipoExamen || '',
@@ -1287,7 +1297,7 @@
                         'Ciudad': formulario?.ciudad || hc.ciudad || '',
                         'Fecha': hc.fechaConsulta || hc.fechaAtencion || '',
                         'Cargo': formulario?.cargo || hc.cargo || '',
-                        'Exámenes': Array.isArray(hc.examen) ? hc.examen.join(', ') : (hc.examen || '')
+                        'Exámenes': examenesStr
                     };
 
                     excelData.push(fila);
