@@ -6,6 +6,7 @@
     <title>Informe de Condiciones de Salud - BSL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Paleta de colores BSL */
         :root {
@@ -674,6 +675,9 @@
             <button onclick="descargarPDFProfesional()" id="btnPDF" class="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition font-medium shadow-lg">
                 📥 Descargar PDF Profesional
             </button>
+            <button onclick="descargarExcel()" class="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition font-medium shadow-lg">
+                📊 Descargar Excel
+            </button>
             <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">
                 🖨️ Imprimir desde Navegador
             </button>
@@ -1253,6 +1257,78 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = 'Recomendaciones';
+            }
+        }
+
+        // Función para descargar Excel con datos individuales
+        function descargarExcel() {
+            if (!datosInforme || !datosInforme.historiaClinicaItems) {
+                alert('No hay datos disponibles para exportar');
+                return;
+            }
+
+            try {
+                // Preparar datos para Excel
+                const excelData = [];
+
+                // Combinar datos de HistoriaClinica con Formularios
+                datosInforme.historiaClinicaItems.forEach(hc => {
+                    // Buscar formulario correspondiente
+                    const formulario = datosInforme.formularioItems?.find(f =>
+                        f.wix_id === hc._id || f.numeroId === hc.numeroId
+                    );
+
+                    // Construir fila con las columnas requeridas
+                    const fila = {
+                        'Tipo Examen': hc.tipoExamen || '',
+                        'Número ID': hc.numeroId || '',
+                        'Primer Nombre': formulario?.primerNombre || hc.primerNombre || '',
+                        'Primer Apellido': formulario?.primerApellido || hc.primerApellido || '',
+                        'Ciudad': formulario?.ciudad || hc.ciudad || '',
+                        'Fecha': hc.fechaConsulta || hc.fechaAtencion || '',
+                        'Cargo': formulario?.cargo || hc.cargo || '',
+                        'Exámenes': Array.isArray(hc.examen) ? hc.examen.join(', ') : (hc.examen || '')
+                    };
+
+                    excelData.push(fila);
+                });
+
+                if (excelData.length === 0) {
+                    alert('No hay registros para exportar');
+                    return;
+                }
+
+                // Crear workbook y worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+
+                // Ajustar ancho de columnas
+                const columnWidths = [
+                    { wch: 15 }, // Tipo Examen
+                    { wch: 15 }, // Número ID
+                    { wch: 20 }, // Primer Nombre
+                    { wch: 20 }, // Primer Apellido
+                    { wch: 15 }, // Ciudad
+                    { wch: 12 }, // Fecha
+                    { wch: 25 }, // Cargo
+                    { wch: 50 }  // Exámenes
+                ];
+                ws['!cols'] = columnWidths;
+
+                // Agregar worksheet al workbook
+                XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+
+                // Generar nombre de archivo
+                const fecha = new Date().toISOString().split('T')[0];
+                const nombreArchivo = `${datosInforme.empresaInfo?.empresa || datosInforme.codEmpresa}_${fecha}.xlsx`;
+
+                // Descargar archivo
+                XLSX.writeFile(wb, nombreArchivo);
+
+                console.log(`✅ Excel descargado: ${nombreArchivo} con ${excelData.length} registros`);
+            } catch (error) {
+                console.error('Error al generar Excel:', error);
+                alert('Error al generar el archivo Excel: ' + error.message);
             }
         }
     </script>

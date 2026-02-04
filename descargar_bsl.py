@@ -8252,7 +8252,9 @@ def informe_condiciones_salud():
             'fechaInicio': fecha_inicio,
             'fechaFin': fecha_fin,
             'estadisticas': estadisticas,
-            'informacionTeorica': informacion_teorica
+            'informacionTeorica': informacion_teorica,
+            'historiaClinicaItems': historia_clinica_items,
+            'formularioItems': formulario_items
         }
 
         response = jsonify(response_data)
