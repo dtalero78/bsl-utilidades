@@ -9427,6 +9427,9 @@ def generar_pdf_informe():
             with open(firma_reatiga_path, 'rb') as f:
                 firma_reatiga_base64 = base64.b64encode(f.read()).decode('utf-8')
 
+        # 2.1b Reutilizar firma del Dr. Reátiga para la página de custodia
+        firma_representante_base64 = firma_reatiga_base64
+
         # 2.2 Generar conclusiones finales
         conclusiones_finales = generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa)
 
@@ -9574,6 +9577,12 @@ def generar_pdf_informe():
             mes_actual = MESES_ESPANOL.get(datetime.now().month, str(datetime.now().month))
             fecha_elaboracion = f"{datetime.now().day} de {mes_actual} de {datetime.now().year}"
 
+        # Fecha para la página de custodia (formato: FEBRERO 6 de 2026)
+        fecha_ahora = obtener_fecha_colombia()
+        fecha_custodia_mes = MESES_ESPANOL.get(fecha_ahora.month, '').upper()
+        fecha_custodia_dia = fecha_ahora.day
+        fecha_custodia_anio = fecha_ahora.year
+
         # 4. Renderizar template HTML con Jinja2
         template_path = os.path.join(os.path.dirname(__file__), 'templates', 'informe_pdf.html')
         with open(template_path, 'r', encoding='utf-8') as f:
@@ -9612,7 +9621,11 @@ def generar_pdf_informe():
             conclusiones_finales=conclusiones_finales,
             medico_firmante=medico_firmante,
             firma_medico_base64=firma_reatiga_base64,
-            recomendaciones_ia=recomendaciones_ia
+            recomendaciones_ia=recomendaciones_ia,
+            firma_representante_base64=firma_representante_base64,
+            fecha_custodia_mes=fecha_custodia_mes,
+            fecha_custodia_dia=fecha_custodia_dia,
+            fecha_custodia_anio=fecha_custodia_anio
         )
 
         # 5. Guardar HTML temporal
