@@ -1294,6 +1294,7 @@
                         'Número ID': hc.numeroId || '',
                         'Primer Nombre': formulario?.primerNombre || hc.primerNombre || '',
                         'Primer Apellido': formulario?.primerApellido || hc.primerApellido || '',
+                        'Sexo': formulario?.genero || hc.genero || '',
                         'Ciudad': formulario?.ciudad || hc.ciudad || '',
                         'Fecha': hc.fechaConsulta || hc.fechaAtencion || '',
                         'Cargo': formulario?.cargo || hc.cargo || '',
@@ -1318,6 +1319,7 @@
                     { wch: 15 }, // Número ID
                     { wch: 20 }, // Primer Nombre
                     { wch: 20 }, // Primer Apellido
+                    { wch: 12 }, // Sexo
                     { wch: 15 }, // Ciudad
                     { wch: 12 }, // Fecha
                     { wch: 25 }, // Cargo
