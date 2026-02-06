@@ -1295,7 +1295,7 @@
                         'Primer Nombre': formulario?.primerNombre || hc.primerNombre || '',
                         'Primer Apellido': formulario?.primerApellido || hc.primerApellido || '',
                         'Sexo': formulario?.genero || hc.genero || '',
-                        'Ciudad': formulario?.ciudad || hc.ciudad || '',
+                        'Ciudad': formulario?.ciudad || hc.ciudad || formulario?.ciudad_residencia || formulario?.ciudadDeResidencia || '',
                         'Fecha': hc.fechaConsulta || hc.fechaAtencion || '',
                         'Cargo': formulario?.cargo || hc.cargo || '',
                         'Exámenes': examenesStr
