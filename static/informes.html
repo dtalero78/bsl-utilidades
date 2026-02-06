@@ -1273,9 +1273,9 @@
 
                 // Combinar datos de HistoriaClinica con Formularios
                 datosInforme.historiaClinicaItems.forEach(hc => {
-                    // Buscar formulario correspondiente
+                    // Buscar formulario correspondiente (formularios usa snake_case: numero_id, wix_id)
                     const formulario = datosInforme.formularioItems?.find(f =>
-                        f.wix_id === hc._id || f.numeroId === hc.numeroId
+                        f.wix_id === hc._id || f.numero_id === hc.numeroId || f.numeroId === hc.numeroId
                     );
 
                     // Procesar exámenes (puede venir como string o array)
@@ -1290,15 +1290,20 @@
 
                     // Construir fila con las columnas requeridas
                     const fila = {
-                        'Tipo Examen': hc.tipoExamen || '',
-                        'Número ID': hc.numeroId || '',
-                        'Primer Nombre': formulario?.primerNombre || hc.primerNombre || '',
-                        'Primer Apellido': formulario?.primerApellido || hc.primerApellido || '',
-                        'Sexo': formulario?.genero || hc.genero || '',
-                        'Ciudad': formulario?.ciudad || hc.ciudad || formulario?.ciudad_residencia || formulario?.ciudadDeResidencia || '',
-                        'Fecha': hc.fechaConsulta || hc.fechaAtencion || '',
-                        'Cargo': formulario?.cargo || hc.cargo || '',
-                        'Exámenes': examenesStr
+                        'NÚMERO DE ID': hc.numeroId || '',
+                        'PRIMER NOMBRE': formulario?.primer_nombre || hc.primerNombre || '',
+                        'SEGUNDO NOMBRE': formulario?.segundo_nombre || hc.segundoNombre || '',
+                        'PRIMER APELLIDO': formulario?.primer_apellido || hc.primerApellido || '',
+                        'SEGUNDO APELLIDO': formulario?.segundo_apellido || hc.segundoApellido || '',
+                        'GENERO': formulario?.genero || hc.genero || '',
+                        'CIUDAD CONTRATO': hc.ciudad || formulario?.ciudad_residencia || formulario?.ciudadDeResidencia || '',
+                        'EMPRESA': hc.empresa || formulario?.empresa || '',
+                        'SUB EMPRESA': formulario?.centro_costo || hc.centro_costo || '',
+                        'CARGO': formulario?.cargo || hc.cargo || '',
+                        'TIPO EXAMEN': hc.tipoExamen || '',
+                        'EXAMENES': examenesStr,
+                        'FECHA CONSULTA': hc.fechaConsulta || hc.fechaAtencion || '',
+                        'MEDICO': hc.medico || ''
                     };
 
                     excelData.push(fila);
@@ -1315,15 +1320,20 @@
 
                 // Ajustar ancho de columnas
                 const columnWidths = [
-                    { wch: 15 }, // Tipo Examen
-                    { wch: 15 }, // Número ID
-                    { wch: 20 }, // Primer Nombre
-                    { wch: 20 }, // Primer Apellido
-                    { wch: 12 }, // Sexo
-                    { wch: 15 }, // Ciudad
-                    { wch: 12 }, // Fecha
-                    { wch: 25 }, // Cargo
-                    { wch: 50 }  // Exámenes
+                    { wch: 15 }, // NÚMERO DE ID
+                    { wch: 18 }, // PRIMER NOMBRE
+                    { wch: 18 }, // SEGUNDO NOMBRE
+                    { wch: 18 }, // PRIMER APELLIDO
+                    { wch: 18 }, // SEGUNDO APELLIDO
+                    { wch: 12 }, // GENERO
+                    { wch: 18 }, // CIUDAD CONTRATO
+                    { wch: 25 }, // EMPRESA
+                    { wch: 20 }, // SUB EMPRESA
+                    { wch: 25 }, // CARGO
+                    { wch: 15 }, // TIPO EXAMEN
+                    { wch: 50 }, // EXAMENES
+                    { wch: 15 }, // FECHA CONSULTA
+                    { wch: 20 }  // MEDICO
                 ];
                 ws['!cols'] = columnWidths;
 
