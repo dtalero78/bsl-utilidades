@@ -1298,7 +1298,8 @@
                         'GENERO': formulario?.genero || hc.genero || '',
                         'CIUDAD CONTRATO': hc.ciudad || formulario?.ciudad_residencia || formulario?.ciudadDeResidencia || '',
                         'EMPRESA': hc.empresa || formulario?.empresa || '',
-                        'SUB EMPRESA': formulario?.centro_costo || hc.centro_costo || '',
+                        'SUB EMPRESA': hc.subempresa || '',
+                        'CENTRO DE COSTO': hc.centro_de_costo || '',
                         'CARGO': formulario?.cargo || hc.cargo || '',
                         'TIPO EXAMEN': hc.tipoExamen || '',
                         'EXAMENES': examenesStr,
@@ -1329,6 +1330,7 @@
                     { wch: 18 }, // CIUDAD CONTRATO
                     { wch: 25 }, // EMPRESA
                     { wch: 20 }, // SUB EMPRESA
+                    { wch: 20 }, // CENTRO DE COSTO
                     { wch: 25 }, // CARGO
                     { wch: 15 }, // TIPO EXAMEN
                     { wch: 50 }, // EXAMENES
