@@ -61,6 +61,38 @@ def obtener_fecha_colombia():
     """
     return datetime.now(COLOMBIA_TZ)
 
+def generar_fecha_custodia_texto():
+    """Genera la fecha formateada para la página de custodia: 'FEBRERO 6 de 2026'"""
+    fecha = obtener_fecha_colombia()
+    mes = MESES_ESPANOL.get(fecha.month, '').upper()
+    return f"{mes} {fecha.day} de {fecha.year}"
+
+def obtener_nit_empresa(cod_empresa):
+    """Obtiene el NIT de una empresa desde PostgreSQL"""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password or not cod_empresa:
+            return ''
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT nit FROM empresas WHERE cod_empresa = %s", (cod_empresa,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return row.get('nit', '') if row else ''
+    except Exception as e:
+        print(f"⚠️ Error obteniendo NIT para {cod_empresa}: {e}")
+        return ''
+
 # ===== MAPEO DE NOMBRES DE EXÁMENES (Variantes -> Nombre oficial de tabla examenes en PostgreSQL) =====
 # Los nombres normalizados deben coincidir EXACTAMENTE con la tabla "examenes" de PostgreSQL
 MAPEO_EXAMENES = {
@@ -2628,6 +2660,10 @@ def generar_certificado_medico():
         if mostrar_aviso:
             print(f"⚠️ Mostrando aviso de pago pendiente")
 
+        # Datos para página de custodia
+        datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
+        datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
+
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
@@ -2904,6 +2940,10 @@ def generar_certificado_medico_puppeteer():
 
         if mostrar_aviso:
             print(f"⚠️ Mostrando aviso de pago pendiente")
+
+        # Datos para página de custodia
+        datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
+        datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
 
         # PRE-PROCESAR IMÁGENES: convertir URLs de Wix a DO Spaces ANTES de renderizar
         print("🖼️ Pre-procesando imágenes para usar DO Spaces...")
@@ -3542,6 +3582,10 @@ def test_certificado_postgres(wix_id):
 
             "qr_code_base64": None  # Por ahora sin QR
         }
+
+        # Datos para página de custodia
+        datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
+        datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(cod_empresa or "")
 
         # Renderizar template
         print("🎨 Renderizando template...")
@@ -5769,6 +5813,10 @@ def preview_certificado_html(wix_id):
 
         if mostrar_aviso:
             print(f"⚠️ Preview mostrará aviso de pago pendiente para {datos_wix.get('codEmpresa', 'N/A')}")
+
+        # Datos para página de custodia
+        datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
+        datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(datos_wix.get("codEmpresa", ""))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")
