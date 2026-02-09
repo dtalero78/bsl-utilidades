@@ -4674,8 +4674,8 @@ def api_generar_certificado_pdf(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
-            # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
-            if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
+            # Si hay observaciones y este es el examen médico principal, usar las observaciones
+            if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
@@ -4693,7 +4693,11 @@ def api_generar_certificado_pdf(wix_id):
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
         if not recomendaciones:
-            recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
+            # Si hay observaciones del médico y no hay recomendaciones específicas, usar las observaciones
+            if observaciones_certificado:
+                recomendaciones = observaciones_certificado
+            else:
+                recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
@@ -5657,8 +5661,8 @@ def preview_certificado_html(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
-            # Si hay observaciones y este es el examen osteomuscular, usar las observaciones
-            if observaciones_sin_analisis and "OSTEOMUSCULAR" in examen.upper():
+            # Si hay observaciones y este es el examen médico principal, usar las observaciones
+            if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
@@ -5676,7 +5680,11 @@ def preview_certificado_html(wix_id):
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
         if not recomendaciones:
-            recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
+            # Si hay observaciones del médico y no hay recomendaciones específicas, usar las observaciones
+            if observaciones_certificado:
+                recomendaciones = observaciones_certificado
+            else:
+                recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
