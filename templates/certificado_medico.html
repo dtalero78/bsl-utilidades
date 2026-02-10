@@ -893,45 +893,5 @@
         </div>
     </div>
 
-    {% if mostrar_custodia is defined and mostrar_custodia %}
-    <!-- PÁGINA DE CUSTODIA DE HISTORIAS CLÍNICAS -->
-    <div style="page-break-before: always; max-width: 8.5in; margin: 0 auto; background: white; padding: 60px 40px; font-family: Arial, sans-serif;">
-        <!-- Logo BSL -->
-        <div style="text-align: center; margin-bottom: 50px;">
-            <img src="{{ logo_url }}" alt="BSL Logo" style="height: 80px;">
-        </div>
-
-        <!-- Fecha -->
-        <p style="font-size: 12pt; color: #333; margin-bottom: 35px;">
-            Bogotá, {{ fecha_custodia_texto }}
-        </p>
-
-        <!-- Título -->
-        <div style="margin-bottom: 50px;">
-            <p style="font-size: 14pt; font-weight: bold; color: #333; margin: 0; text-align: center;">Certificado de Custodia de Historia Clínica</p>
-        </div>
-
-        <!-- Cuerpo de la carta -->
-        <div style="margin-bottom: 80px;">
-            <p style="font-size: 12pt; color: #333; line-height: 1.8; text-align: justify;">
-                Por medio de la presente, damos constancia que como prestadores de salud BIENESTAR Y SALUD LABORAL SAS NIT No. 900.844.030-8, tenemos la custodia de la historia clínica de <strong>{{ nombres_apellidos }}</strong> identificado(a) con cédula de ciudadanía No. <strong>{{ documento_identidad }}</strong> en nuestro archivo digital y físico, de acuerdo con la Resolución 1843 de abril de 2025
-            </p>
-        </div>
-
-        <!-- Despedida -->
-        <p style="font-size: 12pt; color: #333; margin-bottom: 80px;">Cordialmente;</p>
-
-        <!-- Firma -->
-        <div style="margin-top: 50px;">
-            <div style="margin-bottom: 5px;">
-                <img src="https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-JUAN134.jpeg" alt="Firma Representante Legal" style="max-width: 250px; height: auto;">
-            </div>
-            <div style="border-top: 2px solid #333; width: 350px; margin-bottom: 8px;"></div>
-            <p style="font-size: 12pt; font-weight: bold; color: #333; margin: 0;">MARIA CLAUDIA REATIGA URREA</p>
-            <p style="font-size: 11pt; color: #333; margin: 3px 0;">Representante Legal</p>
-            <p style="font-size: 11pt; color: #333; margin: 3px 0;">BIENESTAR Y SALUD LABORAL S.A.S</p>
-        </div>
-    </div>
-    {% endif %}
 </body>
 </html>
