@@ -6016,9 +6016,21 @@ def enviar_certificado_whatsapp():
                 "message": "Error al generar el certificado PDF"
             }), 500
 
-        # Guardar PDF temporalmente y subirlo a un lugar accesible
-        # Para simplificar, vamos a usar la URL del preview como link CON CACHE-BUSTING
-        certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}"
+        # Subir PDF a DO Spaces para que Twilio pueda descargarlo (URL estática y pública)
+        pdf_bytes = pdf_response.content
+        documento_id = numero_id if numero_id else datos_wix.get('numeroId', wix_id)
+        pdf_filename = f"certificados-whatsapp/certificado_{documento_id}_{cache_buster}.pdf"
+
+        from do_spaces_uploader import get_do_spaces_uploader
+        do_uploader = get_do_spaces_uploader()
+        certificado_url = None
+        if do_uploader.client:
+            certificado_url = do_uploader.upload_bytes(pdf_bytes, pdf_filename, content_type='application/pdf')
+            print(f"✅ PDF subido a DO Spaces: {certificado_url}")
+
+        if not certificado_url:
+            print("⚠️ No se pudo subir a DO Spaces, usando URL directa como fallback")
+            certificado_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}"
 
         # Enviar por WhatsApp usando Twilio
         print(f"📤 Enviando certificado por WhatsApp via Twilio a {celular}")
