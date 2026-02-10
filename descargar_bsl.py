@@ -3164,11 +3164,14 @@ def procesar_csv():
     Separa el nombre completo y extrae campos específicos.
 
     Campos esperados en el CSV:
-    - NOMBRES APELLIDOS Y (o NOMBRES COMPLETOS, o NOMBRES Y APELLIDOS)
-    - No IDENTIFICACION
-    - CARGO
-    - TELEFONOS
-    - CIUDAD
+    - NOMBRES APELLIDOS Y (o NOMBRES COMPLETOS, o NOMBRES Y APELLIDOS, o Nombres y Apellidos)
+    - No IDENTIFICACION (o No. Identificación)
+    - CARGO (o Cargo)
+    - TELEFONOS (o Telefono)
+    - CIUDAD (o Ciudad)
+    - TIPO DE EXAMEN OCUPACIONAL (opcional)
+    - Tipo de documento (opcional)
+    - Correo (opcional)
 
     Returns:
         JSON con los datos procesados
@@ -3232,6 +3235,8 @@ def procesar_csv():
                     celular = row_normalized.get('celular', '').strip()
                     ciudad = row_normalized.get('ciudad', '').strip()
                     tipo_examen = row_normalized.get('tipoExamen', '').strip()
+                    correo = row_normalized.get('correo', '').strip()
+                    tipo_documento = row_normalized.get('tipoDocumento', '').strip()
                     empresa = row_normalized.get('empresa', '').strip()
 
                 else:
@@ -3239,7 +3244,8 @@ def procesar_csv():
                     nombre_completo = (
                         row_normalized.get('NOMBRES APELLIDOS Y', '') or
                         row_normalized.get('NOMBRES COMPLETOS', '') or
-                        row_normalized.get('NOMBRES Y APELLIDOS', '')
+                        row_normalized.get('NOMBRES Y APELLIDOS', '') or
+                        row_normalized.get('Nombres y Apellidos', '')
                     ).strip()
 
                     print(f"🔍 Fila {idx} - Nombre encontrado: '{nombre_completo}'")
@@ -3250,11 +3256,13 @@ def procesar_csv():
                     primer_apellido = nombres_separados["primerApellido"]
                     segundo_apellido = nombres_separados["segundoApellido"]
 
-                    numero_id = row_normalized.get('No IDENTIFICACION', '').strip()
-                    cargo = row_normalized.get('CARGO', '').strip()
-                    celular = row_normalized.get('TELEFONOS', '').strip()
-                    ciudad = row_normalized.get('CIUDAD', '').strip()
+                    numero_id = (row_normalized.get('No IDENTIFICACION', '') or row_normalized.get('No. Identificación', '')).strip()
+                    cargo = (row_normalized.get('CARGO', '') or row_normalized.get('Cargo', '')).strip()
+                    celular = (row_normalized.get('TELEFONOS', '') or row_normalized.get('Telefono', '')).strip()
+                    ciudad = (row_normalized.get('CIUDAD', '') or row_normalized.get('Ciudad', '')).strip()
                     tipo_examen = row_normalized.get('TIPO DE EXAMEN OCUPACIONAL', '').strip()
+                    correo = row_normalized.get('Correo', '').strip()
+                    tipo_documento = (row_normalized.get('Tipo de documento', '') or row_normalized.get('TIPO DE DOCUMENTO', '')).strip()
                     empresa = row_normalized.get('Autorizado por:', '').strip()
 
                 # Calcular fecha de atención (un día después de hoy por defecto)
@@ -3284,8 +3292,10 @@ def procesar_csv():
                     "segundoNombre": segundo_nombre,
                     "primerApellido": primer_apellido,
                     "segundoApellido": segundo_apellido,
+                    "tipoDocumento": tipo_documento,
                     "numeroId": numero_id,
                     "cargo": cargo,
+                    "correo": correo,
                     "celular": celular,
                     "ciudad": ciudad,
                     "tipoExamen": tipo_examen,

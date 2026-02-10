@@ -261,12 +261,13 @@
             <strong>Formato requerido del CSV:</strong>
             El archivo debe contener las siguientes columnas:
             <ul>
-                <li><strong>NOMBRES APELLIDOS Y</strong> (o NOMBRES COMPLETOS, o NOMBRES Y APELLIDOS) - Se separará en primer/segundo nombre y apellidos</li>
-                <li><strong>No IDENTIFICACION</strong> - Número de documento</li>
-                <li><strong>CARGO</strong> - Cargo de la persona</li>
-                <li><strong>TELEFONOS</strong> - Número de teléfono/celular</li>
-                <li><strong>CIUDAD</strong> - Ciudad</li>
-                <li><strong>TIPO DE EXAMEN OCUPACIONAL</strong> - Tipo de examen (opcional)</li>
+                <li><strong>Nombres y Apellidos</strong> - Se separará en primer/segundo nombre y apellidos</li>
+                <li><strong>Tipo de documento</strong> - Tipo de documento (CC, CE, etc.)</li>
+                <li><strong>No. Identificación</strong> - Número de documento</li>
+                <li><strong>Cargo</strong> - Cargo de la persona</li>
+                <li><strong>Correo</strong> - Correo electrónico</li>
+                <li><strong>Telefono</strong> - Número de teléfono/celular</li>
+                <li><strong>Ciudad</strong> - Ciudad</li>
             </ul>
         </div>
 
@@ -464,8 +465,10 @@
                                 <th>segundoNombre</th>
                                 <th>primerApellido</th>
                                 <th>segundoApellido</th>
+                                <th>tipoDocumento</th>
                                 <th>numeroId</th>
                                 <th>cargo</th>
+                                <th>correo</th>
                                 <th>celular</th>
                                 <th>ciudad</th>
                                 <th>tipoExamen</th>
@@ -500,8 +503,10 @@
                         <td>${persona.segundoNombre}</td>
                         <td>${persona.primerApellido}</td>
                         <td>${persona.segundoApellido}</td>
+                        <td>${persona.tipoDocumento || ''}</td>
                         <td>${persona.numeroId}</td>
                         <td>${persona.cargo}</td>
+                        <td>${persona.correo || ''}</td>
                         <td>${persona.celular}</td>
                         <td>${persona.ciudad}</td>
                         <td>${persona.tipoExamen}</td>
@@ -922,11 +927,13 @@
 
             // Definir las columnas del CSV según el formato solicitado
             const headers = [
+                'tipoDocumento',
                 'numeroId',
                 'primerNombre',
                 'segundoNombre',
                 'primerApellido',
                 'segundoApellido',
+                'correo',
                 'celular',
                 'cargo',
                 'ciudad',
@@ -945,11 +952,13 @@
             // Agregar cada fila de datos
             window.lastProcessedData.datos.forEach(persona => {
                 const row = [
+                    escapeCsvValue(persona.tipoDocumento || ''),
                     persona.numeroId || '',
                     persona.primerNombre || '',
                     persona.segundoNombre || '',
                     persona.primerApellido || '',
                     persona.segundoApellido || '',
+                    escapeCsvValue(persona.correo || ''),
                     persona.celular || '',
                     escapeCsvValue(persona.cargo || ''),
                     persona.ciudad || '',
