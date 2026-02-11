@@ -6182,10 +6182,93 @@ def medidata_principal():
     return send_from_directory('static', 'medidata-principal.html')
 
 # --- PROXY ENDPOINTS PARA MEDIDATA (SOLUCION CORS) ---
+def buscar_pacientes_postgres(termino):
+    """
+    Busca pacientes en PostgreSQL por numeroId, celular o apellido.
+    Fallback cuando Wix no responde.
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return None
+
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        print(f"🔍 [PostgreSQL MediData] Buscando pacientes con término: {termino}")
+
+        # Buscar por numeroId exacto, celular exacto, o apellido parcial (ILIKE)
+        cur.execute("""
+            SELECT
+                _id, "numeroId", "primerNombre", "segundoNombre",
+                "primerApellido", "segundoApellido", celular, email,
+                "codEmpresa", empresa, cargo, "tipoExamen", examenes,
+                medico, ciudad, "pvEstado", atendido
+            FROM "HistoriaClinica"
+            WHERE "numeroId" = %s
+               OR celular = %s
+               OR "primerApellido" ILIKE %s
+               OR "segundoApellido" ILIKE %s
+            ORDER BY "fechaAtencion" DESC NULLS LAST
+            LIMIT 20;
+        """, (termino, termino, f"%{termino}%", f"%{termino}%"))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        if not rows:
+            print(f"ℹ️  [PostgreSQL MediData] No se encontraron resultados para: {termino}")
+            return None
+
+        columnas = [
+            '_id', 'numeroId', 'primerNombre', 'segundoNombre',
+            'primerApellido', 'segundoApellido', 'celular', 'email',
+            'codEmpresa', 'empresa', 'cargo', 'tipoExamen', 'examenes',
+            'medico', 'ciudad', 'pvEstado', 'atendido'
+        ]
+
+        items = []
+        for row in rows:
+            item = {}
+            for i, col in enumerate(columnas):
+                valor = row[i]
+                # Convertir valores None a string vacío para el frontend
+                if valor is None:
+                    item[col] = ''
+                elif isinstance(valor, list):
+                    item[col] = valor
+                else:
+                    item[col] = str(valor)
+            items.append(item)
+
+        print(f"✅ [PostgreSQL MediData] Encontrados {len(items)} resultados para: {termino}")
+        return {'success': True, 'items': items, 'source': 'postgresql'}
+
+    except ImportError:
+        print("⚠️  [PostgreSQL MediData] psycopg2 no está instalado")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL MediData] Error en búsqueda: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 @app.route("/api/medidata/<endpoint>", methods=['GET', 'POST', 'OPTIONS'])
 def proxy_medidata(endpoint):
     """
-    Proxy para endpoints MediData de Wix que maneja CORS correctamente
+    Proxy para endpoints MediData de Wix que maneja CORS correctamente.
+    Para medidataBuscar: usa PostgreSQL como fallback si Wix falla.
     """
     if request.method == 'OPTIONS':
         # Manejar preflight CORS
@@ -6195,6 +6278,9 @@ def proxy_medidata(endpoint):
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response, 200
 
+    wix_data = None
+    wix_error = None
+
     try:
         # Mapear endpoint a función de Wix (camelCase)
         wix_url = f"https://www.bsl.com.co/_functions/{endpoint}"
@@ -6203,22 +6289,46 @@ def proxy_medidata(endpoint):
         if request.method == 'GET':
             # Pasar query params
             params = request.args.to_dict()
-            response = requests.get(wix_url, params=params, timeout=30)
+            wix_response = requests.get(wix_url, params=params, timeout=30)
         else:  # POST
             # Pasar JSON body
             data = request.get_json() if request.is_json else {}
-            response = requests.post(wix_url, json=data, timeout=30)
+            wix_response = requests.post(wix_url, json=data, timeout=30)
 
-        # Retornar respuesta de Wix con headers CORS
-        result = jsonify(response.json())
-        result.headers.add('Access-Control-Allow-Origin', '*')
-        return result, response.status_code
+        # Intentar parsear respuesta de Wix
+        try:
+            wix_data = wix_response.json()
+        except (ValueError, requests.exceptions.JSONDecodeError):
+            wix_error = f"Respuesta no-JSON de Wix: status={wix_response.status_code}, body={wix_response.text[:200]}"
+            logger.warning(f"[MediData] {wix_error}")
 
     except Exception as e:
-        logger.error(f"Error en proxy MediData: {str(e)}")
-        response = jsonify({'success': False, 'error': str(e)})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
+        wix_error = str(e)
+        logger.warning(f"[MediData] Error conectando a Wix para {endpoint}: {wix_error}")
+
+    # Si Wix respondió correctamente, devolver su respuesta
+    if wix_data is not None:
+        result = jsonify(wix_data)
+        result.headers.add('Access-Control-Allow-Origin', '*')
+        return result, wix_response.status_code
+
+    # Fallback a PostgreSQL para búsquedas cuando Wix falla
+    if endpoint == 'medidataBuscar' and request.method == 'GET':
+        termino = request.args.get('termino', '')
+        if termino:
+            print(f"🔄 [MediData] Wix falló, usando fallback PostgreSQL para búsqueda: {termino}")
+            pg_result = buscar_pacientes_postgres(termino)
+            if pg_result:
+                result = jsonify(pg_result)
+                result.headers.add('Access-Control-Allow-Origin', '*')
+                return result, 200
+
+    # Si todo falló, devolver error
+    error_msg = wix_error or 'Error desconocido'
+    logger.error(f"Error en proxy MediData (sin fallback disponible): {error_msg}")
+    result = jsonify({'success': False, 'error': error_msg})
+    result.headers.add('Access-Control-Allow-Origin', '*')
+    return result, 502
 
 
 
