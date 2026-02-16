@@ -430,6 +430,77 @@
             .footer {
                 page-break-inside: avoid;
             }
+
+            /* ADC tables should not break */
+            .adc-table {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* === PERFIL PSICOLÓGICO ADC === */
+        .adc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin-bottom: 15px;
+        }
+
+        .adc-table th {
+            background: #0066cc;
+            color: white;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .adc-table td {
+            padding: 5px 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .adc-table tr:nth-child(even) td {
+            background: #f9f9f9;
+        }
+
+        .adc-table .row-general td {
+            background: #e8f4fd;
+            font-weight: bold;
+        }
+
+        .nivel-muy-bajo { color: #28a745; font-weight: bold; }
+        .nivel-bajo { color: #5cb85c; font-weight: bold; }
+        .nivel-medio-bajo { color: #8bc34a; font-weight: bold; }
+        .nivel-medio { color: #ffc107; font-weight: bold; }
+        .nivel-medio-alto { color: #ff9800; font-weight: bold; }
+        .nivel-alto { color: #f44336; font-weight: bold; }
+        .nivel-muy-alto { color: #c62828; font-weight: bold; }
+
+        .adc-subsection {
+            margin-bottom: 20px;
+        }
+
+        .adc-subsection-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #0066cc;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            background: #e8f4fd;
+            border-left: 4px solid #0066cc;
+        }
+
+        .adc-interpretacion {
+            font-size: 10px;
+            line-height: 1.5;
+            color: #333;
+            padding: 8px 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #8bc34a;
+            margin-top: 8px;
+            text-align: justify;
         }
     </style>
 </head>
@@ -885,6 +956,136 @@
             {% endif %}
         </div>
         {% endif %}
+        {% endif %}
+
+        <!-- RESULTADOS DE PERFIL PSICOLÓGICO ADC -->
+        {% if 'PERFIL PSICOLÓGICO ADC' in examenes or 'Perfil Psicológico ADC' in examenes or 'PERFIL PSICOLOGICO ADC' in examenes %}
+        <div class="section" style="page-break-before: always; margin-top: 30px;">
+            <div class="section-title">Resultados del Perfil Psicológico ADC</div>
+
+            {% if datos_adc %}
+
+            <!-- ANSIEDAD -->
+            <div class="adc-subsection">
+                <div class="adc-subsection-title">Escala de Ansiedad</div>
+                <table class="adc-table">
+                    <thead>
+                        <tr>
+                            <th>Subdimensión</th>
+                            <th>Puntaje Bruto</th>
+                            <th>Puntaje Estandarizado</th>
+                            <th>Nivel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nombre, datos in datos_adc.ansiedad.subdimensiones.items() %}
+                        <tr>
+                            <td style="text-align: left; font-weight: bold;">{{ nombre }}</td>
+                            <td>{{ datos.raw }}</td>
+                            <td>{{ datos.estandarizado }}</td>
+                            <td class="nivel-{{ datos.nivel|lower|replace(' ', '-') }}">{{ datos.nivel }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="row-general">
+                            <td style="text-align: left;">GENERAL</td>
+                            <td>{{ datos_adc.ansiedad.general.raw }}</td>
+                            <td>{{ datos_adc.ansiedad.general.estandarizado }}</td>
+                            <td class="nivel-{{ datos_adc.ansiedad.general.nivel|lower|replace(' ', '-') }}">{{ datos_adc.ansiedad.general.nivel }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if datos_adc.ansiedad.general.interpretacion %}
+                <div class="adc-interpretacion">
+                    <strong>Interpretación General:</strong> {{ datos_adc.ansiedad.general.interpretacion }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- DEPRESIÓN -->
+            <div class="adc-subsection">
+                <div class="adc-subsection-title">Escala de Depresión</div>
+                <table class="adc-table">
+                    <thead>
+                        <tr>
+                            <th>Subdimensión</th>
+                            <th>Puntaje Bruto</th>
+                            <th>Puntaje Estandarizado</th>
+                            <th>Nivel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nombre, datos in datos_adc.depresion.subdimensiones.items() %}
+                        <tr>
+                            <td style="text-align: left; font-weight: bold;">{{ nombre }}</td>
+                            <td>{{ datos.raw }}</td>
+                            <td>{{ datos.estandarizado }}</td>
+                            <td class="nivel-{{ datos.nivel|lower|replace(' ', '-') }}">{{ datos.nivel }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="row-general">
+                            <td style="text-align: left;">GENERAL</td>
+                            <td>{{ datos_adc.depresion.general.raw }}</td>
+                            <td>{{ datos_adc.depresion.general.estandarizado }}</td>
+                            <td class="nivel-{{ datos_adc.depresion.general.nivel|lower|replace(' ', '-') }}">{{ datos_adc.depresion.general.nivel }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% if datos_adc.depresion.general.interpretacion %}
+                <div class="adc-interpretacion">
+                    <strong>Interpretación General:</strong> {{ datos_adc.depresion.general.interpretacion }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- CONGRUENCIA -->
+            <div class="adc-subsection">
+                <div class="adc-subsection-title">Escala de Congruencia</div>
+                <table class="adc-table">
+                    <thead>
+                        <tr>
+                            <th>Área</th>
+                            <th>Valoración (Est.)</th>
+                            <th>Nivel Valoración</th>
+                            <th>Conducta (Est.)</th>
+                            <th>Nivel Conducta</th>
+                            <th>Congruencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nombre, datos in datos_adc.congruencia.areas.items() %}
+                        <tr>
+                            <td style="text-align: left; font-weight: bold;">{{ nombre }}</td>
+                            <td>{{ datos.valoracion.estandarizado }}</td>
+                            <td class="nivel-{{ datos.valoracion.nivel|lower|replace(' ', '-') }}">{{ datos.valoracion.nivel }}</td>
+                            <td>{{ datos.conducta.estandarizado }}</td>
+                            <td class="nivel-{{ datos.conducta.nivel|lower|replace(' ', '-') }}">{{ datos.conducta.nivel }}</td>
+                            <td class="nivel-{{ datos.congruencia|lower|replace(' ', '-') }}">{{ datos.congruencia }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% for nombre, datos in datos_adc.congruencia.areas.items() %}
+                {% if datos.valoracion.interpretacion %}
+                <div class="adc-interpretacion" style="margin-bottom: 5px;">
+                    <strong>{{ nombre }} - Valoración:</strong> {{ datos.valoracion.interpretacion }}
+                </div>
+                {% endif %}
+                {% if datos.conducta.interpretacion %}
+                <div class="adc-interpretacion" style="margin-bottom: 5px;">
+                    <strong>{{ nombre }} - Conducta:</strong> {{ datos.conducta.interpretacion }}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            {% else %}
+                <div class="result-item" style="text-align: center; padding: 40px; background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h3 style="color: #856404;">NO HAY DATOS DISPONIBLES</h3>
+                    <p style="color: #856404;">No se encontraron resultados del Perfil Psicológico ADC para este paciente.</p>
+                </div>
+            {% endif %}
+        </div>
         {% endif %}
 
         <!-- FOOTER -->

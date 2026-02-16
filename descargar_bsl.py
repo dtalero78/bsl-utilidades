@@ -1222,6 +1222,79 @@ def obtener_audiometria_postgres(orden_id):
         return None
 
 
+def obtener_adc_postgres(orden_id):
+    """
+    Consulta los datos de pruebas ADC (Perfil Psicológico) desde PostgreSQL
+    y calcula los puntajes estandarizados con interpretaciones.
+
+    Args:
+        orden_id: ID de la orden (_id de HistoriaClinica)
+
+    Returns:
+        dict: Perfil ADC calculado para el template o None si no existe
+    """
+    try:
+        import psycopg2
+        from adc_scoring import calcular_perfil_adc
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️ [PostgreSQL] POSTGRES_PASSWORD no configurada para ADC")
+            return None
+
+        print(f"🔍 [PostgreSQL] Consultando pruebasADC para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute('''
+            SELECT
+                an03, an04, an05, an07, an09, an11, an14, an18, an19, an20,
+                an22, an23, an26, an27, an30, an31, an35, an36, an38, an39,
+                de03, de04, de05, de06, de07, de08, de12, de13, de14, de15,
+                de16, de20, de21, de27, de29, de32, de33, de35, de37, de38, de40,
+                cofv01, cofv02, cofv03, cofc06, cofc08, cofc10,
+                corv11, corv12, corv15, corc16, corc17, corc18,
+                coav21, coav24, coav25, coac26, coac27, coac29,
+                coov32, coov34, coov35, cooc39, cooc40
+            FROM "pruebasADC"
+            WHERE orden_id = %s
+            ORDER BY created_at DESC
+            LIMIT 1;
+        ''', (orden_id,))
+
+        row = cur.fetchone()
+        columns = [desc[0] for desc in cur.description]
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️ [PostgreSQL] No se encontró ADC para orden_id: {orden_id}")
+            return None
+
+        datos_respuestas = dict(zip(columns, row))
+        datos_respuestas['cooc37'] = None  # Columna ausente en PostgreSQL
+
+        perfil = calcular_perfil_adc(datos_respuestas)
+        print(f"✅ [PostgreSQL] Datos ADC calculados exitosamente para orden_id: {orden_id}")
+        return perfil
+
+    except ImportError:
+        print("⚠️ [PostgreSQL] psycopg2 no está instalado para ADC")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar ADC: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def descargar_imagen_wix_con_puppeteer(wix_url):
     """
     Descarga una imagen de Wix usando Puppeteer (fallback cuando requests falla con 403)
@@ -2599,6 +2672,9 @@ def generar_certificado_medico():
             # Datos de audiometría
             "datos_audiometria": data.get("datos_audiometria"),
 
+            # Datos ADC (Perfil Psicológico)
+            "datos_adc": data.get("datos_adc"),
+
             # Lista de exámenes para verificar tipo
             "examenes": data.get("examenes", []),
 
@@ -2879,6 +2955,9 @@ def generar_certificado_medico_puppeteer():
 
             # Datos de audiometría
             "datos_audiometria": data.get("datos_audiometria"),
+
+            # Datos ADC (Perfil Psicológico)
+            "datos_adc": data.get("datos_adc"),
 
             # Lista de exámenes para verificar tipo
             "examenes": data.get("examenes", []),
@@ -4570,6 +4649,18 @@ def api_generar_certificado_pdf(wix_id):
                 except Exception as e:
                     print(f"❌ Error consultando datos de audiometría en Wix: {e}")
 
+        # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
+        datos_adc = None
+        tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
+
+        if tiene_examen_adc:
+            wix_id_historia_adc = datos_wix.get('_id', '')
+            print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}")
+            datos_adc = obtener_adc_postgres(wix_id_historia_adc)
+
+            if not datos_adc:
+                print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}")
+
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         # Nota: Las claves deben coincidir con los nombres normalizados (MAYÚSCULAS de tabla examenes PostgreSQL)
         textos_examenes = {
@@ -4838,6 +4929,9 @@ def api_generar_certificado_pdf(wix_id):
 
             # Datos de audiometría
             "datos_audiometria": datos_audiometria,
+
+            # Datos ADC (Perfil Psicológico)
+            "datos_adc": datos_adc,
 
             # Firmas
             "medico_nombre": datos_medico['nombre'],
@@ -5489,6 +5583,18 @@ def preview_certificado_html(wix_id):
                     print(f"❌ Error consultando datos de audiometría en Wix: {e}", flush=True)
                     datos_audiometria = None
 
+        # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
+        datos_adc = None
+        tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
+
+        if tiene_examen_adc:
+            wix_id_historia_adc = datos_wix.get('_id', wix_id)
+            print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}", flush=True)
+            datos_adc = obtener_adc_postgres(wix_id_historia_adc)
+
+            if not datos_adc:
+                print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}", flush=True)
+
         # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
         # Solo consultar PostgreSQL si NO venimos de Alegra con datos ya cargados
         if not usar_datos_formulario:
@@ -5806,6 +5912,7 @@ def preview_certificado_html(wix_id):
             "recomendaciones_medicas": recomendaciones,
             "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
             "datos_audiometria": datos_audiometria,  # Datos de audiometría
+            "datos_adc": datos_adc,  # Datos ADC (Perfil Psicológico)
             "medico_nombre": datos_medico['nombre'],
             "medico_registro": datos_medico['registro'],
             "medico_licencia": datos_medico['licencia'],
