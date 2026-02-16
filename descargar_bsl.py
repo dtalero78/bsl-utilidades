@@ -207,6 +207,13 @@ MAPEO_EXAMENES = {
     "Perfil Psicológico ADC": "PERFIL PSICOLÓGICO ADC",
     "PERFIL PSICOLÓGICO ADC": "PERFIL PSICOLÓGICO ADC",
     "Perfil Psicologico ADC": "PERFIL PSICOLÓGICO ADC",
+    "ADC": "PERFIL PSICOLÓGICO ADC",
+    "Test ADC": "PERFIL PSICOLÓGICO ADC",
+    "Test Psicología ADC": "PERFIL PSICOLÓGICO ADC",
+    "Test Psicológico ADC": "PERFIL PSICOLÓGICO ADC",
+    "Test psicológico": "PERFIL PSICOLÓGICO ADC",
+    "Test Psicológico": "PERFIL PSICOLÓGICO ADC",
+    "TEST PSICOLÓGICO": "PERFIL PSICOLÓGICO ADC",
 }
 
 def normalizar_examen(nombre_examen):
@@ -4910,7 +4917,7 @@ def api_generar_certificado_pdf(wix_id):
 
             # Exámenes
             "examenes_realizados": examenes_realizados,
-            "examenes": examenes,  # Lista de exámenes para verificar tipo
+            "examenes": examenes_normalizados,  # Lista normalizada de exámenes para verificar tipo
 
             # Resultados generales (con textos dinámicos)
             "resultados_generales": resultados_generales,
@@ -5905,7 +5912,7 @@ def preview_certificado_html(wix_id):
             "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
-            "examenes": examenes,  # Lista de exámenes para verificar tipo
+            "examenes": examenes_normalizados,  # Lista normalizada de exámenes para verificar tipo
             "resultados_generales": resultados_generales,
             "analisis_postural": analisis_postural,
             "concepto_medico": datos_wix.get('mdConceptoFinal', '') or ('ELEGIBLE PARA EL CARGO' if datos_wix.get('codEmpresa') == 'SANITHELP-JJ' else ''),
