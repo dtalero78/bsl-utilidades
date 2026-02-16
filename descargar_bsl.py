@@ -1229,6 +1229,107 @@ def obtener_audiometria_postgres(orden_id):
         return None
 
 
+def generar_interpretacion_adc_openai(perfil_adc):
+    """
+    Genera una interpretación profesional y 3 recomendaciones del perfil ADC usando OpenAI.
+
+    Args:
+        perfil_adc: dict con el perfil calculado (ansiedad, depresion, congruencia)
+
+    Returns:
+        dict con 'interpretacion' y 'recomendaciones' o None si falla
+    """
+    if not openai_client:
+        print("⚠️ [OpenAI] Client no disponible para interpretación ADC")
+        return None
+
+    try:
+        # Construir resumen de puntajes para el prompt
+        ans = perfil_adc["ansiedad"]
+        dep = perfil_adc["depresion"]
+        con = perfil_adc["congruencia"]
+
+        resumen = "RESULTADOS DEL PERFIL PSICOLÓGICO ADC:\n\n"
+
+        resumen += "ANSIEDAD:\n"
+        for nombre, datos in ans["subdimensiones"].items():
+            resumen += f"  - {nombre}: estandarizado={datos['estandarizado']}, nivel={datos['nivel']}\n"
+        resumen += f"  - GENERAL: estandarizado={ans['general']['estandarizado']}, nivel={ans['general']['nivel']}\n\n"
+
+        resumen += "DEPRESIÓN:\n"
+        for nombre, datos in dep["subdimensiones"].items():
+            resumen += f"  - {nombre}: estandarizado={datos['estandarizado']}, nivel={datos['nivel']}\n"
+        resumen += f"  - GENERAL: estandarizado={dep['general']['estandarizado']}, nivel={dep['general']['nivel']}\n\n"
+
+        resumen += "CONGRUENCIA:\n"
+        for nombre, datos in con["areas"].items():
+            resumen += f"  - {nombre}: valoración={datos['valoracion']['nivel']}, conducta={datos['conducta']['nivel']}, congruencia={datos['congruencia']}\n"
+
+        prompt = f"""{resumen}
+
+Con base en estos resultados, genera:
+
+1. Un párrafo de interpretación integral (máximo 4 oraciones) que resuma el estado psicológico general del evaluado de forma profesional y objetiva.
+
+2. Exactamente 3 recomendaciones concretas y accionables como psicólogo laboral ocupacional. Cada recomendación debe ser de 1-2 oraciones.
+
+Responde en formato exacto:
+INTERPRETACIÓN:
+[texto]
+
+RECOMENDACIONES:
+1. [recomendación]
+2. [recomendación]
+3. [recomendación]"""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un psicólogo laboral ocupacional experto. Generas interpretaciones objetivas y recomendaciones concretas basadas en resultados de pruebas psicológicas ADC (Ansiedad, Depresión, Congruencia). Usa lenguaje profesional, sin markdown ni introducciones. Tutea al evaluado."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=800,
+            temperature=0.7
+        )
+
+        contenido = response.choices[0].message.content.strip()
+
+        # Parsear la respuesta
+        interpretacion = ""
+        recomendaciones = []
+
+        if "INTERPRETACIÓN:" in contenido and "RECOMENDACIONES:" in contenido:
+            partes = contenido.split("RECOMENDACIONES:")
+            interpretacion = partes[0].replace("INTERPRETACIÓN:", "").strip()
+            recs_texto = partes[1].strip()
+
+            for linea in recs_texto.split("\n"):
+                linea = linea.strip()
+                if linea and linea[0].isdigit():
+                    # Remover "1. ", "2. ", "3. "
+                    rec = linea.split(".", 1)[1].strip() if "." in linea else linea
+                    recomendaciones.append(rec)
+        else:
+            interpretacion = contenido
+
+        print(f"🧠 [OpenAI] Tokens usados: {response.usage.total_tokens}")
+
+        return {
+            "interpretacion": interpretacion,
+            "recomendaciones": recomendaciones[:3],
+        }
+
+    except Exception as e:
+        print(f"❌ [OpenAI] Error generando interpretación ADC: {e}")
+        return None
+
+
 def obtener_adc_postgres(orden_id):
     """
     Consulta los datos de pruebas ADC (Perfil Psicológico) desde PostgreSQL
@@ -1290,6 +1391,16 @@ def obtener_adc_postgres(orden_id):
 
         perfil = calcular_perfil_adc(datos_respuestas)
         print(f"✅ [PostgreSQL] Datos ADC calculados exitosamente para orden_id: {orden_id}")
+
+        # Generar interpretación y recomendaciones con OpenAI
+        interpretacion_ia = generar_interpretacion_adc_openai(perfil)
+        if interpretacion_ia:
+            perfil["interpretacion_ia"] = interpretacion_ia
+            print(f"✅ [OpenAI] Interpretación ADC generada exitosamente")
+        else:
+            perfil["interpretacion_ia"] = None
+            print(f"⚠️ [OpenAI] No se pudo generar interpretación ADC")
+
         return perfil
 
     except ImportError:

@@ -1079,6 +1079,27 @@
                 {% endfor %}
             </div>
 
+            <!-- INTERPRETACIÓN Y RECOMENDACIONES (IA) -->
+            {% if datos_adc.interpretacion_ia %}
+            <div class="adc-subsection">
+                <div class="adc-subsection-title">Interpretación Integral</div>
+                <div class="adc-interpretacion">
+                    {{ datos_adc.interpretacion_ia.interpretacion }}
+                </div>
+
+                {% if datos_adc.interpretacion_ia.recomendaciones %}
+                <div class="adc-subsection-title" style="margin-top: 15px;">Recomendaciones</div>
+                <div style="padding: 8px 10px;">
+                    {% for rec in datos_adc.interpretacion_ia.recomendaciones %}
+                    <div class="result-item" style="margin-bottom: 8px; padding: 10px; border-left: 4px solid #0066cc;">
+                        <p style="margin: 0;"><strong>{{ loop.index }}.</strong> {{ rec }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% else %}
                 <div class="result-item" style="text-align: center; padding: 40px; background: #fff3cd; border-left: 4px solid #ffc107;">
                     <h3 style="color: #856404;">NO HAY DATOS DISPONIBLES</h3>
