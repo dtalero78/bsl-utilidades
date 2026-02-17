@@ -901,25 +901,7 @@
 
                         <!-- Datos del audiograma -->
                         {% if datos_audiometria.datosParaTabla %}
-                            <!-- Línea Oído Derecho -->
-                            <polyline points="
-                                {% for dato in datos_audiometria.datosParaTabla %}
-                                    {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
-                                    {% set x = freq_index * 60 + 60 %}
-                                    {% set y = (dato.oidoDerecho + 10) * 2.5 %}
-                                    {{ x }},{{ y }}{% if not loop.last %} {% endif %}
-                                {% endfor %}
-                            " fill="none" stroke="#e74c3c" stroke-width="2"/>
-
-                            <!-- Puntos Oído Derecho -->
-                            {% for dato in datos_audiometria.datosParaTabla %}
-                                {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
-                                {% set x = freq_index * 60 + 60 %}
-                                {% set y = (dato.oidoDerecho + 10) * 2.5 %}
-                                <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="#e74c3c" stroke="#c0392b" stroke-width="2"/>
-                            {% endfor %}
-
-                            <!-- Línea Oído Izquierdo -->
+                            <!-- Línea Oído Izquierdo (se dibuja primero, queda debajo) -->
                             <polyline points="
                                 {% for dato in datos_audiometria.datosParaTabla %}
                                     {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
@@ -934,7 +916,25 @@
                                 {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
                                 {% set x = freq_index * 60 + 60 %}
                                 {% set y = (dato.oidoIzquierdo + 10) * 2.5 %}
-                                <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+                                <circle cx="{{ x }}" cy="{{ y }}" r="5" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+                            {% endfor %}
+
+                            <!-- Línea Oído Derecho (se dibuja después, queda encima) -->
+                            <polyline points="
+                                {% for dato in datos_audiometria.datosParaTabla %}
+                                    {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                    {% set x = freq_index * 60 + 60 %}
+                                    {% set y = (dato.oidoDerecho + 10) * 2.5 %}
+                                    {{ x }},{{ y }}{% if not loop.last %} {% endif %}
+                                {% endfor %}
+                            " fill="none" stroke="#e74c3c" stroke-width="2"/>
+
+                            <!-- Puntos Oído Derecho -->
+                            {% for dato in datos_audiometria.datosParaTabla %}
+                                {% set freq_index = [250, 500, 1000, 2000, 3000, 4000, 6000, 8000].index(dato.frecuencia) if dato.frecuencia in [250, 500, 1000, 2000, 3000, 4000, 6000, 8000] else 0 %}
+                                {% set x = freq_index * 60 + 60 %}
+                                {% set y = (dato.oidoDerecho + 10) * 2.5 %}
+                                <circle cx="{{ x }}" cy="{{ y }}" r="3" fill="#e74c3c" stroke="#c0392b" stroke-width="1.5"/>
                             {% endfor %}
                         {% endif %}
                     </g>
