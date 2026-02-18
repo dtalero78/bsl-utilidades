@@ -4583,6 +4583,10 @@ def api_generar_certificado_pdf(wix_id):
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         print(f"📋 Exámenes antes de normalizar: {examenes}")
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        # SITEL: excluir optometría, audiometría y ADC del certificado
+        SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        if datos_wix.get('codEmpresa') == 'SITEL':
+            examenes_normalizados = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
         print(f"📋 Exámenes normalizados: {examenes_normalizados}")
 
         examenes_realizados = []
@@ -5514,6 +5518,10 @@ def preview_certificado_html(wix_id):
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
+        # SITEL: excluir optometría, audiometría y ADC del certificado
+        SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        if datos_wix.get('codEmpresa') == 'SITEL':
+            examenes_normalizados = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
 
         examenes_realizados = []
         for examen in examenes_normalizados:
