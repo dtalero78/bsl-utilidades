@@ -4583,11 +4583,13 @@ def api_generar_certificado_pdf(wix_id):
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         print(f"📋 Exámenes antes de normalizar: {examenes}")
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
-        # SITEL: excluir optometría, audiometría y ADC del certificado
+        print(f"📋 Exámenes normalizados: {examenes_normalizados}")
+        # SITEL: excluir secciones detalladas de optometría, audiometría y ADC
         SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
         if datos_wix.get('codEmpresa') == 'SITEL':
-            examenes_normalizados = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
-        print(f"📋 Exámenes normalizados: {examenes_normalizados}")
+            examenes_para_template = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
+        else:
+            examenes_para_template = examenes_normalizados
 
         examenes_realizados = []
         for examen in examenes_normalizados:
@@ -5035,7 +5037,7 @@ def api_generar_certificado_pdf(wix_id):
 
             # Exámenes
             "examenes_realizados": examenes_realizados,
-            "examenes": examenes_normalizados,  # Lista normalizada de exámenes para verificar tipo
+            "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)
 
             # Resultados generales (con textos dinámicos)
             "resultados_generales": resultados_generales,
@@ -5518,10 +5520,12 @@ def preview_certificado_html(wix_id):
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
-        # SITEL: excluir optometría, audiometría y ADC del certificado
+        # SITEL: excluir secciones detalladas de optometría, audiometría y ADC
         SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
         if datos_wix.get('codEmpresa') == 'SITEL':
-            examenes_normalizados = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
+            examenes_para_template = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
+        else:
+            examenes_para_template = examenes_normalizados
 
         examenes_realizados = []
         for examen in examenes_normalizados:
@@ -6037,7 +6041,7 @@ def preview_certificado_html(wix_id):
             "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
-            "examenes": examenes_normalizados,  # Lista normalizada de exámenes para verificar tipo
+            "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)
             "resultados_generales": resultados_generales,
             "analisis_postural": analisis_postural,
             "concepto_medico": datos_wix.get('mdConceptoFinal', '') or ('ELEGIBLE PARA EL CARGO' if datos_wix.get('codEmpresa') == 'SANITHELP-JJ' else ''),
