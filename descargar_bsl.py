@@ -4597,7 +4597,7 @@ def api_generar_certificado_pdf(wix_id):
         # examenes y examenes_normalizados ya están definidos arriba (ahora en MAYÚSCULAS)
         tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
-        if tiene_examen_visual:
+        if tiene_examen_visual and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', '')
 
             # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
@@ -4633,7 +4633,7 @@ def api_generar_certificado_pdf(wix_id):
         datos_audiometria = None
         tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
-        if tiene_examen_audio:
+        if tiene_examen_audio and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', '')
 
             # PRIORIDAD 1: Consultar PostgreSQL (audiometrias)
@@ -5527,7 +5527,7 @@ def preview_certificado_html(wix_id):
         # examenes y examenes_normalizados ya están definidos arriba (ahora en MAYÚSCULAS)
         tiene_examen_visual = any(e in ['OPTOMETRÍA', 'VISIOMETRÍA', 'Optometría', 'Visiometría'] for e in examenes_normalizados)
 
-        if tiene_examen_visual:
+        if tiene_examen_visual and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
             # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
@@ -5567,7 +5567,7 @@ def preview_certificado_html(wix_id):
         datos_audiometria = None
         tiene_examen_audio = any(e in ['AUDIOMETRÍA', 'Audiometría'] for e in examenes_normalizados)
 
-        if tiene_examen_audio:
+        if tiene_examen_audio and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
             # PRIORIDAD 1: Consultar PostgreSQL (audiometrias)
