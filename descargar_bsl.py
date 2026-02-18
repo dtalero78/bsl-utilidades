@@ -2728,7 +2728,7 @@ def generar_certificado_medico():
             # Datos personales
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
-            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else data.get("empresa", "PARTICULAR"),
+            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
             "edad": data.get("edad", ""),
@@ -3012,7 +3012,7 @@ def generar_certificado_medico_puppeteer():
             # Datos personales
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
-            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else data.get("empresa", "PARTICULAR"),
+            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
             "edad": data.get("edad", ""),
@@ -4769,15 +4769,18 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
+        cod_empresa_actual = datos_wix.get('codEmpresa', '')
         tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
 
-        if tiene_examen_adc:
+        if tiene_examen_adc and cod_empresa_actual != 'SITEL':
             wix_id_historia_adc = datos_wix.get('_id', '')
             print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}")
             datos_adc = obtener_adc_postgres(wix_id_historia_adc)
 
             if not datos_adc:
                 print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}")
+        elif cod_empresa_actual == 'SITEL':
+            print(f"ℹ️ ADC excluido para empresa SITEL (codEmpresa={cod_empresa_actual})")
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         # Nota: Las claves deben coincidir con los nombres normalizados (MAYÚSCULAS de tabla examenes PostgreSQL)
@@ -5002,7 +5005,7 @@ def api_generar_certificado_pdf(wix_id):
             "nombres_apellidos": nombre_completo,
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
-            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else datos_wix.get('empresa', ''),
+            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
             "fecha_nacimiento": datos_wix.get('fechaNacimiento', ''),
@@ -5703,15 +5706,18 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
+        cod_empresa_actual = datos_wix.get('codEmpresa', '')
         tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
 
-        if tiene_examen_adc:
+        if tiene_examen_adc and cod_empresa_actual != 'SITEL':
             wix_id_historia_adc = datos_wix.get('_id', wix_id)
             print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}", flush=True)
             datos_adc = obtener_adc_postgres(wix_id_historia_adc)
 
             if not datos_adc:
                 print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}", flush=True)
+        elif cod_empresa_actual == 'SITEL':
+            print(f"ℹ️ ADC excluido para empresa SITEL (codEmpresa={cod_empresa_actual})", flush=True)
 
         # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
         # Solo consultar PostgreSQL si NO venimos de Alegra con datos ya cargados
@@ -6007,7 +6013,7 @@ def preview_certificado_html(wix_id):
             "nombres_apellidos": nombre_completo,
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
-            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else datos_wix.get('empresa', ''),
+            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
             "fecha_nacimiento": datos_wix.get('fechaNacimiento', ''),
