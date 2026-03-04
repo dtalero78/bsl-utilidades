@@ -4565,7 +4565,7 @@ def api_generar_certificado_pdf(wix_id):
         # Transformar datos de Wix al formato del endpoint de certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
 
-        fecha_consulta = datos_wix.get('fechaConsulta')
+        fecha_consulta = datos_wix.get('fechaConsulta') or datos_wix.get('fechaAtencion')
         if isinstance(fecha_consulta, datetime):
             fecha_formateada = formatear_fecha_espanol(fecha_consulta)
         elif isinstance(fecha_consulta, str):
@@ -5503,7 +5503,7 @@ def preview_certificado_html(wix_id):
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
 
-        fecha_consulta = datos_wix.get('fechaConsulta')
+        fecha_consulta = datos_wix.get('fechaConsulta') or datos_wix.get('fechaAtencion')
         if isinstance(fecha_consulta, datetime):
             fecha_formateada = formatear_fecha_espanol(fecha_consulta)
         elif isinstance(fecha_consulta, str):
