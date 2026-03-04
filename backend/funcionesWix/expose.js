@@ -132,6 +132,10 @@ export async function consultarPorCelular(celular) {
 // FUNCIÓN PARA CREAR NUEVA HISTORIA CLÍNICA (ORDEN)
 export async function crearHistoriaClinica(datos) {
     try {
+        // SATELCO: fechaAtencion debe ser igual a fechaConsulta
+        if (datos.codEmpresa === 'SATELCO' && datos.fechaConsulta) {
+            datos.fechaAtencion = datos.fechaConsulta;
+        }
         const result = await wixData.insert("HistoriaClinica", datos);
         return { success: true, item: result };
     } catch (error) {
@@ -151,6 +155,12 @@ export async function actualizarHistoriaClinica(_id, datos) {
                 existingItem[key] = datos[key];
             }
         });
+
+        // SATELCO: fechaAtencion debe ser igual a fechaConsulta
+        const codEmpresa = existingItem.codEmpresa || datos.codEmpresa;
+        if (codEmpresa === 'SATELCO' && existingItem.fechaConsulta) {
+            existingItem.fechaAtencion = existingItem.fechaConsulta;
+        }
 
         const result = await wixData.update("HistoriaClinica", existingItem);
         return { success: true, item: result };
