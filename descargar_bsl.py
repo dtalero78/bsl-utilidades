@@ -4565,16 +4565,31 @@ def api_generar_certificado_pdf(wix_id):
         # Transformar datos de Wix al formato del endpoint de certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
 
-        fecha_consulta = datos_wix.get('fechaAtencion') or datos_wix.get('fechaConsulta')
-        if isinstance(fecha_consulta, datetime):
-            fecha_formateada = formatear_fecha_espanol(fecha_consulta)
-        elif isinstance(fecha_consulta, str):
-            # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
-            try:
-                fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
-                fecha_formateada = formatear_fecha_espanol(fecha_obj)
-            except (ValueError, AttributeError):
-                fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
+        # Usar fechaConsulta como prioridad, pero si es fecha futura inválida, usar fechaAtencion
+        fecha_consulta = datos_wix.get('fechaConsulta') or datos_wix.get('fechaAtencion')
+        fecha_atencion_fallback = datos_wix.get('fechaAtencion')
+
+        def _parsear_fecha(f):
+            if isinstance(f, datetime):
+                return f
+            if isinstance(f, str):
+                try:
+                    return datetime.fromisoformat(f.replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    return None
+            return None
+
+        fecha_obj = _parsear_fecha(fecha_consulta)
+        # Si fechaConsulta es futura (>30 días), probablemente es dato corrupto → usar fechaAtencion
+        if fecha_obj and fecha_obj.replace(tzinfo=None) > datetime.now() + timedelta(days=30) and fecha_atencion_fallback:
+            fecha_obj_fallback = _parsear_fecha(fecha_atencion_fallback)
+            if fecha_obj_fallback:
+                fecha_obj = fecha_obj_fallback
+
+        if fecha_obj:
+            fecha_formateada = formatear_fecha_espanol(fecha_obj)
+        else:
+            fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
         else:
             fecha_formateada = formatear_fecha_espanol(datetime.now())
 
@@ -5503,16 +5518,31 @@ def preview_certificado_html(wix_id):
         # Transformar datos de Wix al formato del certificado
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
 
-        fecha_consulta = datos_wix.get('fechaAtencion') or datos_wix.get('fechaConsulta')
-        if isinstance(fecha_consulta, datetime):
-            fecha_formateada = formatear_fecha_espanol(fecha_consulta)
-        elif isinstance(fecha_consulta, str):
-            # Parsear fecha ISO de Wix (ej: "2025-09-30T16:31:00.927Z")
-            try:
-                fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00'))
-                fecha_formateada = formatear_fecha_espanol(fecha_obj)
-            except (ValueError, AttributeError):
-                fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
+        # Usar fechaConsulta como prioridad, pero si es fecha futura inválida, usar fechaAtencion
+        fecha_consulta = datos_wix.get('fechaConsulta') or datos_wix.get('fechaAtencion')
+        fecha_atencion_fallback = datos_wix.get('fechaAtencion')
+
+        def _parsear_fecha(f):
+            if isinstance(f, datetime):
+                return f
+            if isinstance(f, str):
+                try:
+                    return datetime.fromisoformat(f.replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    return None
+            return None
+
+        fecha_obj = _parsear_fecha(fecha_consulta)
+        # Si fechaConsulta es futura (>30 días), probablemente es dato corrupto → usar fechaAtencion
+        if fecha_obj and fecha_obj.replace(tzinfo=None) > datetime.now() + timedelta(days=30) and fecha_atencion_fallback:
+            fecha_obj_fallback = _parsear_fecha(fecha_atencion_fallback)
+            if fecha_obj_fallback:
+                fecha_obj = fecha_obj_fallback
+
+        if fecha_obj:
+            fecha_formateada = formatear_fecha_espanol(fecha_obj)
+        else:
+            fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
         else:
             fecha_formateada = formatear_fecha_espanol(datetime.now())
 
