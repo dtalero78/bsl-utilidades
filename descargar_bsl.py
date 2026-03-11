@@ -4917,6 +4917,9 @@ def api_generar_certificado_pdf(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
+            # ADC tiene su propia sección dedicada con datos calculados, no mostrar texto genérico
+            if "ADC" in examen.upper():
+                continue
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
             if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
@@ -5943,6 +5946,9 @@ def preview_certificado_html(wix_id):
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
+            # ADC tiene su propia sección dedicada con datos calculados, no mostrar texto genérico
+            if "ADC" in examen.upper():
+                continue
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
             if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
