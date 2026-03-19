@@ -4590,8 +4590,6 @@ def api_generar_certificado_pdf(wix_id):
             fecha_formateada = formatear_fecha_espanol(fecha_obj)
         else:
             fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
-        else:
-            fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
@@ -5546,8 +5544,6 @@ def preview_certificado_html(wix_id):
             fecha_formateada = formatear_fecha_espanol(fecha_obj)
         else:
             fecha_formateada = formatear_fecha_espanol(obtener_fecha_colombia())
-        else:
-            fecha_formateada = formatear_fecha_espanol(datetime.now())
 
         # Construir exámenes realizados
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
