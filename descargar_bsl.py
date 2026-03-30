@@ -2728,6 +2728,7 @@ def generar_certificado_medico():
             # Datos personales
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
+            "cod_empresa": data.get("codEmpresa", ""),
             "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
@@ -3012,6 +3013,7 @@ def generar_certificado_medico_puppeteer():
             # Datos personales
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
+            "cod_empresa": data.get("codEmpresa", ""),
             "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
@@ -5027,6 +5029,7 @@ def api_generar_certificado_pdf(wix_id):
             "nombres_apellidos": nombre_completo,
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
+            "cod_empresa": datos_wix.get('codEmpresa', ''),
             "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
@@ -6057,6 +6060,7 @@ def preview_certificado_html(wix_id):
             "nombres_apellidos": nombre_completo,
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
+            "cod_empresa": datos_wix.get('codEmpresa', ''),
             "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
