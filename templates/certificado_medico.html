@@ -1109,6 +1109,65 @@
         </div>
         {% endif %}
 
+        <!-- PÁGINA DE RECOMENDACIONES GENERALES Y CONCEPTO APTITUDINAL -->
+        {% if not mostrar_sin_soporte and concepto_medico %}
+        <div style="page-break-before: always; padding: 20px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.5;">
+
+            <!-- Título -->
+            <div style="background: linear-gradient(135deg, #0066cc, #00aa66); color: white; text-align: center; padding: 10px; font-size: 14px; font-weight: bold; letter-spacing: 2px; margin-bottom: 20px;">
+                RECOMENDACIONES GENERALES
+            </div>
+
+            <!-- Concepto Aptitudinal -->
+            <div style="margin-bottom: 15px; text-align: justify;">
+                De acuerdo con el Examen ocupacional de <strong>{{ tipo_examen|upper }}</strong> realizado a <strong>{{ nombres_apellidos|upper }}</strong> con documento de identificación No. <strong>{{ documento_identidad }}</strong> se considera <strong>{{ concepto_medico|upper }}</strong> para desempeñar la ocupación de <strong>{{ cargo|upper }}</strong> del sector económico SE EXPIDE ESTE CONCEPTO APTITUDINAL PARA (CARGO), después de efectuarse un reconocimiento médico conforme Resolución 1843 de 2025 del Ministerio de trabajo, por la cual se regula práctica de evaluaciones médicas ocupacionales y el manejo y contenido de las historias clínicas ocupacionales.
+            </div>
+
+            <!-- Observaciones médicas por énfasis -->
+            {% if recomendaciones_medicas %}
+            <div style="margin-bottom: 15px; text-align: justify; white-space: pre-line;">{{ recomendaciones_medicas }}</div>
+            {% endif %}
+
+            <!-- Firma del médico -->
+            <div style="margin-top: 40px; margin-bottom: 10px;">
+                {% if firma_medico_url %}
+                <img src="{{ firma_medico_url }}" alt="Firma Médico" style="max-height: 80px;">
+                {% endif %}
+            </div>
+
+            <!-- Tabla de firmas: Médico | Paciente | SST -->
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <tr>
+                    <!-- Columna Médico -->
+                    <td style="width: 33%; vertical-align: top; padding-right: 15px;">
+                        <div style="font-weight: bold; font-size: 11px;">{{ medico_nombre|upper }}</div>
+                        <hr style="border: none; border-top: 1px solid #000; margin: 4px 0;">
+                        <div style="font-size: 10px;">{{ medico_registro }}</div>
+                        <div style="font-size: 10px;">{{ medico_licencia }}</div>
+                    </td>
+                    <!-- Columna Paciente -->
+                    <td style="width: 33%; vertical-align: top; padding: 0 10px;">
+                        <div style="font-weight: bold; font-size: 11px;">{{ nombres_apellidos|upper }}</div>
+                        <hr style="border: none; border-top: 1px solid #000; margin: 4px 0;">
+                        <div style="font-size: 10px;"><strong>CC - {{ documento_identidad }}</strong></div>
+                    </td>
+                    <!-- Columna Firma SST -->
+                    <td style="width: 33%; vertical-align: top; padding-left: 15px;">
+                        <div style="height: 40px;"></div>
+                        <hr style="border: none; border-top: 1px solid #000; margin: 4px 0;">
+                        <div style="font-weight: bold; font-size: 11px;">Firma SST</div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Pie de página IPS -->
+            <div style="margin-top: 40px; text-align: center; border-top: 2px solid #00aa66; padding-top: 8px; font-size: 10px; color: #333;">
+                IPS Labor Positiva. Calle 56 No 41-34 Sector la Candelaria Medellín. Teléfono 314 723 5557<br>
+                e-mail ipslaborpositiva@gmail.com - Página web: www.ipslaborpositiva.com
+            </div>
+        </div>
+        {% endif %}
+
         <!-- FOOTER -->
         <div class="footer">
             BIENESTAR Y SALUD LABORAL SAS - CALLE 134 NO. 7-83 CONS 233 - BOGOTÁ - www.bsl.com.co - Teléfono + 57 601 580 2318
