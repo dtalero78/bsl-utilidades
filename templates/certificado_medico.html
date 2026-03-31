@@ -671,8 +671,8 @@
             {% endfor %}
         </div>
 
-        <!-- ANÁLISIS POSTURAL -->
-        {% if analisis_postural and analisis_postural|length > 0 %}
+        <!-- ANÁLISIS POSTURAL (oculto para REMOTE) -->
+        {% if analisis_postural and analisis_postural|length > 0 and cod_empresa != 'REMOTE' %}
         <div class="section">
             <div class="section-title">Análisis Postural</div>
             {% for ejercicio in analisis_postural %}
@@ -1147,6 +1147,9 @@
                     </td>
                     <!-- Columna Paciente -->
                     <td style="width: 33%; vertical-align: top; padding: 0 10px;">
+                        {% if firma_paciente_url %}
+                        <img src="{{ firma_paciente_url }}" alt="Firma Paciente" style="max-height: 60px;">
+                        {% endif %}
                         <div style="font-weight: bold; font-size: 11px;">{{ nombres_apellidos|upper }}</div>
                         <hr style="border: none; border-top: 1px solid #000; margin: 4px 0;">
                         <div style="font-size: 10px;"><strong>CC - {{ documento_identidad }}</strong></div>
@@ -1160,11 +1163,6 @@
                 </tr>
             </table>
 
-            <!-- Pie de página IPS -->
-            <div style="margin-top: 40px; text-align: center; border-top: 2px solid #00aa66; padding-top: 8px; font-size: 10px; color: #333;">
-                IPS Labor Positiva. Calle 56 No 41-34 Sector la Candelaria Medellín. Teléfono 314 723 5557<br>
-                e-mail ipslaborpositiva@gmail.com - Página web: www.ipslaborpositiva.com
-            </div>
         </div>
         {% endif %}
 
