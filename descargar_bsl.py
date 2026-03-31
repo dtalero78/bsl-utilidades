@@ -4599,10 +4599,10 @@ def api_generar_certificado_pdf(wix_id):
         print(f"📋 Exámenes antes de normalizar: {examenes}")
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
         print(f"📋 Exámenes normalizados: {examenes_normalizados}")
-        # SITEL: excluir secciones detalladas de optometría, audiometría y ADC
-        SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
-        if datos_wix.get('codEmpresa') == 'SITEL':
-            examenes_para_template = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
+        # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
+        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
+            examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
             examenes_para_template = examenes_normalizados
 
@@ -5552,10 +5552,10 @@ def preview_certificado_html(wix_id):
         # Normalizar lista de exámenes (convierte string a array si viene de PostgreSQL)
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
-        # SITEL: excluir secciones detalladas de optometría, audiometría y ADC
-        SITEL_EXAMENES_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
-        if datos_wix.get('codEmpresa') == 'SITEL':
-            examenes_para_template = [e for e in examenes_normalizados if e not in SITEL_EXAMENES_EXCLUIDOS]
+        # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
+        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
+            examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
             examenes_para_template = examenes_normalizados
 
