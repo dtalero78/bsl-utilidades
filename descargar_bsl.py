@@ -385,7 +385,7 @@ EMPRESA_CONFIG = {
 # Empresas que NO muestran el concepto médico si no han pagado
 EMPRESAS_SIN_SOPORTE = [
     "SITEL", "KM2", "TTEC", "CP360",
-    "STORI", "OMEGA", "EVERTEC", "ZIMMER", "FDN",
+    "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
     "SIIGO", "RIPPLING", "EVERTECBOGOTA",
     "AVANTO", "SOFTSERVE", "BENEFICIO"
 ]
