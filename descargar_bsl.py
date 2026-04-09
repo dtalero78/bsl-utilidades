@@ -384,10 +384,10 @@ EMPRESA_CONFIG = {
 
 # Empresas que NO muestran el concepto médico si no han pagado
 EMPRESAS_SIN_SOPORTE = [
-    "SITEL", "KM2", "TTEC", "CP360", "SALVATECH",
+    "SITEL", "KM2", "TTEC", "CP360",
     "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
-    "SIIGO", "RIPPLING", "RESSOLVE", "CENTRAL", "EVERTECBOGOTA", "ATR",
-    "AVANTO", "HEALTHATOM", "SOFTSERVE"
+    "SIIGO", "RIPPLING", "EVERTECBOGOTA",
+    "AVANTO", "SOFTSERVE", "BENEFICIO"
 ]
 
 # Tipos de examen que NUNCA muestran aviso de soporte
