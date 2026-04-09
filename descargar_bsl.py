@@ -387,7 +387,7 @@ EMPRESAS_SIN_SOPORTE = [
     "SITEL", "KM2", "TTEC", "CP360", "SALVATECH",
     "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
     "SIIGO", "RIPPLING", "RESSOLVE", "CENTRAL", "EVERTECBOGOTA", "ATR",
-    "AVANTO", "HEALTHATOM"
+    "AVANTO", "HEALTHATOM", "SOFTSERVE"
 ]
 
 # Tipos de examen que NUNCA muestran aviso de soporte
