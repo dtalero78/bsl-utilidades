@@ -4423,8 +4423,13 @@ def generar_certificado_desde_wix(wix_id):
         }
         return ("", 204, response_headers)
 
+    # Obtener tenant_id del registro para mostrar logo correcto en el loader
+    datos_hc = obtener_datos_historia_clinica_postgres(wix_id)
+    tenant_id = datos_hc.get('tenant_id') if datos_hc else None
+    logo_url = obtener_logo_tenant(tenant_id)
+
     # Mostrar página de loader
-    return render_template('certificado_loader.html', wix_id=wix_id)
+    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url)
 
 
 @app.route("/generar-certificado-desde-wix-puppeteer/<wix_id>", methods=["GET", "OPTIONS"])
@@ -5240,8 +5245,13 @@ def generar_certificado_alegra(wix_id):
         }
         return ("", 204, response_headers)
 
+    # Obtener tenant_id del registro para mostrar logo correcto en el loader
+    datos_hc = obtener_datos_historia_clinica_postgres(wix_id)
+    tenant_id = datos_hc.get('tenant_id') if datos_hc else None
+    logo_url = obtener_logo_tenant(tenant_id)
+
     # Mostrar página de loader (reutiliza el mismo loader que Puppeteer)
-    return render_template('certificado_loader.html', wix_id=wix_id)
+    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url)
 
 
 @app.route("/api/generar-certificado-alegra/<wix_id>", methods=["GET", "OPTIONS"])
