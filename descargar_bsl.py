@@ -853,7 +853,7 @@ def obtener_datos_historia_clinica_postgres(wix_id):
                 "mdAntecedentes", "mdObservacionesCertificado", "mdRecomendacionesMedicasAdicionales",
                 "mdConceptoFinal", "mdDx1", "mdDx2", talla, peso,
                 "fechaAtencion", "fechaConsulta", atendido, "pvEstado", medico, ciudad,
-                pagado, fecha_pago
+                pagado, fecha_pago, tenant_id
             FROM "HistoriaClinica"
             WHERE _id = %s
             LIMIT 1;
@@ -875,7 +875,7 @@ def obtener_datos_historia_clinica_postgres(wix_id):
             'mdAntecedentes', 'mdObservacionesCertificado', 'mdRecomendacionesMedicasAdicionales',
             'mdConceptoFinal', 'mdDx1', 'mdDx2', 'talla', 'peso',
             'fechaAtencion', 'fechaConsulta', 'atendido', 'pvEstado', 'medico', 'ciudad',
-            'pagado', 'fecha_pago'
+            'pagado', 'fecha_pago', 'tenant_id'
         ]
 
         datos = {}
@@ -897,6 +897,51 @@ def obtener_datos_historia_clinica_postgres(wix_id):
         import traceback
         traceback.print_exc()
         return None
+
+
+def obtener_logo_tenant(tenant_id):
+    """
+    Obtiene el logo_url del tenant desde la tabla tenants.
+    Fallback al logo de BSL si no se encuentra.
+
+    Args:
+        tenant_id: ID del tenant (ej: 'bsl', 'ipsVip')
+
+    Returns:
+        str: URL del logo
+    """
+    LOGO_BSL_DEFAULT = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+    if not tenant_id or tenant_id == 'bsl':
+        return LOGO_BSL_DEFAULT
+
+    try:
+        import psycopg2
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return LOGO_BSL_DEFAULT
+
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT config FROM tenants WHERE id = %s AND activo = true LIMIT 1", (tenant_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if row and row[0] and row[0].get('logo_url'):
+            print(f"✅ [Tenant] Logo encontrado para tenant '{tenant_id}': {row[0]['logo_url']}")
+            return row[0]['logo_url']
+
+        return LOGO_BSL_DEFAULT
+    except Exception as e:
+        print(f"⚠️ [Tenant] Error obteniendo logo para tenant '{tenant_id}': {e}")
+        return LOGO_BSL_DEFAULT
 
 
 def obtener_visiometria_postgres(orden_id):
@@ -2797,8 +2842,8 @@ def generar_certificado_medico():
             # Lista de exámenes para verificar tipo
             "examenes": data.get("examenes", []),
 
-            # Logo URL
-            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+            # Logo URL dinámico por tenant
+            "logo_url": obtener_logo_tenant(data.get("tenant_id"))
         }
 
         # Asegurar que existan los campos aunque estén vacíos (PRIMERO)
@@ -3082,8 +3127,8 @@ def generar_certificado_medico_puppeteer():
             # Lista de exámenes para verificar tipo
             "examenes": data.get("examenes", []),
 
-            # Logo URL
-            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png"
+            # Logo URL dinámico por tenant
+            "logo_url": obtener_logo_tenant(data.get("tenant_id"))
         }
 
         # Asegurar que existan los campos aunque estén vacíos (PRIMERO)
@@ -6095,7 +6140,7 @@ def preview_certificado_html(wix_id):
             "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
             "examenes_detallados": [],
-            "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
+            "logo_url": obtener_logo_tenant(datos_historia_postgres.get('tenant_id') if datos_historia_postgres else None),
             # ===== NUEVOS CAMPOS DESDE POSTGRESQL =====
             "eps": datos_wix.get('eps', ''),
             "arl": datos_wix.get('arl', ''),
