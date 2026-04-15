@@ -1632,6 +1632,11 @@
                             formulario?.profesion_oficio,
                             formulario?.profesionOficio
                         ),
+                        'Tipo de examen': obtenerValorConFallback(
+                            historia.tipoExamen,
+                            formulario?.tipo_examen,
+                            formulario?.tipoExamen
+                        ),
                         'Exámenes ejecutados': examenesEjecutados,
                         'Concepto de aptitud': obtenerValorConFallback(
                             historia.mdConceptoFinal,
@@ -1656,6 +1661,7 @@
                     { wch: 18 },
                     { wch: 10 },
                     { wch: 28 },
+                    { wch: 20 },
                     { wch: 45 },
                     { wch: 35 },
                     { wch: 20 },
