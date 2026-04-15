@@ -678,6 +678,9 @@
             <button onclick="descargarExcel()" class="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition font-medium shadow-lg">
                 📊 Descargar Excel
             </button>
+            <button onclick="descargarExcelComplementarioInforme()" class="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-8 py-3 rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition font-medium shadow-lg">
+                📋 Excel Complementario Informe
+            </button>
             <button onclick="window.print()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">
                 🖨️ Imprimir desde Navegador
             </button>
@@ -1353,6 +1356,323 @@
             } catch (error) {
                 console.error('Error al generar Excel:', error);
                 alert('Error al generar el archivo Excel: ' + error.message);
+            }
+        }
+
+        function obtenerValorConFallback(...valores) {
+            for (const valor of valores) {
+                if (valor === null || valor === undefined) continue;
+
+                if (typeof valor === 'string') {
+                    const limpio = valor.trim();
+                    if (limpio) return limpio;
+                    continue;
+                }
+
+                if (Array.isArray(valor) && valor.length > 0) {
+                    return valor;
+                }
+
+                if (valor !== '') {
+                    return valor;
+                }
+            }
+
+            return '';
+        }
+
+        function normalizarTexto(valor) {
+            if (valor === null || valor === undefined) return '';
+            if (typeof valor === 'string') return valor.trim();
+            return String(valor).trim();
+        }
+
+        function dividirTextoEnPartes(valor) {
+            if (Array.isArray(valor)) {
+                return valor
+                    .map(item => normalizarTexto(item))
+                    .filter(Boolean);
+            }
+
+            const texto = normalizarTexto(valor);
+            if (!texto) return [];
+
+            return texto
+                .split(/\n|;|,/)
+                .map(parte => parte.trim())
+                .filter(Boolean);
+        }
+
+        function unirValoresUnicos(valores, separador = ' | ') {
+            const vistos = new Set();
+            const resultado = [];
+
+            valores.forEach(valor => {
+                dividirTextoEnPartes(valor).forEach(parte => {
+                    const llave = parte.toLowerCase();
+                    if (!vistos.has(llave)) {
+                        vistos.add(llave);
+                        resultado.push(parte);
+                    }
+                });
+            });
+
+            return resultado.join(separador);
+        }
+
+        function normalizarExamenes(examenes) {
+            if (Array.isArray(examenes)) {
+                return examenes
+                    .map(examen => normalizarTexto(examen))
+                    .filter(Boolean);
+            }
+
+            return dividirTextoEnPartes(examenes);
+        }
+
+        function formatearFechaParaExcel(fechaValor) {
+            const texto = normalizarTexto(fechaValor);
+            if (!texto) return '';
+
+            const soloFecha = texto.includes('T') ? texto.split('T')[0] : texto;
+            const fecha = new Date(`${soloFecha}T00:00:00`);
+
+            if (Number.isNaN(fecha.getTime())) {
+                return soloFecha;
+            }
+
+            return fecha.toLocaleDateString('es-CO');
+        }
+
+        function calcularEdadDesdeFecha(fechaNacimiento) {
+            const texto = normalizarTexto(fechaNacimiento);
+            if (!texto) return '';
+
+            const soloFecha = texto.includes('T') ? texto.split('T')[0] : texto;
+            const nacimiento = new Date(`${soloFecha}T00:00:00`);
+            if (Number.isNaN(nacimiento.getTime())) return '';
+
+            const hoy = new Date();
+            let edad = hoy.getFullYear() - nacimiento.getFullYear();
+            const mes = hoy.getMonth() - nacimiento.getMonth();
+
+            if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+                edad -= 1;
+            }
+
+            return edad >= 0 ? edad : '';
+        }
+
+        function construirNombreCompleto(historia, formulario) {
+            return [
+                obtenerValorConFallback(formulario?.primer_nombre, formulario?.primerNombre, historia?.primerNombre),
+                obtenerValorConFallback(formulario?.segundo_nombre, formulario?.segundoNombre, historia?.segundoNombre),
+                obtenerValorConFallback(formulario?.primer_apellido, formulario?.primerApellido, historia?.primerApellido),
+                obtenerValorConFallback(formulario?.segundo_apellido, formulario?.segundoApellido, historia?.segundoApellido)
+            ]
+                .map(parte => normalizarTexto(parte))
+                .filter(Boolean)
+                .join(' ');
+        }
+
+        function crearIndicesFormularios(formularioItems = []) {
+            const porWixId = new Map();
+            const porDocumento = new Map();
+
+            formularioItems.forEach(formulario => {
+                const wixId = normalizarTexto(formulario?.wix_id || formulario?.wixId);
+                const documento = normalizarTexto(formulario?.numero_id || formulario?.numeroId);
+
+                if (wixId && !porWixId.has(wixId)) {
+                    porWixId.set(wixId, formulario);
+                }
+
+                if (documento && !porDocumento.has(documento)) {
+                    porDocumento.set(documento, formulario);
+                }
+            });
+
+            return { porWixId, porDocumento };
+        }
+
+        function obtenerFormularioRelacionado(historia, indicesFormularios) {
+            const wixId = normalizarTexto(historia?._id);
+            const documento = normalizarTexto(historia?.numeroId);
+
+            return indicesFormularios.porWixId.get(wixId)
+                || indicesFormularios.porDocumento.get(documento)
+                || null;
+        }
+
+        function crearIndiceSVE(pacientesSVE = []) {
+            const indice = new Map();
+
+            pacientesSVE.forEach(paciente => {
+                const documento = normalizarTexto(paciente?.documento);
+                if (!documento) return;
+
+                if (!indice.has(documento)) {
+                    indice.set(documento, []);
+                }
+
+                indice.get(documento).push(paciente);
+            });
+
+            return indice;
+        }
+
+        function extraerValoresPorPatrones(registros, patronesInclusion, patronesExclusion = []) {
+            const valores = [];
+
+            registros.forEach(registro => {
+                if (!registro || typeof registro !== 'object') return;
+
+                Object.entries(registro).forEach(([clave, valor]) => {
+                    if (valor === null || valor === undefined || valor === '') return;
+
+                    const claveNormalizada = clave.toLowerCase();
+                    const incluir = patronesInclusion.some(patron => patron.test(claveNormalizada));
+                    const excluir = patronesExclusion.some(patron => patron.test(claveNormalizada));
+
+                    if (!incluir || excluir) return;
+
+                    if (Array.isArray(valor)) {
+                        valor.forEach(item => valores.push(item));
+                        return;
+                    }
+
+                    valores.push(valor);
+                });
+            });
+
+            return unirValoresUnicos(valores);
+        }
+
+        function descargarExcelComplementarioInforme() {
+            if (!datosInforme || !datosInforme.historiaClinicaItems?.length) {
+                alert('Primero genera el informe para exportar el Excel complementario');
+                return;
+            }
+
+            try {
+                const indicesFormularios = crearIndicesFormularios(datosInforme.formularioItems || []);
+                const indiceSVE = crearIndiceSVE(datosInforme.estadisticas?.sve?.pacientes || []);
+
+                const filas = datosInforme.historiaClinicaItems.map(historia => {
+                    const formulario = obtenerFormularioRelacionado(historia, indicesFormularios);
+                    const documento = normalizarTexto(obtenerValorConFallback(
+                        historia.numeroId,
+                        formulario?.numero_id,
+                        formulario?.numeroId
+                    ));
+                    const examenesEjecutados = unirValoresUnicos([
+                        normalizarExamenes(historia.examenes),
+                        normalizarExamenes(formulario?.examenes),
+                        normalizarExamenes(historia.tipoExamen),
+                        normalizarExamenes(formulario?.tipo_examen),
+                        normalizarExamenes(formulario?.tipoExamen)
+                    ], ', ');
+
+                    const recomendaciones = extraerValoresPorPatrones(
+                        [historia, formulario],
+                        [/recomend/i, /adicional/i, /especific/i, /general/i],
+                        [/ia/i]
+                    );
+
+                    const restricciones = extraerValoresPorPatrones(
+                        [historia, formulario],
+                        [/restric/i]
+                    );
+
+                    const pacientesSVE = indiceSVE.get(documento) || [];
+                    const clasificacionSVE = pacientesSVE.length
+                        ? pacientesSVE.map(item => `Clasifica para SVE ${item.sistema}${item.diagnostico ? ` (${item.diagnostico})` : ''}`)
+                        : [];
+
+                    const diagnosticos = unirValoresUnicos([
+                        historia.mdDx1,
+                        historia.mdDx2
+                    ]);
+
+                    const observacionesFinales = unirValoresUnicos([
+                        extraerValoresPorPatrones(
+                            [historia, formulario],
+                            [/observ/i, /conclusion/i, /coment/i],
+                            [/certificado_url/i]
+                        ),
+                        diagnosticos ? `Diagnósticos reportados: ${diagnosticos}` : '',
+                        clasificacionSVE
+                    ]);
+
+                    const edad = obtenerValorConFallback(
+                        formulario?.edad,
+                        historia?.edad,
+                        calcularEdadDesdeFecha(formulario?.fecha_nacimiento || formulario?.fechaNacimiento)
+                    );
+
+                    return {
+                        'Fecha de realización': formatearFechaParaExcel(
+                            obtenerValorConFallback(historia.fechaConsulta, historia.fechaAtencion)
+                        ),
+                        'Sede': obtenerValorConFallback(
+                            historia.sede,
+                            historia.ips_sede,
+                            formulario?.ips_sede,
+                            historia.ciudad,
+                            formulario?.ciudad_residencia,
+                            formulario?.ciudadDeResidencia
+                        ),
+                        'Nombres y apellidos': construirNombreCompleto(historia, formulario),
+                        'Documento de ID': documento,
+                        'Edad': normalizarTexto(edad),
+                        'Ocupación o Cargo': obtenerValorConFallback(
+                            historia.cargo,
+                            formulario?.cargo,
+                            formulario?.profesion_oficio,
+                            formulario?.profesionOficio
+                        ),
+                        'Exámenes ejecutados': examenesEjecutados,
+                        'Concepto de aptitud': obtenerValorConFallback(
+                            historia.mdConceptoFinal,
+                            formulario?.mdConceptoFinal,
+                            formulario?.concepto_medico,
+                            formulario?.conceptoMedico
+                        ),
+                        'Recomendaciones': recomendaciones,
+                        'Restricciones': restricciones,
+                        'Observaciones finales': observacionesFinales
+                    };
+                });
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(filas);
+
+                ws['!cols'] = [
+                    { wch: 18 },
+                    { wch: 18 },
+                    { wch: 32 },
+                    { wch: 18 },
+                    { wch: 10 },
+                    { wch: 28 },
+                    { wch: 45 },
+                    { wch: 35 },
+                    { wch: 60 },
+                    { wch: 40 },
+                    { wch: 75 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws, 'Complementario');
+
+                const nombreEmpresa = (datosInforme.empresaInfo?.empresa || datosInforme.codEmpresa || 'Informe')
+                    .replace(/[\\/:*?"<>|]/g, '_')
+                    .replace(/\s+/g, '_');
+                const nombreArchivo = `Excel_Complementario_Informe_${nombreEmpresa}_${datosInforme.fechaInicio}_${datosInforme.fechaFin}.xlsx`;
+
+                XLSX.writeFile(wb, nombreArchivo);
+                console.log(`✅ Excel complementario descargado: ${nombreArchivo} con ${filas.length} registros`);
+            } catch (error) {
+                console.error('Error al generar el Excel complementario:', error);
+                alert('Error al generar el Excel complementario: ' + error.message);
             }
         }
     </script>
