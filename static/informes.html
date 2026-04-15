@@ -1567,10 +1567,7 @@
                     ));
                     const examenesEjecutados = unirValoresUnicos([
                         normalizarExamenes(historia.examenes),
-                        normalizarExamenes(formulario?.examenes),
-                        normalizarExamenes(historia.tipoExamen),
-                        normalizarExamenes(formulario?.tipo_examen),
-                        normalizarExamenes(formulario?.tipoExamen)
+                        normalizarExamenes(formulario?.examenes)
                     ], ', ');
 
                     const recomendaciones = extraerValoresPorPatrones(
@@ -1585,6 +1582,10 @@
                     );
 
                     const pacientesSVE = indiceSVE.get(documento) || [];
+                    const sistemasSVE = unirValoresUnicos(
+                        pacientesSVE.map(item => item.sistema),
+                        ' | '
+                    );
                     const clasificacionSVE = pacientesSVE.length
                         ? pacientesSVE.map(item => `Clasifica para SVE ${item.sistema}${item.diagnostico ? ` (${item.diagnostico})` : ''}`)
                         : [];
@@ -1638,6 +1639,7 @@
                             formulario?.concepto_medico,
                             formulario?.conceptoMedico
                         ),
+                        'SVE': sistemasSVE,
                         'Recomendaciones': recomendaciones,
                         'Restricciones': restricciones,
                         'Observaciones finales': observacionesFinales
@@ -1656,6 +1658,7 @@
                     { wch: 28 },
                     { wch: 45 },
                     { wch: 35 },
+                    { wch: 20 },
                     { wch: 60 },
                     { wch: 40 },
                     { wch: 75 }
