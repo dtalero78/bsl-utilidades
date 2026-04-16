@@ -958,6 +958,104 @@
         {% endif %}
         {% endif %}
 
+        <!-- RESULTADOS DE VOXIMETRÍA -->
+        {% if 'VOXIMETRÍA' in examenes or 'Voximetría' in examenes or 'VOXIMETRIA' in examenes or 'Test Vocal Voximetría' in examenes %}
+        <div class="section" style="margin-top: 30px;">
+            <div class="section-title">Resultados de Voximetría</div>
+
+            {% if datos_voximetria %}
+            <div style="background: white; padding: 20px; border: 1px solid #ddd; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f0f0f0;">
+                            <th style="padding: 8px; border: 1px solid #ccc; text-align: left;">Parámetro</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; text-align: left;">Valor</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; text-align: left;">Rango de referencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">Frecuencia fundamental media (F0)</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.f0_mean) if datos_voximetria.f0_mean is not none else '-' }} Hz</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">85-180 Hz (H) / 165-255 Hz (M)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">F0 mínima</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.f0_min) if datos_voximetria.f0_min is not none else '-' }} Hz</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">-</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">F0 máxima</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.f0_max) if datos_voximetria.f0_max is not none else '-' }} Hz</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">-</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">Jitter</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.4f'|format(datos_voximetria.jitter_percent) if datos_voximetria.jitter_percent is not none else '-' }} %</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">&lt; 1.04 %</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">Shimmer</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.4f'|format(datos_voximetria.shimmer_percent) if datos_voximetria.shimmer_percent is not none else '-' }} %</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">&lt; 3.81 %</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">HNR (Armónicos/Ruido)</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.hnr_db) if datos_voximetria.hnr_db is not none else '-' }} dB</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">&gt; 20 dB</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">Intensidad media</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.intensidad_mean_db) if datos_voximetria.intensidad_mean_db is not none else '-' }} dB</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">60-80 dB</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ccc;">Tiempo máximo de fonación</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">{{ '%.2f'|format(datos_voximetria.tiempo_maximo_fonacion_s) if datos_voximetria.tiempo_maximo_fonacion_s is not none else '-' }} s</td>
+                            <td style="padding: 8px; border: 1px solid #ccc;">&gt; 15 s</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if datos_voximetria.concepto %}
+            <div class="result-item">
+                <h3>Concepto</h3>
+                <p><strong>{{ datos_voximetria.concepto }}</strong></p>
+            </div>
+            {% endif %}
+
+            {% if datos_voximetria.interpretacion %}
+            <div class="result-item">
+                <h3>Interpretación</h3>
+                <p>{{ datos_voximetria.interpretacion }}</p>
+            </div>
+            {% endif %}
+
+            {% if datos_voximetria.recomendaciones_lista %}
+            <div class="result-item">
+                <h3>Recomendaciones</h3>
+                <ul>
+                    {% for recomendacion in datos_voximetria.recomendaciones_lista %}
+                    <li>{{ recomendacion }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% elif datos_voximetria.recomendaciones %}
+            <div class="result-item">
+                <h3>Recomendaciones</h3>
+                <p>{{ datos_voximetria.recomendaciones }}</p>
+            </div>
+            {% endif %}
+            {% else %}
+                <div class="result-item" style="text-align: center; padding: 40px; background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <h3 style="color: #856404;">NO HAY DATOS DISPONIBLES</h3>
+                    <p style="color: #856404;">No se encontraron resultados de voximetría para este paciente.</p>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- RESULTADOS DE PERFIL PSICOLÓGICO ADC -->
         {% if 'PERFIL PSICOLÓGICO ADC' in examenes or 'Perfil Psicológico ADC' in examenes or 'PERFIL PSICOLOGICO ADC' in examenes %}
         <div class="section" style="page-break-before: always; margin-top: 30px;">

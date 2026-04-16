@@ -214,6 +214,16 @@ MAPEO_EXAMENES = {
     "Test psicológico": "PERFIL PSICOLÓGICO ADC",
     "Test Psicológico": "PERFIL PSICOLÓGICO ADC",
     "TEST PSICOLÓGICO": "PERFIL PSICOLÓGICO ADC",
+
+    # VOXIMETRÍA
+    "Voximetría": "VOXIMETRÍA",
+    "VOXIMETRÍA": "VOXIMETRÍA",
+    "Voximetria": "VOXIMETRÍA",
+    "VOXIMETRIA": "VOXIMETRÍA",
+    "Test Vocal Voximetría": "VOXIMETRÍA",
+    "Tamizaje vocal": "VOXIMETRÍA",
+    "Tamizaje Vocal": "VOXIMETRÍA",
+    "TAMIZAJE VOCAL": "VOXIMETRÍA",
 }
 
 def normalizar_examen(nombre_examen):
@@ -1269,6 +1279,98 @@ def obtener_audiometria_postgres(orden_id):
         return None
     except Exception as e:
         print(f"❌ [PostgreSQL] Error al consultar audiometría: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def obtener_voximetria_postgres(orden_id):
+    """
+    Consulta los datos de voximetría desde PostgreSQL (tabla voximetrias_virtual) usando el orden_id.
+
+    Args:
+        orden_id: ID de la orden (_id de HistoriaClinica)
+
+    Returns:
+        dict: Datos de voximetría formateados para el template o None si no existe
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada para voximetría")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando voximetrias_virtual para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                f0_mean, f0_min, f0_max,
+                jitter_percent, shimmer_percent, hnr_db,
+                intensidad_mean_db, tiempo_maximo_fonacion_s,
+                concepto, interpretacion, recomendaciones
+            FROM voximetrias_virtual
+            WHERE orden_id = %s
+            ORDER BY updated_at DESC
+            LIMIT 1;
+        """, (orden_id,))
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró voximetría para orden_id: {orden_id}")
+            return None
+
+        def to_float(val):
+            if val is None:
+                return None
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return None
+
+        f0_mean, f0_min, f0_max, jitter, shimmer, hnr, intensidad, tmf, concepto, interpretacion, recomendaciones = row
+
+        # Separar recomendaciones en lista (vienen separadas por ';' en BD)
+        recomendaciones_lista = []
+        if recomendaciones:
+            recomendaciones_lista = [r.strip() for r in recomendaciones.split(';') if r.strip()]
+
+        datos_voximetria = {
+            "f0_mean": to_float(f0_mean),
+            "f0_min": to_float(f0_min),
+            "f0_max": to_float(f0_max),
+            "jitter_percent": to_float(jitter),
+            "shimmer_percent": to_float(shimmer),
+            "hnr_db": to_float(hnr),
+            "intensidad_mean_db": to_float(intensidad),
+            "tiempo_maximo_fonacion_s": to_float(tmf),
+            "concepto": concepto or "",
+            "interpretacion": interpretacion or "",
+            "recomendaciones": recomendaciones or "",
+            "recomendaciones_lista": recomendaciones_lista
+        }
+
+        print(f"✅ [PostgreSQL] Datos de voximetría encontrados: concepto={concepto}")
+        return datos_voximetria
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado para voximetría")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar voximetría: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -4838,6 +4940,18 @@ def api_generar_certificado_pdf(wix_id):
                 except Exception as e:
                     print(f"❌ Error consultando datos de audiometría en Wix: {e}")
 
+        # ===== CONSULTAR DATOS DE VOXIMETRÍA =====
+        datos_voximetria = None
+        tiene_examen_voximetria = any(e in ['VOXIMETRÍA', 'Voximetría', 'VOXIMETRIA', 'Voximetria', 'Test Vocal Voximetría'] for e in examenes_normalizados)
+
+        if tiene_examen_voximetria:
+            wix_id_historia_vox = datos_wix.get('_id', '')
+            print(f"🔍 Consultando voximetrias_virtual en PostgreSQL para: {wix_id_historia_vox}")
+            datos_voximetria = obtener_voximetria_postgres(wix_id_historia_vox)
+
+            if not datos_voximetria:
+                print(f"⚠️ No se encontraron datos de voximetría para {wix_id_historia_vox}")
+
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
         cod_empresa_actual = datos_wix.get('codEmpresa', '')
@@ -5125,6 +5239,9 @@ def api_generar_certificado_pdf(wix_id):
 
             # Datos de audiometría
             "datos_audiometria": datos_audiometria,
+
+            # Datos de voximetría
+            "datos_voximetria": datos_voximetria,
 
             # Datos ADC (Perfil Psicológico)
             "datos_adc": datos_adc,
@@ -5803,6 +5920,18 @@ def preview_certificado_html(wix_id):
                     print(f"❌ Error consultando datos de audiometría en Wix: {e}", flush=True)
                     datos_audiometria = None
 
+        # ===== CONSULTAR DATOS DE VOXIMETRÍA =====
+        datos_voximetria = None
+        tiene_examen_voximetria = any(e in ['VOXIMETRÍA', 'Voximetría', 'VOXIMETRIA', 'Voximetria', 'Test Vocal Voximetría'] for e in examenes_normalizados)
+
+        if tiene_examen_voximetria:
+            wix_id_historia_vox = datos_wix.get('_id', wix_id)
+            print(f"🔍 Consultando voximetrias_virtual en PostgreSQL para: {wix_id_historia_vox}", flush=True)
+            datos_voximetria = obtener_voximetria_postgres(wix_id_historia_vox)
+
+            if not datos_voximetria:
+                print(f"⚠️ No se encontraron datos de voximetría para {wix_id_historia_vox}", flush=True)
+
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
         cod_empresa_actual = datos_wix.get('codEmpresa', '')
@@ -6139,6 +6268,7 @@ def preview_certificado_html(wix_id):
             "recomendaciones_medicas": recomendaciones,
             "datos_visual": datos_visual,  # Datos visuales (Optometría/Visiometría)
             "datos_audiometria": datos_audiometria,  # Datos de audiometría
+            "datos_voximetria": datos_voximetria,  # Datos de voximetría
             "datos_adc": datos_adc,  # Datos ADC (Perfil Psicológico)
             "medico_nombre": datos_medico['nombre'],
             "medico_registro": datos_medico['registro'],
