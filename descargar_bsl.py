@@ -5093,6 +5093,17 @@ def api_generar_certificado_pdf(wix_id):
                     descripcion = datos_audiometria['diagnostico']
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Si es voximetría y hay datos, usar concepto + interpretación de la BD
+            elif "VOXIMETR" in examen.upper():
+                if datos_voximetria:
+                    partes = []
+                    if datos_voximetria.get('concepto'):
+                        partes.append(datos_voximetria['concepto'])
+                    if datos_voximetria.get('interpretacion'):
+                        partes.append(datos_voximetria['interpretacion'])
+                    descripcion = '. '.join(partes) if partes else textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+                else:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             else:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             resultados_generales.append({
@@ -6139,6 +6150,17 @@ def preview_certificado_html(wix_id):
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
                 if datos_audiometria and datos_audiometria.get('diagnostico'):
                     descripcion = datos_audiometria['diagnostico']
+                else:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Si es voximetría y hay datos, usar concepto + interpretación de la BD
+            elif "VOXIMETR" in examen.upper():
+                if datos_voximetria:
+                    partes = []
+                    if datos_voximetria.get('concepto'):
+                        partes.append(datos_voximetria['concepto'])
+                    if datos_voximetria.get('interpretacion'):
+                        partes.append(datos_voximetria['interpretacion'])
+                    descripcion = '. '.join(partes) if partes else textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             else:
