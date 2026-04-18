@@ -916,6 +916,7 @@ TENANT_BSL_DEFAULTS = {
     "tenant_licencia": "64 del 10-01-2017",
     "tenant_direccion": "Calle 134 # 7-83 cons 233, Bogotá D.C.",
     "tenant_web": "www.bsl.com.co",
+    "tenant_email": "c.talero@bsl.com.co",
     "tenant_telefono": "+ 57 601 580 2318"
 }
 
@@ -967,6 +968,14 @@ def obtener_datos_tenant(tenant_id):
         nombre, hostnames, config = row
         config = config or {}
 
+        # Para no-BSL, los campos no configurados quedan vacíos (no heredan defaults BSL)
+        datos['tenant_nit'] = ''
+        datos['tenant_licencia'] = ''
+        datos['tenant_direccion'] = ''
+        datos['tenant_web'] = ''
+        datos['tenant_email'] = ''
+        datos['tenant_telefono'] = ''
+
         if config.get('logo_url'):
             datos['logo_url'] = config['logo_url']
         if nombre:
@@ -977,11 +986,15 @@ def obtener_datos_tenant(tenant_id):
             datos['tenant_licencia'] = config['licencia']
         if config.get('direccion'):
             datos['tenant_direccion'] = config['direccion']
-        if hostnames and len(hostnames) > 0:
-            # Primer hostname como web visible (sin www. duplicado)
+        # Web: preferir config.web (dominio público), fallback a hostname de plataforma
+        if config.get('web'):
+            datos['tenant_web'] = config['web']
+        elif hostnames and len(hostnames) > 0:
             datos['tenant_web'] = hostnames[0]
-        # tenant_telefono no está en config actualmente — queda vacío para no-BSL
-        datos['tenant_telefono'] = config.get('telefono', '')
+        if config.get('email'):
+            datos['tenant_email'] = config['email']
+        if config.get('telefono'):
+            datos['tenant_telefono'] = config['telefono']
 
         print(f"✅ [Tenant] Datos de encabezado para '{tenant_id}': {datos.get('tenant_nombre')}")
         return datos
