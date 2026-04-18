@@ -510,12 +510,12 @@
         <div class="header">
             <!-- Logo izquierdo -->
             <div class="logo-section">
-                <img src="{{ logo_url }}" alt="BSL Logo">
+                <img src="{{ logo_url }}" alt="{{ tenant_nombre or 'Logo' }}">
                 <div class="company-info">
-                    Nit. 900.844.030-8<br>
-                    Licencia No. 64 del 10-01-2017<br>
-                    Calle 134 # 7-83 cons 233, Bogotá D.C.<br>
-                    www.bsl.com.co
+                    {% if tenant_nit %}Nit. {{ tenant_nit }}<br>{% endif %}
+                    {% if tenant_licencia %}Licencia No. {{ tenant_licencia }}<br>{% endif %}
+                    {% if tenant_direccion %}{{ tenant_direccion }}<br>{% endif %}
+                    {% if tenant_web %}{{ tenant_web }}{% endif %}
                 </div>
             </div>
 
@@ -1266,7 +1266,7 @@
 
         <!-- FOOTER -->
         <div class="footer">
-            BIENESTAR Y SALUD LABORAL SAS - CALLE 134 NO. 7-83 CONS 233 - BOGOTÁ - www.bsl.com.co - Teléfono + 57 601 580 2318
+            {{ tenant_nombre }}{% if tenant_direccion %} - {{ tenant_direccion }}{% endif %}{% if tenant_web %} - {{ tenant_web }}{% endif %}{% if tenant_telefono %} - Teléfono {{ tenant_telefono }}{% endif %}
         </div>
     </div>
 
