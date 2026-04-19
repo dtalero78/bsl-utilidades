@@ -129,6 +129,37 @@ def obtener_credenciales_twilio_tenant(tenant_id):
     _TENANT_CRED_CACHE[cache_key] = {'t': _time.time(), 'creds': creds}
     return creds
 
+
+_TENANT_NOMBRE_CACHE = {}
+
+def obtener_nombre_tenant(tenant_id):
+    """Retorna el nombre display del tenant (para firmar mensajes). Cache indefinido."""
+    if not tenant_id or tenant_id == 'bsl':
+        return 'Bienestar y Salud Laboral SAS'
+    if tenant_id in _TENANT_NOMBRE_CACHE:
+        return _TENANT_NOMBRE_CACHE[tenant_id]
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=os.getenv("POSTGRES_PASSWORD"),
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT nombre FROM tenants WHERE id = %s", (tenant_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        nombre = row[0] if row and row[0] else tenant_id
+    except Exception as e:
+        print(f"⚠️  Error leyendo nombre del tenant {tenant_id}: {e}")
+        nombre = tenant_id
+    _TENANT_NOMBRE_CACHE[tenant_id] = nombre
+    return nombre
+
 def obtener_nit_empresa(cod_empresa):
     """Obtiene el NIT de una empresa desde PostgreSQL"""
     try:
@@ -6542,12 +6573,17 @@ def enviar_certificado_whatsapp():
 
             if historia_id:
                 print(f"   Buscando por Historia ID: {historia_id}")
-                cur.execute('SELECT _id, "numeroId", celular, tenant_id FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+                cur.execute('''
+                    SELECT _id, "numeroId", celular, tenant_id,
+                           "primerNombre", "segundoNombre", "primerApellido", "segundoApellido"
+                    FROM "HistoriaClinica" WHERE _id = %s LIMIT 1
+                ''', (historia_id,))
             else:
                 print(f"   Buscando por Cédula: {numero_id}")
                 # Priorizar registros que tengan datos en formularios usando LEFT JOIN
                 cur.execute('''
-                    SELECT h._id, h."numeroId", h.celular, h.tenant_id
+                    SELECT h._id, h."numeroId", h.celular, h.tenant_id,
+                           h."primerNombre", h."segundoNombre", h."primerApellido", h."segundoApellido"
                     FROM "HistoriaClinica" h
                     LEFT JOIN formularios f ON h._id = f.wix_id
                     WHERE h."numeroId" = %s
@@ -6568,7 +6604,11 @@ def enviar_certificado_whatsapp():
                     '_id': row[0],
                     'numeroId': row[1],
                     'celular': row[2],
-                    'tenant_id': tenant_id_paciente
+                    'tenant_id': tenant_id_paciente,
+                    'primerNombre': row[4] or '',
+                    'segundoNombre': row[5] or '',
+                    'primerApellido': row[6] or '',
+                    'segundoApellido': row[7] or ''
                 }
                 print(f"✅ Encontrado en PostgreSQL: {wix_id} (tenant={tenant_id_paciente})")
             else:
@@ -6671,8 +6711,10 @@ def enviar_certificado_whatsapp():
         nombre_completo = f"{datos_wix.get('primerNombre', '')} {datos_wix.get('segundoNombre', '')} {datos_wix.get('primerApellido', '')} {datos_wix.get('segundoApellido', '')}".strip()
         cedula = numero_id if numero_id else datos_wix.get('numeroId', 'N/A')
 
-        # Mensaje con el certificado
-        mensaje_whatsapp = f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_Bienestar y Salud Laboral SAS_"
+        # Mensaje con el certificado (firma según tenant del paciente)
+        tenant_id_mensaje = datos_wix.get('tenant_id', 'bsl') if isinstance(datos_wix, dict) else 'bsl'
+        nombre_firma = obtener_nombre_tenant(tenant_id_mensaje)
+        mensaje_whatsapp = f"🏥 *Certificado Médico Ocupacional*\n\n*Paciente:* {nombre_completo}\n*Cédula:* {cedula}\n\n✅ Tu certificado está listo.\n\n_{nombre_firma}_"
 
         try:
             # Importar y usar cliente Twilio
