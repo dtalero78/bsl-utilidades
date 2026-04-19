@@ -1820,14 +1820,23 @@ def generar_certificado_medico():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
-                    if key in datos_postgres and datos_postgres[key]:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                # firma y foto pueden ser URL http (DO Spaces) o data URI base64 (legacy)
+                merge_keys = {
+                    'eps': 'eps',
+                    'arl': 'arl',
+                    'pensiones': 'pensiones',
+                    'nivelEducativo': 'nivel_educativo',
+                    'firma': 'firma_paciente_url',
+                    'foto': 'foto_paciente',
+                }
+                for src_key, dst_key in merge_keys.items():
+                    if src_key in datos_postgres and datos_postgres[src_key]:
+                        datos_certificado[dst_key] = datos_postgres[src_key]
+                        val = datos_postgres[src_key]
+                        preview = val[:60] + '...' if isinstance(val, str) and len(val) > 60 else val
+                        print(f"✅ PostgreSQL → {dst_key}: {preview}")
                     else:
-                        print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+                        print(f"⚠️  Campo {src_key} no encontrado o vacío en PostgreSQL")
             else:
                 print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
@@ -2075,14 +2084,23 @@ def generar_certificado_medico_puppeteer():
             if datos_postgres:
                 print(f"📦 Datos obtenidos de PostgreSQL: {list(datos_postgres.keys())}")
                 # Merge datos de PostgreSQL con datos del certificado
-                for key in ['eps', 'arl', 'pensiones', 'nivelEducativo']:
-                    if key in datos_postgres and datos_postgres[key]:
-                        # Mapear nivelEducativo a nivel_educativo para la plantilla
-                        template_key = 'nivel_educativo' if key == 'nivelEducativo' else key
-                        datos_certificado[template_key] = datos_postgres[key]
-                        print(f"✅ Datos adicionales de PostgreSQL: {template_key} = {datos_postgres[key]}")
+                # firma y foto pueden ser URL http (DO Spaces) o data URI base64 (legacy)
+                merge_keys = {
+                    'eps': 'eps',
+                    'arl': 'arl',
+                    'pensiones': 'pensiones',
+                    'nivelEducativo': 'nivel_educativo',
+                    'firma': 'firma_paciente_url',
+                    'foto': 'foto_paciente',
+                }
+                for src_key, dst_key in merge_keys.items():
+                    if src_key in datos_postgres and datos_postgres[src_key]:
+                        datos_certificado[dst_key] = datos_postgres[src_key]
+                        val = datos_postgres[src_key]
+                        preview = val[:60] + '...' if isinstance(val, str) and len(val) > 60 else val
+                        print(f"✅ PostgreSQL → {dst_key}: {preview}")
                     else:
-                        print(f"⚠️  Campo {key} no encontrado o vacío en PostgreSQL")
+                        print(f"⚠️  Campo {src_key} no encontrado o vacío en PostgreSQL")
             else:
                 print(f"❌ No se pudieron obtener datos de PostgreSQL para wix_id: {data.get('wix_id')}")
 
@@ -2117,9 +2135,11 @@ def generar_certificado_medico_puppeteer():
         if not datos_certificado.get("firma_optometra_url"):
             datos_certificado["firma_optometra_url"] = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
 
-        # 4. Firma del paciente - Ya no se descarga (QR estático en template)
-        # El QR de validación está embebido en el template como qr-validacion.jpg
-        print(f"ℹ️  Firma paciente: QR estático en template")
+        # 4. Firma del paciente: viene desde merge PG (firma_url en Spaces o base64 legacy)
+        if datos_certificado.get("firma_paciente_url"):
+            print(f"✍️  Firma paciente: {datos_certificado['firma_paciente_url'][:60]}...")
+        else:
+            print(f"ℹ️  Firma paciente: no disponible")
 
         # Renderizar template HTML (ahora con imágenes ya procesadas a DO Spaces)
         print("🎨 Renderizando plantilla HTML...")
