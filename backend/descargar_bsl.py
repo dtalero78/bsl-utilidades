@@ -304,9 +304,10 @@ def obtener_datos_formulario_postgres(wix_id):
         cur = conn.cursor()
 
         # Buscar todos los datos del formulario por wix_id
+        # firma_url (Spaces) tiene prioridad sobre firma (base64 legacy)
         cur.execute("""
             SELECT
-                foto,
+                COALESCE(NULLIF(foto_url, ''), foto) AS foto,
                 edad,
                 genero,
                 estado_civil,
@@ -317,7 +318,7 @@ def obtener_datos_formulario_postgres(wix_id):
                 fecha_nacimiento,
                 primer_nombre,
                 primer_apellido,
-                firma,
+                COALESCE(NULLIF(firma_url, ''), firma) AS firma,
                 eps,
                 arl,
                 pensiones,
@@ -342,10 +343,9 @@ def obtener_datos_formulario_postgres(wix_id):
         # Construir diccionario con los datos
         datos_formulario = {}
 
-        # Foto (validar que sea data URI)
-        if foto and foto.startswith("data:image/"):
-            foto_size_kb = len(foto) / 1024
-            print(f"📸 [PostgreSQL] Foto encontrada: {foto_size_kb:.1f} KB")
+        # Foto (data URI base64 o URL http de Spaces)
+        if foto and (foto.startswith("data:image/") or foto.startswith("http")):
+            print(f"📸 [PostgreSQL] Foto encontrada ({'URL' if foto.startswith('http') else f'{len(foto)/1024:.1f} KB base64'})")
             datos_formulario['foto'] = foto
         else:
             print(f"ℹ️  [PostgreSQL] Sin foto válida")
@@ -394,10 +394,9 @@ def obtener_datos_formulario_postgres(wix_id):
                 datos_formulario['fechaNacimiento'] = fecha_nacimiento.strftime('%d de %B de %Y')
             print(f"🎂 [PostgreSQL] Fecha de nacimiento: {datos_formulario['fechaNacimiento']}")
 
-        # Firma del paciente (validar que sea data URI)
-        if firma and firma.startswith("data:image/"):
-            firma_size_kb = len(firma) / 1024
-            print(f"✍️  [PostgreSQL] Firma encontrada: {firma_size_kb:.1f} KB")
+        # Firma del paciente (data URI base64 o URL http de Spaces)
+        if firma and (firma.startswith("data:image/") or firma.startswith("http")):
+            print(f"✍️  [PostgreSQL] Firma encontrada ({'URL' if firma.startswith('http') else f'{len(firma)/1024:.1f} KB base64'})")
             datos_formulario['firma'] = firma
         else:
             print(f"ℹ️  [PostgreSQL] Sin firma válida")
