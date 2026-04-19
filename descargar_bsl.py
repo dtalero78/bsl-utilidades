@@ -67,6 +67,68 @@ def generar_fecha_custodia_texto():
     mes = MESES_ESPANOL.get(fecha.month, '').upper()
     return f"{mes} {fecha.day} de {fecha.year}"
 
+
+# Cache simple de credenciales tenant (TTL 60s). Evita hit a BD por cada mensaje.
+_TENANT_CRED_CACHE = {}
+_TENANT_CRED_TTL = 60  # segundos
+
+def obtener_credenciales_twilio_tenant(tenant_id):
+    """
+    Devuelve las credenciales de Twilio para un tenant.
+    Si el tenant tiene tenants.credenciales.twilio poblado, usa eso.
+    Si no (ej. 'bsl'), cae a env vars TWILIO_* (zero-regression BSL).
+
+    Returns dict con keys: account_sid, auth_token, whatsapp_from,
+    messaging_service_sid (opcional).
+    """
+    import time as _time
+    cache_key = tenant_id or 'bsl'
+    cached = _TENANT_CRED_CACHE.get(cache_key)
+    if cached and (_time.time() - cached['t']) < _TENANT_CRED_TTL:
+        return cached['creds']
+
+    creds = None
+    if tenant_id and tenant_id != 'bsl':
+        try:
+            import psycopg2
+            conn = psycopg2.connect(
+                host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+                port=int(os.getenv("POSTGRES_PORT", "25060")),
+                user=os.getenv("POSTGRES_USER", "doadmin"),
+                password=os.getenv("POSTGRES_PASSWORD"),
+                database=os.getenv("POSTGRES_DB", "defaultdb"),
+                sslmode='require'
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT credenciales -> 'twilio' FROM tenants WHERE id = %s", (tenant_id,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row and row[0]:
+                twilio_cfg = row[0]  # jsonb -> dict
+                if twilio_cfg.get('account_sid') and twilio_cfg.get('auth_token'):
+                    creds = {
+                        'account_sid': twilio_cfg['account_sid'],
+                        'auth_token': twilio_cfg['auth_token'],
+                        'whatsapp_from': twilio_cfg.get('whatsapp_from'),
+                        'messaging_service_sid': twilio_cfg.get('messaging_service_sid'),
+                        'source': f'tenant:{tenant_id}'
+                    }
+        except Exception as e:
+            print(f"⚠️  Error leyendo credenciales tenant {tenant_id}: {e}, fallback a env vars")
+
+    if not creds:
+        creds = {
+            'account_sid': os.getenv('TWILIO_ACCOUNT_SID'),
+            'auth_token': os.getenv('TWILIO_AUTH_TOKEN'),
+            'whatsapp_from': os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+573008021701'),
+            'messaging_service_sid': os.getenv('TWILIO_MESSAGING_SERVICE_SID'),
+            'source': 'env:bsl'
+        }
+
+    _TENANT_CRED_CACHE[cache_key] = {'t': _time.time(), 'creds': creds}
+    return creds
+
 def obtener_nit_empresa(cod_empresa):
     """Obtiene el NIT de una empresa desde PostgreSQL"""
     try:
@@ -6480,12 +6542,12 @@ def enviar_certificado_whatsapp():
 
             if historia_id:
                 print(f"   Buscando por Historia ID: {historia_id}")
-                cur.execute('SELECT _id, "numeroId", celular FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+                cur.execute('SELECT _id, "numeroId", celular, tenant_id FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
             else:
                 print(f"   Buscando por Cédula: {numero_id}")
                 # Priorizar registros que tengan datos en formularios usando LEFT JOIN
                 cur.execute('''
-                    SELECT h._id, h."numeroId", h.celular
+                    SELECT h._id, h."numeroId", h.celular, h.tenant_id
                     FROM "HistoriaClinica" h
                     LEFT JOIN formularios f ON h._id = f.wix_id
                     WHERE h."numeroId" = %s
@@ -6501,12 +6563,14 @@ def enviar_certificado_whatsapp():
 
             if row:
                 wix_id = row[0]
+                tenant_id_paciente = row[3] or 'bsl'
                 datos_wix = {
                     '_id': row[0],
                     'numeroId': row[1],
-                    'celular': row[2]
+                    'celular': row[2],
+                    'tenant_id': tenant_id_paciente
                 }
-                print(f"✅ Encontrado en PostgreSQL: {wix_id}")
+                print(f"✅ Encontrado en PostgreSQL: {wix_id} (tenant={tenant_id_paciente})")
             else:
                 print(f"⚠️ No se encontró registro en PostgreSQL")
         except Exception as e:
@@ -6614,12 +6678,16 @@ def enviar_certificado_whatsapp():
             # Importar y usar cliente Twilio
             from twilio.rest import Client as TwilioClient
 
-            twilio_account_sid = os.getenv('TWILIO_ACCOUNT_SID')
-            twilio_auth_token = os.getenv('TWILIO_AUTH_TOKEN')
-            twilio_whatsapp_from = os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+573008021701')
+            # Multi-tenant: usar credenciales del tenant del paciente (no de BSL)
+            tenant_id_paciente = datos_wix.get('tenant_id', 'bsl') if isinstance(datos_wix, dict) else 'bsl'
+            creds = obtener_credenciales_twilio_tenant(tenant_id_paciente)
+            twilio_account_sid = creds['account_sid']
+            twilio_auth_token = creds['auth_token']
+            twilio_whatsapp_from = creds['whatsapp_from']
+            print(f"🔑 Twilio credenciales: {creds['source']} (from={twilio_whatsapp_from})")
 
             if not twilio_account_sid or not twilio_auth_token:
-                print("❌ Credenciales de Twilio no configuradas")
+                print(f"❌ Credenciales de Twilio no configuradas para tenant {tenant_id_paciente}")
                 return jsonify({
                     "success": False,
                     "message": "Error de configuración del servicio de WhatsApp"
@@ -6664,8 +6732,11 @@ def enviar_certificado_whatsapp():
                 )
                 cur = conn.cursor()
 
-                # Buscar o crear conversación
-                cur.execute("SELECT id FROM conversaciones_whatsapp WHERE celular = %s", (numero_normalizado,))
+                # Buscar o crear conversación (scoped por tenant — ver CLAUDE.md multi-tenant)
+                cur.execute(
+                    "SELECT id FROM conversaciones_whatsapp WHERE celular = %s AND tenant_id = %s",
+                    (numero_normalizado, tenant_id_paciente)
+                )
                 result = cur.fetchone()
 
                 if result:
@@ -6673,16 +6744,16 @@ def enviar_certificado_whatsapp():
                     cur.execute("UPDATE conversaciones_whatsapp SET fecha_ultima_actividad = NOW() WHERE id = %s", (conversacion_id,))
                 else:
                     cur.execute("""
-                        INSERT INTO conversaciones_whatsapp (celular, nombre_paciente, estado_actual, fecha_inicio, fecha_ultima_actividad, bot_activo)
-                        VALUES (%s, %s, 'activa', NOW(), NOW(), false) RETURNING id
-                    """, (numero_normalizado, nombre_completo or 'Cliente WhatsApp'))
+                        INSERT INTO conversaciones_whatsapp (celular, nombre_paciente, estado_actual, fecha_inicio, fecha_ultima_actividad, bot_activo, tenant_id)
+                        VALUES (%s, %s, 'activa', NOW(), NOW(), false, %s) RETURNING id
+                    """, (numero_normalizado, nombre_completo or 'Cliente WhatsApp', tenant_id_paciente))
                     conversacion_id = cur.fetchone()[0]
 
-                # Guardar mensaje saliente
+                # Guardar mensaje saliente (scoped por tenant)
                 cur.execute("""
-                    INSERT INTO mensajes_whatsapp (conversacion_id, contenido, direccion, sid_twilio, tipo_mensaje, media_url, timestamp)
-                    VALUES (%s, %s, 'saliente', %s, 'document', %s, NOW())
-                """, (conversacion_id, mensaje_whatsapp, message.sid, certificado_url))
+                    INSERT INTO mensajes_whatsapp (conversacion_id, contenido, direccion, sid_twilio, tipo_mensaje, media_url, timestamp, tenant_id)
+                    VALUES (%s, %s, 'saliente', %s, 'document', %s, NOW(), %s)
+                """, (conversacion_id, mensaje_whatsapp, message.sid, certificado_url, tenant_id_paciente))
 
                 conn.commit()
                 cur.close()
