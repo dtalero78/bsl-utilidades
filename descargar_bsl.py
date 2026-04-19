@@ -589,6 +589,7 @@ def obtener_datos_formulario_postgres(wix_id):
                 pensiones,
                 nivel_educativo,
                 foto_url,
+                firma_url,
                 celular
             FROM formularios
             WHERE wix_id = %s
@@ -631,6 +632,7 @@ def obtener_datos_formulario_postgres(wix_id):
                         pensiones,
                         nivel_educativo,
                         foto_url,
+                        firma_url,
                         celular
                     FROM formularios
                     WHERE numero_id = %s
@@ -646,7 +648,7 @@ def obtener_datos_formulario_postgres(wix_id):
             print(f"ℹ️  [PostgreSQL] No se encontró registro con wix_id: {wix_id} ni por numero_id")
             return None
 
-        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url, celular = row
+        foto, edad, genero, estado_civil, hijos, email, profesion_oficio, ciudad_residencia, fecha_nacimiento, primer_nombre, primer_apellido, firma, eps, arl, pensiones, nivel_educativo, foto_url, firma_url, celular = row
 
         print(f"✅ [PostgreSQL] Datos del formulario encontrados para {primer_nombre} {primer_apellido}")
 
@@ -712,10 +714,13 @@ def obtener_datos_formulario_postgres(wix_id):
                 datos_formulario['fechaNacimiento'] = formatear_fecha_espanol(fecha_nacimiento)
             print(f"🎂 [PostgreSQL] Fecha de nacimiento: {datos_formulario['fechaNacimiento']}")
 
-        # Firma del paciente (validar que sea data URI)
-        if firma and firma.startswith("data:image/"):
+        # Firma - Priorizar firma_url (DO Spaces) sobre firma (data URI base64 legacy)
+        if firma_url and firma_url.startswith("http"):
+            print(f"✍️  [PostgreSQL] Usando firma_url (DO Spaces): {firma_url[:80]}...")
+            datos_formulario['firma'] = firma_url
+        elif firma and firma.startswith("data:image/"):
             firma_size_kb = len(firma) / 1024
-            print(f"✍️  [PostgreSQL] Firma encontrada: {firma_size_kb:.1f} KB")
+            print(f"✍️  [PostgreSQL] Usando firma base64: {firma_size_kb:.1f} KB")
             datos_formulario['firma'] = firma
         else:
             print(f"ℹ️  [PostgreSQL] Sin firma válida")
