@@ -220,7 +220,7 @@
 <body>
     <div class="container">
         <div class="logo">
-            <img src="/static/logo-bsl.png" alt="BSL Logo">
+            <img id="tenantLogo" src="/static/logo-bsl.png" alt="Logo">
         </div>
 
         <h1>Descargando Certificado Médico</h1>
@@ -256,8 +256,8 @@
         <div class="message" id="message"></div>
 
         <div class="footer">
-            <p>Bienestar y Salud Laboral SAS</p>
-            <p>www.bsl.com.co</p>
+            <p id="tenantNombre">Bienestar y Salud Laboral SAS</p>
+            <p id="tenantWeb">www.bsl.com.co</p>
         </div>
     </div>
 
@@ -267,6 +267,26 @@
         const loader = document.getElementById('loader');
         const messageDiv = document.getElementById('message');
         const loadingPhrase = document.getElementById('loadingPhrase');
+
+        // Branding dinámico por tenant del paciente (?id=<historiaId>)
+        (function aplicarBrandingTenant() {
+            const params = new URLSearchParams(window.location.search);
+            const historiaId = params.get('id');
+            if (!historiaId) return;
+            fetch(`/api/tenant-info/${encodeURIComponent(historiaId)}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(info => {
+                    if (!info) return;
+                    if (info.logo_url) {
+                        const img = document.getElementById('tenantLogo');
+                        if (img) { img.src = info.logo_url; img.alt = info.nombre || 'Logo'; }
+                    }
+                    if (info.nombre) document.getElementById('tenantNombre').textContent = info.nombre;
+                    if (info.web) document.getElementById('tenantWeb').textContent = info.web;
+                    if (info.nombre) document.title = `Certificado - ${info.nombre}`;
+                })
+                .catch(() => {});
+        })();
 
         const phrases = [
             "Buscando tu certificado médico en la base de datos...",

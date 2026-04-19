@@ -6517,6 +6517,62 @@ def serve_certificado_whatsapp_media(filename):
         return "File not found", 404
     return send_file(filepath, mimetype='application/pdf')
 
+# --- Endpoint: INFO DE TENANT PARA BRANDING (usado por solicitar-certificado.html) ---
+@app.route("/api/tenant-info/<historia_id>", methods=["GET", "OPTIONS"])
+def api_tenant_info(historia_id):
+    """Retorna info de branding del tenant dueño de una HistoriaClinica, para que el
+    HTML cliente pinte el logo, nombre y footer del tenant correcto."""
+    if request.method == "OPTIONS":
+        return ("", 204, {"Access-Control-Allow-Origin": "*"})
+
+    tenant_id = 'bsl'
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=os.getenv("POSTGRES_PASSWORD"),
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cur = conn.cursor()
+        cur.execute('SELECT tenant_id FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (historia_id,))
+        row = cur.fetchone()
+        if row and row[0]:
+            tenant_id = row[0]
+
+        cur.execute("SELECT nombre, config FROM tenants WHERE id = %s", (tenant_id,))
+        trow = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if trow:
+            nombre, config = trow[0], (trow[1] or {})
+            resp = jsonify({
+                "id": tenant_id,
+                "nombre": nombre,
+                "logo_url": config.get("logo_url") or "/static/logo-bsl.png",
+                "web": config.get("web") or "www.bsl.com.co",
+                "email": config.get("email", "")
+            })
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            return resp
+    except Exception as e:
+        print(f"⚠️  Error en /api/tenant-info: {e}")
+
+    # Fallback BSL
+    resp = jsonify({
+        "id": "bsl",
+        "nombre": "Bienestar y Salud Laboral SAS",
+        "logo_url": "/static/logo-bsl.png",
+        "web": "www.bsl.com.co",
+        "email": ""
+    })
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
 # --- Endpoint: ENVIAR CERTIFICADO POR WHATSAPP ---
 @app.route("/enviar-certificado-whatsapp", methods=["POST", "OPTIONS"])
 def enviar_certificado_whatsapp():
