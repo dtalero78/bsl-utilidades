@@ -130,6 +130,63 @@ def obtener_credenciales_twilio_tenant(tenant_id):
     return creds
 
 
+_FIRMA_MEDICO_CACHE = {}
+_FIRMA_MEDICO_TTL = 300  # 5 min
+
+def obtener_firma_medico_db(alias, tenant_id, wix_id_historia=None):
+    """
+    Lee la firma del médico desde medicos.firma en Postgres (scoped por tenant).
+    Match por alias exacto (match común con HistoriaClinica.medico).
+    Si tenant_id no viene pero wix_id_historia sí, resuelve tenant_id via HC._id.
+    Retorna la firma tal cual esté guardada (data URI base64 o URL). None si no hay.
+    """
+    import time as _time
+    if not alias:
+        return None
+
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=os.getenv("POSTGRES_PASSWORD"),
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cur = conn.cursor()
+
+        # Si no tenemos tenant_id, intentar resolver por wix_id del historial
+        if not tenant_id and wix_id_historia:
+            cur.execute('SELECT tenant_id FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (wix_id_historia,))
+            r = cur.fetchone()
+            if r and r[0]:
+                tenant_id = r[0]
+
+        tid = tenant_id or 'bsl'
+        key = f"{tid}:{alias}"
+        cached = _FIRMA_MEDICO_CACHE.get(key)
+        if cached and (_time.time() - cached['t']) < _FIRMA_MEDICO_TTL:
+            cur.close()
+            conn.close()
+            return cached['firma']
+
+        cur.execute(
+            "SELECT firma FROM medicos WHERE alias = %s AND tenant_id = %s AND activo = true AND firma IS NOT NULL AND firma <> '' LIMIT 1",
+            (alias, tid)
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        firma = row[0] if row and row[0] else None
+    except Exception as e:
+        print(f"⚠️  Error leyendo firma médico {alias}/{tenant_id}: {e}")
+        firma = None
+
+    _FIRMA_MEDICO_CACHE[f"{tenant_id or 'bsl'}:{alias}"] = {'t': _time.time(), 'firma': firma}
+    return firma
+
+
 _TENANT_NOMBRE_CACHE = {}
 
 def obtener_nombre_tenant(tenant_id):
@@ -5333,13 +5390,21 @@ def api_generar_certificado_pdf(wix_id):
             }
         }
 
-        # Obtener firma del médico desde archivos locales
-        firma_medico_filename = firma_medico_map.get(medico)
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
+        # Firma del médico: prioridad 1 = medicos.firma en BD (scoped por tenant),
+        # fallback = archivo estático del map hardcodeado.
+        tenant_id_med = datos_wix.get('tenant_id')
+        wix_id_historia = datos_wix.get('_id')
+        firma_db = obtener_firma_medico_db(medico, tenant_id_med, wix_id_historia)
+        if firma_db:
+            firma_medico_url = firma_db  # puede ser data URI o URL, el template acepta ambos
+            print(f"✅ Firma médico: desde BD (tenant={tenant_id_med or 'resuelto via HC'}, alias={medico})")
+        else:
+            firma_medico_filename = firma_medico_map.get(medico)
+            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
+            print(f"✅ Firma médico: static fallback ({firma_medico_filename or 'ninguna'})")
 
         # Obtener datos del médico
         datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
-        print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde PostgreSQL
@@ -6392,13 +6457,21 @@ def preview_certificado_html(wix_id):
             }
         }
 
-        # Obtener firma del médico desde archivos locales
-        firma_medico_filename = firma_medico_map.get(medico)
-        firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
+        # Firma del médico: prioridad 1 = medicos.firma en BD (scoped por tenant),
+        # fallback = archivo estático del map hardcodeado.
+        tenant_id_med = datos_wix.get('tenant_id')
+        wix_id_historia = datos_wix.get('_id')
+        firma_db = obtener_firma_medico_db(medico, tenant_id_med, wix_id_historia)
+        if firma_db:
+            firma_medico_url = firma_db  # puede ser data URI o URL, el template acepta ambos
+            print(f"✅ Firma médico: desde BD (tenant={tenant_id_med or 'resuelto via HC'}, alias={medico})")
+        else:
+            firma_medico_filename = firma_medico_map.get(medico)
+            firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
+            print(f"✅ Firma médico: static fallback ({firma_medico_filename or 'ninguna'})")
 
         # Obtener datos del médico
         datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
-        print(f"✅ Firma médico: {firma_medico_filename}")
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde PostgreSQL
