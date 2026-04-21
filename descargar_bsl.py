@@ -1069,6 +1069,7 @@ TENANT_BSL_DEFAULTS = {
     "tenant_nombre": "BIENESTAR Y SALUD LABORAL SAS",
     "tenant_nit": "900.844.030-8",
     "tenant_licencia": "64 del 10-01-2017",
+    "tenant_distintivo": "Sede norte DHSS0244914",
     "tenant_direccion": "Calle 134 # 7-83 cons 233, Bogotá D.C.",
     "tenant_web": "www.bsl.com.co",
     "tenant_email": "c.talero@bsl.com.co",
@@ -1126,6 +1127,7 @@ def obtener_datos_tenant(tenant_id):
         # Para no-BSL, los campos no configurados quedan vacíos (no heredan defaults BSL)
         datos['tenant_nit'] = ''
         datos['tenant_licencia'] = ''
+        datos['tenant_distintivo'] = ''
         datos['tenant_direccion'] = ''
         datos['tenant_web'] = ''
         datos['tenant_email'] = ''
@@ -1139,6 +1141,8 @@ def obtener_datos_tenant(tenant_id):
             datos['tenant_nit'] = config['nit']
         if config.get('licencia'):
             datos['tenant_licencia'] = config['licencia']
+        if config.get('distintivo'):
+            datos['tenant_distintivo'] = config['distintivo']
         if config.get('direccion'):
             datos['tenant_direccion'] = config['direccion']
         # Web: preferir config.web (dominio público), fallback a hostname de plataforma
@@ -5418,6 +5422,9 @@ def api_generar_certificado_pdf(wix_id):
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
         print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.jpeg")
 
+        # Datos del tenant (distintivo, nombre, etc.) para usar en el payload
+        _tenant_data = obtener_datos_tenant(datos_wix.get('tenant_id'))
+
         # Preparar payload para el endpoint de generación
         payload_certificado = {
             # Datos personales
@@ -5447,7 +5454,7 @@ def api_generar_certificado_pdf(wix_id):
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
             "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
-            "ips_sede": "Sede norte DHSS0244914",
+            "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
 
             # Exámenes
             "examenes_realizados": examenes_realizados,
@@ -6488,6 +6495,10 @@ def preview_certificado_html(wix_id):
         # Generar código de seguridad
         codigo_seguridad = str(uuid.uuid4())
 
+        # Datos del tenant (distintivo = ips_sede)
+        _tenant_id_cert = datos_historia_postgres.get('tenant_id') if datos_historia_postgres else None
+        _tenant_data = obtener_datos_tenant(_tenant_id_cert)
+
         # Preparar datos para el template
         datos_certificado = {
             "codigo_seguridad": codigo_seguridad,
@@ -6509,7 +6520,7 @@ def preview_certificado_html(wix_id):
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
             "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
-            "ips_sede": "Sede norte DHSS0244914",
+            "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
             "examenes_realizados": examenes_realizados,
             "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)
             "resultados_generales": resultados_generales,
@@ -6531,7 +6542,7 @@ def preview_certificado_html(wix_id):
             "firma_optometra_url": firma_optometra_url,
             "examenes_detallados": [],
             # Datos del tenant (logo + nombre/nit/licencia/direccion para encabezado PDF)
-            **obtener_datos_tenant(datos_historia_postgres.get('tenant_id') if datos_historia_postgres else None),
+            **_tenant_data,
             # ===== NUEVOS CAMPOS DESDE POSTGRESQL =====
             "eps": datos_wix.get('eps', ''),
             "arl": datos_wix.get('arl', ''),
