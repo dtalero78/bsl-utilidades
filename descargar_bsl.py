@@ -243,6 +243,39 @@ def obtener_nit_empresa(cod_empresa):
         print(f"⚠️ Error obteniendo NIT para {cod_empresa}: {e}")
         return ''
 
+def obtener_config_certificado_empresa(cod_empresa):
+    """Lee config_certificado (JSONB) de la empresa. Shape esperado:
+    { 'ocultar_audiometria': bool, 'ocultar_visiometria': bool }.
+    Se usa para omitir bloques numéricos detallados en el PDF. Retorna dict vacío
+    si no hay config, la columna no existe todavía, o falla la consulta."""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password or not cod_empresa:
+            return {}
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            "SELECT config_certificado FROM empresas WHERE cod_empresa = %s",
+            (cod_empresa,)
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        cfg = row.get('config_certificado') if row else None
+        return cfg or {}
+    except Exception as e:
+        print(f"⚠️ Error obteniendo config_certificado para {cod_empresa}: {e}")
+        return {}
+
 # ===== MAPEO DE NOMBRES DE EXÁMENES (Variantes -> Nombre oficial de tabla examenes en PostgreSQL) =====
 # Los nombres normalizados deben coincidir EXACTAMENTE con la tabla "examenes" de PostgreSQL
 MAPEO_EXAMENES = {
@@ -3219,6 +3252,11 @@ def generar_certificado_medico():
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
 
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
+        datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
+        datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
+
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML...")
         html_content = render_template("certificado_medico.html", **datos_certificado)
@@ -3503,6 +3541,11 @@ def generar_certificado_medico_puppeteer():
         # Datos para página de custodia
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
+
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
+        datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
+        datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
         # PRE-PROCESAR IMÁGENES: convertir URLs de Wix a DO Spaces ANTES de renderizar
         print("🖼️ Pre-procesando imágenes para usar DO Spaces...")
@@ -4155,6 +4198,11 @@ def test_certificado_postgres(wix_id):
         # Datos para página de custodia
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(cod_empresa or "")
+
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(cod_empresa or "")
+        datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
+        datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
         # Datos del tenant (endpoint de prueba: usa defaults BSL)
         datos_certificado.update(obtener_datos_tenant(None))
@@ -6561,6 +6609,11 @@ def preview_certificado_html(wix_id):
         # Datos para página de custodia
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(datos_wix.get("codEmpresa", ""))
+
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(datos_wix.get("codEmpresa", ""))
+        datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
+        datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")

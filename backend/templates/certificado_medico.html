@@ -695,7 +695,8 @@
         {% endif %}
 
         <!-- RESULTADOS DE PRUEBA VISUAL (Optometría o Visiometría) -->
-        {% if 'Optometría' in examenes or 'Visiometría' in examenes %}
+        {# ocultar_visiometria: flag per-empresa leído de empresas.config_certificado (ver descargar_bsl.py) #}
+        {% if ('Optometría' in examenes or 'Visiometría' in examenes) and not ocultar_visiometria %}
         <div class="section" style="margin-top: 30px;">
             <div class="section-title">
                 {% if 'Optometría' in examenes %}
@@ -765,7 +766,8 @@
         {% endif %}
 
         <!-- RESULTADOS DE AUDIOMETRÍA -->
-        {% if 'Audiometría' in examenes %}
+        {# ocultar_audiometria: flag per-empresa leído de empresas.config_certificado (ver descargar_bsl.py) #}
+        {% if 'Audiometría' in examenes and not ocultar_audiometria %}
         <div class="section" style="margin-top: 30px;">
             <div class="section-title">Resultados de Audiometría</div>
 
