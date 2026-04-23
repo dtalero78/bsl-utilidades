@@ -243,26 +243,16 @@ def obtener_nit_empresa(cod_empresa):
         print(f"⚠️ Error obteniendo NIT para {cod_empresa}: {e}")
         return ''
 
-_CFG_CERT_TENANT_CACHE = {}
-_CFG_CERT_TENANT_TTL = 60  # segundos
-
-def obtener_config_certificado_tenant(tenant_id):
-    """Lee tenants.config.certificado (JSONB) del tenant. Shape esperado:
+def obtener_config_certificado_empresa(cod_empresa):
+    """Lee config_certificado (JSONB) de la empresa. Shape esperado:
     { 'ocultar_audiometria': bool, 'ocultar_visiometria': bool }.
     Se usa para omitir bloques numéricos detallados en el PDF. Retorna dict vacío
-    si no hay config o falla la consulta. Cache 60s."""
-    import time as _time
-    tid = tenant_id or 'bsl'
-    cached = _CFG_CERT_TENANT_CACHE.get(tid)
-    if cached and (_time.time() - cached['t']) < _CFG_CERT_TENANT_TTL:
-        return cached['cfg']
-
-    cfg = {}
+    si no hay config, la columna no existe todavía, o falla la consulta."""
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
         postgres_password = os.getenv("POSTGRES_PASSWORD")
-        if not postgres_password:
+        if not postgres_password or not cod_empresa:
             return {}
         conn = psycopg2.connect(
             host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
@@ -274,19 +264,17 @@ def obtener_config_certificado_tenant(tenant_id):
         )
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
-            "SELECT config->'certificado' AS cert FROM tenants WHERE id = %s",
-            (tid,)
+            "SELECT config_certificado FROM empresas WHERE cod_empresa = %s",
+            (cod_empresa,)
         )
         row = cursor.fetchone()
         cursor.close()
         conn.close()
-        cfg = (row.get('cert') if row else None) or {}
+        cfg = row.get('config_certificado') if row else None
+        return cfg or {}
     except Exception as e:
-        print(f"⚠️ Error obteniendo certificado config del tenant {tid}: {e}")
-        cfg = {}
-
-    _CFG_CERT_TENANT_CACHE[tid] = {'t': _time.time(), 'cfg': cfg}
-    return cfg
+        print(f"⚠️ Error obteniendo config_certificado para {cod_empresa}: {e}")
+        return {}
 
 # ===== MAPEO DE NOMBRES DE EXÁMENES (Variantes -> Nombre oficial de tabla examenes en PostgreSQL) =====
 # Los nombres normalizados deben coincidir EXACTAMENTE con la tabla "examenes" de PostgreSQL
@@ -3264,8 +3252,8 @@ def generar_certificado_medico():
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
 
-        # Flags de visualización parcial del certificado (config por tenant/IPS en PLATAFORMA2)
-        _cfg_cert = obtener_config_certificado_tenant(data.get("tenant_id"))
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
@@ -3554,8 +3542,8 @@ def generar_certificado_medico_puppeteer():
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(data.get("codEmpresa", ""))
 
-        # Flags de visualización parcial del certificado (config por tenant/IPS en PLATAFORMA2)
-        _cfg_cert = obtener_config_certificado_tenant(data.get("tenant_id"))
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
@@ -4211,8 +4199,8 @@ def test_certificado_postgres(wix_id):
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(cod_empresa or "")
 
-        # Flags de visualización parcial del certificado (config por tenant — endpoint de prueba usa BSL)
-        _cfg_cert = obtener_config_certificado_tenant('bsl')
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(cod_empresa or "")
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
@@ -6622,8 +6610,8 @@ def preview_certificado_html(wix_id):
         datos_certificado["fecha_custodia_texto"] = generar_fecha_custodia_texto()
         datos_certificado["empresa_nit_custodia"] = obtener_nit_empresa(datos_wix.get("codEmpresa", ""))
 
-        # Flags de visualización parcial del certificado (config por tenant/IPS)
-        _cfg_cert = obtener_config_certificado_tenant(datos_wix.get('tenant_id') or (datos_historia_postgres.get('tenant_id') if datos_historia_postgres else None))
+        # Flags de visualización parcial del certificado (config por empresa en PLATAFORMA2)
+        _cfg_cert = obtener_config_certificado_empresa(datos_wix.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
 
