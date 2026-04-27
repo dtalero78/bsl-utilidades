@@ -11036,6 +11036,8 @@ SECOP_DATASETS = {
         'url': 'https://www.datos.gov.co/resource/p6dx-8zbt.json',
         'desc_cols': ['descripci_n_del_procedimiento', 'nombre_del_procedimiento'],
         'fecha_col': 'fecha_de_publicacion_del',
+        # Fecha de cierre = fecha de recepción de ofertas. Procesos vigentes la tienen en el futuro.
+        'cierre_col': 'fecha_de_recepcion_de',
         'entidad_col': 'entidad',
         'depto_col': 'departamento_entidad',
         'fase_col': 'fase',
@@ -11044,6 +11046,7 @@ SECOP_DATASETS = {
         'url': 'https://www.datos.gov.co/resource/jbjy-vk9h.json',
         'desc_cols': ['descripcion_del_proceso', 'objeto_del_contrato'],
         'fecha_col': 'fecha_de_firma',
+        'cierre_col': 'fecha_de_fin_del_contrato',
         'entidad_col': 'nombre_entidad',
         'depto_col': 'departamento',
         'fase_col': 'estado_contrato',
@@ -11052,6 +11055,7 @@ SECOP_DATASETS = {
         'url': 'https://www.datos.gov.co/resource/f789-7hwg.json',
         'desc_cols': ['detalle_del_objeto_a_contratar', 'objeto_a_contratar'],
         'fecha_col': 'fecha_de_cargue_en_el_secop',
+        'cierre_col': 'fecha_fin_ejec_contrato',
         'entidad_col': 'nombre_entidad',
         'depto_col': 'departamento_entidad',
         'fase_col': 'estado_del_proceso',
@@ -11060,6 +11064,7 @@ SECOP_DATASETS = {
         'url': 'https://www.datos.gov.co/resource/rpmr-utcd.json',
         'desc_cols': ['objeto_del_proceso', 'objeto_a_contratar'],
         'fecha_col': 'fecha_de_firma_del_contrato',
+        'cierre_col': 'fecha_fin_ejecuci_n',
         'entidad_col': 'nombre_de_la_entidad',
         'depto_col': 'departamento_entidad',
         'fase_col': 'estado_del_proceso',
@@ -11138,6 +11143,10 @@ def api_secop_licitaciones():
         if not fecha_desde:
             fecha_desde = (obtener_fecha_colombia() - timedelta(days=90)).strftime('%Y-%m-%d')
 
+        # Por defecto excluimos procesos cuya fecha de cierre ya pasó.
+        # Para deshabilitar: ?solo_vigentes=0
+        solo_vigentes = request.args.get('solo_vigentes', '1').strip().lower() not in ('0', 'false', 'no', '')
+
         try:
             limit = int(request.args.get('limit', '200'))
         except ValueError:
@@ -11171,6 +11180,14 @@ def api_secop_licitaciones():
         if fecha_desde:
             where_parts.append(
                 f"{fecha_col} > '{_escape_soql(fecha_desde)}T00:00:00.000'"
+            )
+
+        # Excluir procesos cuya fecha de cierre ya pasó.
+        if solo_vigentes and ds.get('cierre_col'):
+            hoy_iso = obtener_fecha_colombia().strftime('%Y-%m-%dT%H:%M:%S.000')
+            cierre_col = ds['cierre_col']
+            where_parts.append(
+                f"({cierre_col} IS NULL OR {cierre_col} >= '{hoy_iso}')"
             )
 
         params = {
@@ -11209,6 +11226,7 @@ def api_secop_licitaciones():
                 'departamento': departamento or None,
                 'entidad': entidad or None,
                 'fecha_desde': fecha_desde,
+                'solo_vigentes': solo_vigentes,
                 'limit': limit,
             },
             'soql_where': params.get('$where'),
