@@ -11028,12 +11028,42 @@ def generar_recomendaciones_ia():
 # SECOP - BÚSQUEDA DE LICITACIONES (datos.gov.co / Socrata)
 # ============================================================================
 
-# Datasets oficiales de Colombia Compra Eficiente publicados en datos.gov.co
+# Datasets oficiales de Colombia Compra Eficiente publicados en datos.gov.co.
+# Cada dataset usa nombres de columna distintos: por eso mapeamos las columnas
+# clave (descripción, fecha, entidad, departamento, fase) por dataset.
 SECOP_DATASETS = {
-    'secop_ii_procesos':  'https://www.datos.gov.co/resource/p6dx-8zbt.json',
-    'secop_ii_contratos': 'https://www.datos.gov.co/resource/jbjy-vk9h.json',
-    'secop_i_procesos':   'https://www.datos.gov.co/resource/f789-7hwg.json',
-    'secop_integrado':    'https://www.datos.gov.co/resource/rpmr-utcd.json',
+    'secop_ii_procesos': {
+        'url': 'https://www.datos.gov.co/resource/p6dx-8zbt.json',
+        'desc_cols': ['descripci_n_del_procedimiento', 'nombre_del_procedimiento'],
+        'fecha_col': 'fecha_de_publicacion_del',
+        'entidad_col': 'entidad',
+        'depto_col': 'departamento_entidad',
+        'fase_col': 'fase',
+    },
+    'secop_ii_contratos': {
+        'url': 'https://www.datos.gov.co/resource/jbjy-vk9h.json',
+        'desc_cols': ['descripcion_del_proceso', 'objeto_del_contrato'],
+        'fecha_col': 'fecha_de_firma',
+        'entidad_col': 'nombre_entidad',
+        'depto_col': 'departamento',
+        'fase_col': 'estado_contrato',
+    },
+    'secop_i_procesos': {
+        'url': 'https://www.datos.gov.co/resource/f789-7hwg.json',
+        'desc_cols': ['detalle_del_objeto_a_contratar', 'objeto_a_contratar'],
+        'fecha_col': 'fecha_de_cargue_en_el_secop',
+        'entidad_col': 'nombre_entidad',
+        'depto_col': 'departamento_entidad',
+        'fase_col': 'estado_del_proceso',
+    },
+    'secop_integrado': {
+        'url': 'https://www.datos.gov.co/resource/rpmr-utcd.json',
+        'desc_cols': ['objeto_del_proceso', 'objeto_a_contratar'],
+        'fecha_col': 'fecha_de_firma_del_contrato',
+        'entidad_col': 'nombre_de_la_entidad',
+        'depto_col': 'departamento_entidad',
+        'fase_col': 'estado_del_proceso',
+    },
 }
 
 # Palabras clave por defecto para BSL (salud ocupacional / SST)
@@ -11085,12 +11115,13 @@ def api_secop_licitaciones():
 
     try:
         dataset_key = request.args.get('dataset', 'secop_ii_procesos').strip()
-        base_url = SECOP_DATASETS.get(dataset_key)
-        if not base_url:
+        ds = SECOP_DATASETS.get(dataset_key)
+        if not ds:
             return jsonify({
                 'success': False,
                 'error': f'Dataset inválido. Opciones: {list(SECOP_DATASETS.keys())}'
             }), 400
+        base_url = ds['url']
 
         # Keywords
         keywords_raw = request.args.get('keywords', '').strip()
@@ -11113,42 +11144,30 @@ def api_secop_licitaciones():
             limit = 200
         limit = max(1, min(limit, 1000))
 
-        # Construir cláusula $where (SoQL)
+        # Construir cláusula $where (SoQL) usando columnas reales del dataset
         where_parts = []
 
-        # Búsqueda por palabras clave en la descripción
+        # Búsqueda por palabras clave: OR sobre todas las columnas de descripción
         if keywords:
-            kw_clauses = [
-                f"upper(descripcion_del_proceso) like '%{_escape_soql(k.upper())}%'"
-                for k in keywords
-            ]
+            kw_clauses = []
+            for k in keywords:
+                k_up = _escape_soql(k.upper())
+                for col in ds['desc_cols']:
+                    kw_clauses.append(f"upper({col}) like '%{k_up}%'")
             where_parts.append('(' + ' OR '.join(kw_clauses) + ')')
 
         if fase:
-            where_parts.append(f"fase = '{_escape_soql(fase)}'")
+            where_parts.append(f"{ds['fase_col']} = '{_escape_soql(fase)}'")
         if departamento:
             where_parts.append(
-                f"upper(departamento_entidad) = '{_escape_soql(departamento.upper())}'"
+                f"upper({ds['depto_col']}) = '{_escape_soql(departamento.upper())}'"
             )
         if entidad:
             where_parts.append(
-                f"upper(entidad) like '%{_escape_soql(entidad.upper())}%'"
+                f"upper({ds['entidad_col']}) like '%{_escape_soql(entidad.upper())}%'"
             )
 
-        # Columna de fecha varía por dataset
-        if dataset_key == 'secop_ii_procesos':
-            fecha_col = 'fecha_de_publicacion_del'
-            order_col = 'fecha_de_publicacion_del'
-        elif dataset_key == 'secop_ii_contratos':
-            fecha_col = 'fecha_de_firma'
-            order_col = 'fecha_de_firma'
-        elif dataset_key == 'secop_i_procesos':
-            fecha_col = 'fecha_de_cargue_en_el_secop'
-            order_col = 'fecha_de_cargue_en_el_secop'
-        else:  # secop_integrado
-            fecha_col = 'fecha_de_publicacion_del_proceso'
-            order_col = 'fecha_de_publicacion_del_proceso'
-
+        fecha_col = ds['fecha_col']
         if fecha_desde:
             where_parts.append(
                 f"{fecha_col} > '{_escape_soql(fecha_desde)}T00:00:00.000'"
@@ -11156,7 +11175,7 @@ def api_secop_licitaciones():
 
         params = {
             '$where': ' AND '.join(where_parts) if where_parts else '',
-            '$order': f'{order_col} DESC',
+            '$order': f'{fecha_col} DESC',
             '$limit': str(limit),
         }
         # Quitar $where vacío

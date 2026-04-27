@@ -487,11 +487,14 @@
 
     function renderCard(row) {
       const titulo = pickField(row, [
+        'descripci_n_del_procedimiento',
+        'nombre_del_procedimiento',
         'descripcion_del_proceso',
         'descripcion_del_procedimiento',
+        'objeto_del_proceso',
+        'detalle_del_objeto_a_contratar',
         'objeto_a_contratar',
-        'objeto_del_contrato',
-        'detalle_del_objeto_a_contratar'
+        'objeto_del_contrato'
       ]) || '(sin descripción)';
 
       const entidad = pickField(row, ['entidad', 'nombre_entidad', 'nombre_de_la_entidad']) || '—';
