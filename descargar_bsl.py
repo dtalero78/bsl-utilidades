@@ -11025,6 +11025,187 @@ def generar_recomendaciones_ia():
         }), 500
 
 # ============================================================================
+# SECOP - BÚSQUEDA DE LICITACIONES (datos.gov.co / Socrata)
+# ============================================================================
+
+# Datasets oficiales de Colombia Compra Eficiente publicados en datos.gov.co
+SECOP_DATASETS = {
+    'secop_ii_procesos':  'https://www.datos.gov.co/resource/p6dx-8zbt.json',
+    'secop_ii_contratos': 'https://www.datos.gov.co/resource/jbjy-vk9h.json',
+    'secop_i_procesos':   'https://www.datos.gov.co/resource/f789-7hwg.json',
+    'secop_integrado':    'https://www.datos.gov.co/resource/rpmr-utcd.json',
+}
+
+# Palabras clave por defecto para BSL (salud ocupacional / SST)
+SECOP_KEYWORDS_DEFAULT = [
+    'SALUD OCUPACIONAL',
+    'EXAMEN%MEDICO',
+    'EXAMENES%MEDICOS',
+    'AUDIOMETR',
+    'OPTOMETR',
+    'VISIOMETR',
+    'RIESGO%PSICOSOCIAL',
+    'SEGURIDAD Y SALUD%TRABAJO',
+    'MEDICINA%LABORAL',
+    'MEDICINA%PREVENTIVA',
+]
+
+def _escape_soql(s):
+    """Escapa comillas simples para usar en filtros SoQL."""
+    return (s or '').replace("'", "''")
+
+
+@app.route('/licitaciones-secop', methods=['GET'])
+def serve_licitaciones_secop():
+    """Página HTML para buscar licitaciones de SECOP."""
+    return send_from_directory(app.static_folder, 'licitaciones-secop.html')
+
+
+@app.route('/api/secop-licitaciones', methods=['GET', 'OPTIONS'])
+def api_secop_licitaciones():
+    """
+    Proxy a la API pública de datos.gov.co (SECOP) con filtros SoQL.
+
+    Query params:
+        dataset: 'secop_ii_procesos' (default) | 'secop_ii_contratos' | 'secop_i_procesos' | 'secop_integrado'
+        keywords: lista separada por comas a buscar en descripcion_del_proceso
+                  (default: palabras de salud ocupacional/SST)
+        fase: filtra por columna 'fase' (ej: 'Presentación de oferta'). Vacío = sin filtro.
+        departamento: filtra por departamento_entidad (ej: 'Bogotá'). Vacío = sin filtro.
+        entidad: substring (LIKE) sobre 'entidad'.
+        fecha_desde: ISO 'YYYY-MM-DD' (default: hoy - 90 días)
+        limit: máx. registros (default 200, máx 1000).
+    """
+    if request.method == 'OPTIONS':
+        resp = make_response()
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+
+    try:
+        dataset_key = request.args.get('dataset', 'secop_ii_procesos').strip()
+        base_url = SECOP_DATASETS.get(dataset_key)
+        if not base_url:
+            return jsonify({
+                'success': False,
+                'error': f'Dataset inválido. Opciones: {list(SECOP_DATASETS.keys())}'
+            }), 400
+
+        # Keywords
+        keywords_raw = request.args.get('keywords', '').strip()
+        if keywords_raw:
+            keywords = [k.strip() for k in keywords_raw.split(',') if k.strip()]
+        else:
+            keywords = SECOP_KEYWORDS_DEFAULT
+
+        # Filtros opcionales
+        fase = request.args.get('fase', '').strip()
+        departamento = request.args.get('departamento', '').strip()
+        entidad = request.args.get('entidad', '').strip()
+        fecha_desde = request.args.get('fecha_desde', '').strip()
+        if not fecha_desde:
+            fecha_desde = (obtener_fecha_colombia() - timedelta(days=90)).strftime('%Y-%m-%d')
+
+        try:
+            limit = int(request.args.get('limit', '200'))
+        except ValueError:
+            limit = 200
+        limit = max(1, min(limit, 1000))
+
+        # Construir cláusula $where (SoQL)
+        where_parts = []
+
+        # Búsqueda por palabras clave en la descripción
+        if keywords:
+            kw_clauses = [
+                f"upper(descripcion_del_proceso) like '%{_escape_soql(k.upper())}%'"
+                for k in keywords
+            ]
+            where_parts.append('(' + ' OR '.join(kw_clauses) + ')')
+
+        if fase:
+            where_parts.append(f"fase = '{_escape_soql(fase)}'")
+        if departamento:
+            where_parts.append(
+                f"upper(departamento_entidad) = '{_escape_soql(departamento.upper())}'"
+            )
+        if entidad:
+            where_parts.append(
+                f"upper(entidad) like '%{_escape_soql(entidad.upper())}%'"
+            )
+
+        # Columna de fecha varía por dataset
+        if dataset_key == 'secop_ii_procesos':
+            fecha_col = 'fecha_de_publicacion_del'
+            order_col = 'fecha_de_publicacion_del'
+        elif dataset_key == 'secop_ii_contratos':
+            fecha_col = 'fecha_de_firma'
+            order_col = 'fecha_de_firma'
+        elif dataset_key == 'secop_i_procesos':
+            fecha_col = 'fecha_de_cargue_en_el_secop'
+            order_col = 'fecha_de_cargue_en_el_secop'
+        else:  # secop_integrado
+            fecha_col = 'fecha_de_publicacion_del_proceso'
+            order_col = 'fecha_de_publicacion_del_proceso'
+
+        if fecha_desde:
+            where_parts.append(
+                f"{fecha_col} > '{_escape_soql(fecha_desde)}T00:00:00.000'"
+            )
+
+        params = {
+            '$where': ' AND '.join(where_parts) if where_parts else '',
+            '$order': f'{order_col} DESC',
+            '$limit': str(limit),
+        }
+        # Quitar $where vacío
+        params = {k: v for k, v in params.items() if v}
+
+        headers = {}
+        token = os.getenv('SOCRATA_APP_TOKEN', '').strip()
+        if token:
+            headers['X-App-Token'] = token
+
+        logger.info(f"🔎 SECOP query | dataset={dataset_key} | where={params.get('$where')}")
+
+        r = requests.get(base_url, params=params, headers=headers, timeout=30)
+        if r.status_code != 200:
+            logger.error(f"❌ SECOP API status {r.status_code}: {r.text[:300]}")
+            return jsonify({
+                'success': False,
+                'error': f'datos.gov.co respondió {r.status_code}',
+                'detail': r.text[:500],
+            }), 502
+
+        data = r.json()
+
+        response = jsonify({
+            'success': True,
+            'dataset': dataset_key,
+            'total': len(data),
+            'filtros': {
+                'keywords': keywords,
+                'fase': fase or None,
+                'departamento': departamento or None,
+                'entidad': entidad or None,
+                'fecha_desde': fecha_desde,
+                'limit': limit,
+            },
+            'soql_where': params.get('$where'),
+            'datos': data,
+        })
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+
+    except requests.Timeout:
+        return jsonify({'success': False, 'error': 'Timeout consultando datos.gov.co'}), 504
+    except Exception as e:
+        logger.error(f"❌ Error en /api/secop-licitaciones: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================================
 # INICIALIZACIÓN DE TABLAS DE CONVERSACIONES WHATSAPP
 # ============================================================================
 
