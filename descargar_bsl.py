@@ -1099,6 +1099,7 @@ def obtener_datos_historia_clinica_postgres(wix_id):
 
 TENANT_BSL_DEFAULTS = {
     "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
+    "qr_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/images/qr-validacion.jpg",
     "tenant_nombre": "BIENESTAR Y SALUD LABORAL SAS",
     "tenant_nit": "900.844.030-8",
     "tenant_licencia": "64 del 10-01-2017",
@@ -1107,6 +1108,10 @@ TENANT_BSL_DEFAULTS = {
     "tenant_web": "www.bsl.com.co",
     "tenant_email": "c.talero@bsl.com.co",
     "tenant_telefono": "+ 57 601 580 2318"
+}
+
+TENANT_QR_OVERRIDES = {
+    "ipsVip": "https://bsl-utilidades-yp78a.ondigitalocean.app/images/qr-validacion-ipsVip.png",
 }
 
 
@@ -1127,6 +1132,9 @@ def obtener_datos_tenant(tenant_id):
         return dict(TENANT_BSL_DEFAULTS)
 
     datos = dict(TENANT_BSL_DEFAULTS)  # Fallback defaults
+    # QR por tenant (override hardcoded mientras no esté en tenants.config.qr_url)
+    if tenant_id in TENANT_QR_OVERRIDES:
+        datos['qr_url'] = TENANT_QR_OVERRIDES[tenant_id]
 
     try:
         import psycopg2
@@ -1187,6 +1195,8 @@ def obtener_datos_tenant(tenant_id):
             datos['tenant_email'] = config['email']
         if config.get('telefono'):
             datos['tenant_telefono'] = config['telefono']
+        if config.get('qr_url'):
+            datos['qr_url'] = config['qr_url']
 
         print(f"✅ [Tenant] Datos de encabezado para '{tenant_id}': {datos.get('tenant_nombre')}")
         return datos
