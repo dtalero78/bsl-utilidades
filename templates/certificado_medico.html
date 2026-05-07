@@ -28,7 +28,7 @@
         /* === HEADER === */
         .header {
             display: grid;
-            grid-template-columns: 200px 1fr 150px;
+            grid-template-columns: 280px 1fr 150px;
             gap: 20px;
             align-items: start;
             margin-bottom: 30px;
@@ -39,6 +39,20 @@
         /* Logo section - Left */
         .logo-section {
             text-align: left;
+        }
+
+        .logos-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .logos-row img {
+            height: auto;
+            max-height: 70px;
+            width: auto;
+            max-width: 130px;
         }
 
         .logo-section img {
@@ -510,7 +524,14 @@
         <div class="header">
             <!-- Logo izquierdo -->
             <div class="logo-section">
+                {% if secondary_logo_url %}
+                <div class="logos-row">
+                    <img src="{{ logo_url }}" alt="{{ tenant_nombre or 'Logo' }}">
+                    <img src="{{ secondary_logo_url }}" alt="Logo secundario">
+                </div>
+                {% else %}
                 <img src="{{ logo_url }}" alt="{{ tenant_nombre or 'Logo' }}">
+                {% endif %}
                 <div class="company-info">
                     {% if tenant_nit %}Nit. {{ tenant_nit }}<br>{% endif %}
                     {% if tenant_licencia %}Licencia No. {{ tenant_licencia }}<br>{% endif %}

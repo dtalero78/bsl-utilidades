@@ -1099,9 +1099,10 @@ def obtener_datos_historia_clinica_postgres(wix_id):
 
 TENANT_BSL_DEFAULTS = {
     "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
+    "secondary_logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/medstar-logo.png",
     "qr_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/images/qr-validacion.jpg",
     "tenant_nombre": "BIENESTAR Y SALUD LABORAL SAS",
-    "tenant_nit": "900.844.030-8",
+    "tenant_nit": "901175816-2",
     "tenant_licencia": "64 del 10-01-2017",
     "tenant_distintivo": "Sede norte DHSS0244914",
     "tenant_direccion": "Calle 134 # 7-83 cons 233, Bogotá D.C.",
@@ -1166,6 +1167,7 @@ def obtener_datos_tenant(tenant_id):
         config = config or {}
 
         # Para no-BSL, los campos no configurados quedan vacíos (no heredan defaults BSL)
+        datos['secondary_logo_url'] = ''
         datos['tenant_nit'] = ''
         datos['tenant_licencia'] = ''
         datos['tenant_distintivo'] = ''
@@ -1176,6 +1178,8 @@ def obtener_datos_tenant(tenant_id):
 
         if config.get('logo_url'):
             datos['logo_url'] = config['logo_url']
+        if config.get('secondary_logo_url'):
+            datos['secondary_logo_url'] = config['secondary_logo_url']
         if nombre:
             datos['tenant_nombre'] = nombre
         if config.get('nit'):
