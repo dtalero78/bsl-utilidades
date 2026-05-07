@@ -628,10 +628,12 @@
             <div class="section-title">Exámenes Realizados</div>
             <div class="exams-container">
                 {% for examen in examenes_realizados %}
+                {% if examen.nombre and 'panel de drogas' not in examen.nombre|lower %}
                 <div class="exam-box">
                     <h3>{{ examen.nombre }}</h3>
                     <div class="exam-date">{{ examen.fecha }}</div>
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -665,10 +667,12 @@
         <div class="section">
             <div class="section-title">Resultados Generales</div>
             {% for resultado in resultados_generales %}
+            {% if resultado.examen and 'panel de drogas' not in resultado.examen|lower %}
             <div class="result-item">
                 <h3>{{ resultado.examen }}</h3>
                 <p>{{ resultado.descripcion }}</p>
             </div>
+            {% endif %}
             {% endfor %}
         </div>
 
