@@ -580,7 +580,7 @@ EMPRESAS_SIN_SOPORTE = [
     "SITEL", "KM2", "TTEC", "CP360",
     "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
     "SIIGO", "RIPPLING", "EVERTECBOGOTA",
-    "AVANTO", "SOFTSERVE", "BENEFICIO"
+    "AVANTO", "SOFTSERVE", "BENEFICIO", "TRACKER DE COLOMBIA"
 ]
 
 # Tipos de examen que NUNCA muestran aviso de soporte
@@ -5392,11 +5392,7 @@ def api_generar_certificado_pdf(wix_id):
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
         if not recomendaciones:
-            # Si hay observaciones del médico y no hay recomendaciones específicas, usar las observaciones
-            if observaciones_certificado:
-                recomendaciones = observaciones_certificado
-            else:
-                recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
+            recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
@@ -6462,11 +6458,7 @@ def preview_certificado_html(wix_id):
         # Recomendaciones médicas
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
         if not recomendaciones:
-            # Si hay observaciones del médico y no hay recomendaciones específicas, usar las observaciones
-            if observaciones_certificado:
-                recomendaciones = observaciones_certificado
-            else:
-                recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
+            recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
         medico = datos_wix.get('medico', 'JUAN 134')
