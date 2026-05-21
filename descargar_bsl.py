@@ -581,7 +581,7 @@ EMPRESAS_SIN_SOPORTE = [
     "STORI", "OMEGA", "EVERTEC", "ZIMMER", "HUNTY", "FDN",
     "SIIGO", "RIPPLING", "EVERTECBOGOTA",
     "AVANTO", "SOFTSERVE", "BENEFICIO", "TRACKER DE COLOMBIA",
-    "TRANSRUBIO", "LOMI"
+    "TRANSRUBIO", "LOMI", "TEQUENDAMA"
 ]
 
 # Tipos de examen que NUNCA muestran aviso de soporte
