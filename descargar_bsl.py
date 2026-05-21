@@ -112,6 +112,7 @@ def obtener_credenciales_twilio_tenant(tenant_id):
                         'auth_token': twilio_cfg['auth_token'],
                         'whatsapp_from': twilio_cfg.get('whatsapp_from'),
                         'messaging_service_sid': twilio_cfg.get('messaging_service_sid'),
+                        'templates': twilio_cfg.get('templates') or {},
                         'source': f'tenant:{tenant_id}'
                     }
         except Exception as e:
@@ -123,6 +124,9 @@ def obtener_credenciales_twilio_tenant(tenant_id):
             'auth_token': os.getenv('TWILIO_AUTH_TOKEN'),
             'whatsapp_from': os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+573008021701'),
             'messaging_service_sid': os.getenv('TWILIO_MESSAGING_SERVICE_SID'),
+            'templates': {
+                'certificado_pdf_media': os.getenv('TWILIO_TEMPLATE_CERTIFICADO_PDF'),
+            },
             'source': 'env:bsl'
         }
 
@@ -6944,15 +6948,32 @@ def enviar_certificado_whatsapp():
                     formatted_number = f'+{formatted_number}' if formatted_number.startswith('57') else f'+57{formatted_number}'
                 formatted_number = f'whatsapp:{formatted_number}'
 
-            # Enviar mensaje con media (PDF del certificado)
-            message = twilio_client.messages.create(
-                from_=twilio_whatsapp_from,
-                to=formatted_number,
-                body=mensaje_whatsapp,
-                media_url=[certificado_url]
-            )
+            # Resolver template del tenant (BSL: env var TWILIO_TEMPLATE_CERTIFICADO_PDF;
+            # tenants no-BSL: tenants.credenciales.twilio.templates.certificado_pdf_media).
+            # Si el tenant no tiene template configurado, fallback a free-text + media (zero-regression).
+            template_sid = (creds.get('templates') or {}).get('certificado_pdf_media')
 
-            print(f"✅ Certificado enviado exitosamente por WhatsApp via Twilio. SID: {message.sid}")
+            if template_sid:
+                message = twilio_client.messages.create(
+                    from_=twilio_whatsapp_from,
+                    to=formatted_number,
+                    content_sid=template_sid,
+                    content_variables=json_module.dumps({
+                        "1": nombre_completo,
+                        "2": cedula,
+                        "3": certificado_url
+                    })
+                )
+                print(f"✅ Certificado enviado via template {template_sid}. SID: {message.sid}")
+            else:
+                print(f"⚠️  Tenant {tenant_id_paciente} sin template certificado_pdf_media — fallback a free-text")
+                message = twilio_client.messages.create(
+                    from_=twilio_whatsapp_from,
+                    to=formatted_number,
+                    body=mensaje_whatsapp,
+                    media_url=[certificado_url]
+                )
+                print(f"✅ Certificado enviado exitosamente por WhatsApp via Twilio. SID: {message.sid}")
 
             # Guardar mensaje en base de datos para que aparezca en BSL-PLATAFORMA
             try:
