@@ -5372,6 +5372,9 @@ def api_generar_certificado_pdf(wix_id):
                 descripcion = observaciones_sin_analisis
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
+                # Excepción puntual: omitir item para cédula 1140837675 (no imprimir nada en Resultados Generales)
+                if str(datos_wix.get('numeroId', '')) == '1140837675':
+                    continue
                 if datos_audiometria and datos_audiometria.get('diagnostico'):
                     descripcion = datos_audiometria['diagnostico']
                 else:
@@ -6438,6 +6441,9 @@ def preview_certificado_html(wix_id):
                 descripcion = observaciones_sin_analisis
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
+                # Excepción puntual: omitir item para cédula 1140837675 (no imprimir nada en Resultados Generales)
+                if str(datos_wix.get('numeroId', '')) == '1140837675':
+                    continue
                 if datos_audiometria and datos_audiometria.get('diagnostico'):
                     descripcion = datos_audiometria['diagnostico']
                 else:
