@@ -3134,7 +3134,7 @@ def generar_certificado_medico():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL"] else "3 años"),
+            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"] else "3 años"),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -3424,7 +3424,7 @@ def generar_certificado_medico_puppeteer():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL"] else "3 años"),
+            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"] else "3 años"),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -5519,7 +5519,7 @@ def api_generar_certificado_pdf(wix_id):
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
+            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL', 'PARTICULAR', 'COLDRONE'] else "3 años",
             "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
 
             # Exámenes
@@ -6584,7 +6584,7 @@ def preview_certificado_html(wix_id):
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
+            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL', 'PARTICULAR', 'COLDRONE'] else "3 años",
             "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
             "examenes_realizados": examenes_realizados,
             "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)
