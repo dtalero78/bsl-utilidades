@@ -688,7 +688,7 @@
         <div class="section">
             <div class="section-title">Resultados Generales</div>
             {% for resultado in resultados_generales %}
-            {% if resultado.examen and 'panel de drogas' not in resultado.examen|lower and 'serolog' not in resultado.examen|lower %}
+            {% if resultado.examen and 'panel de drogas' not in resultado.examen|lower %}
             <div class="result-item">
                 <h3>{{ resultado.examen }}</h3>
                 <p>{{ resultado.descripcion }}</p>
