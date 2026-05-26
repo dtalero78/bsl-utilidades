@@ -1549,6 +1549,73 @@ def obtener_audiometria_postgres(orden_id):
         return None
 
 
+def obtener_serologia_postgres(orden_id):
+    """
+    Consulta los datos de serología desde la tabla 'laboratorios' usando orden_id.
+    Combina serologia_vdrl, serologia_cuantitativa e inmunologia_observaciones.
+
+    Returns:
+        dict con clave 'descripcion' o None si no hay datos relevantes.
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            print("⚠️  [PostgreSQL] POSTGRES_PASSWORD no configurada para serología")
+            return None
+
+        print(f"🔌 [PostgreSQL] Consultando laboratorios (serología) para orden_id: {orden_id}")
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT serologia_vdrl, serologia_cuantitativa, inmunologia_observaciones
+            FROM laboratorios
+            WHERE orden_id = %s
+            LIMIT 1;
+        """, (orden_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            print(f"ℹ️  [PostgreSQL] No se encontró serología para orden_id: {orden_id}")
+            return None
+
+        vdrl, cuantitativa, observaciones = row
+        partes = []
+        if vdrl and str(vdrl).strip():
+            partes.append(f"VDRL: {str(vdrl).strip()}")
+        if cuantitativa and str(cuantitativa).strip():
+            partes.append(str(cuantitativa).strip())
+        if observaciones and str(observaciones).strip():
+            partes.append(str(observaciones).strip())
+
+        if not partes:
+            print(f"ℹ️  [PostgreSQL] Serología existe pero sin datos relevantes para orden_id: {orden_id}")
+            return None
+
+        descripcion = ". ".join(partes)
+        print(f"✅ [PostgreSQL] Datos de serología encontrados: {descripcion[:80]}")
+        return {"descripcion": descripcion}
+
+    except ImportError:
+        print("⚠️  [PostgreSQL] psycopg2 no está instalado para serología")
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar serología: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 def obtener_voximetria_postgres(orden_id):
     """
     Consulta los datos de voximetría desde PostgreSQL (tabla voximetrias_virtual) usando el orden_id.
@@ -5041,8 +5108,12 @@ def api_generar_certificado_pdf(wix_id):
         else:
             examenes_para_template = examenes_normalizados
 
+        # Excluir la batería de riesgo psicosocial del certificado médico:
+        # vive en la app BRS y no aporta al concepto de aptitud laboral.
         examenes_realizados = []
         for examen in examenes_normalizados:
+            if 'PSICOSOCIAL' in examen.upper():
+                continue
             examenes_realizados.append({
                 "nombre": examen,
                 "fecha": fecha_formateada
@@ -5379,6 +5450,13 @@ def api_generar_certificado_pdf(wix_id):
                     descripcion = datos_audiometria['diagnostico']
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Si es serología y hay datos en la tabla laboratorios, usar la descripción combinada
+            elif "SEROLOG" in examen.upper():
+                datos_serologia = obtener_serologia_postgres(datos_wix.get('_id', ''))
+                if datos_serologia and datos_serologia.get('descripcion'):
+                    descripcion = datos_serologia['descripcion']
+                else:
+                    continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
             elif "VOXIMETR" in examen.upper():
                 if datos_voximetria:
@@ -6035,8 +6113,12 @@ def preview_certificado_html(wix_id):
         else:
             examenes_para_template = examenes_normalizados
 
+        # Excluir la batería de riesgo psicosocial del certificado médico:
+        # vive en la app BRS y no aporta al concepto de aptitud laboral.
         examenes_realizados = []
         for examen in examenes_normalizados:
+            if 'PSICOSOCIAL' in examen.upper():
+                continue
             examenes_realizados.append({
                 "nombre": examen,
                 "fecha": fecha_formateada
@@ -6448,6 +6530,13 @@ def preview_certificado_html(wix_id):
                     descripcion = datos_audiometria['diagnostico']
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Si es serología y hay datos en la tabla laboratorios, usar la descripción combinada
+            elif "SEROLOG" in examen.upper():
+                datos_serologia = obtener_serologia_postgres(datos_wix.get('_id', ''))
+                if datos_serologia and datos_serologia.get('descripcion'):
+                    descripcion = datos_serologia['descripcion']
+                else:
+                    continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
             elif "VOXIMETR" in examen.upper():
                 if datos_voximetria:
