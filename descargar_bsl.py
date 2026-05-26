@@ -1616,6 +1616,129 @@ def obtener_serologia_postgres(orden_id):
         return None
 
 
+def obtener_parcial_orina_postgres(orden_id):
+    """
+    Consulta el parcial de orina desde 'laboratorios' (tipo_prueba='PARCIAL_ORINA').
+    Devuelve dict con 'descripcion' (texto en formato lista de los campos con valor)
+    o None si no hay registro ni datos.
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return None
+
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT aspecto, color_orina, densidad, ph_orina, glucosa_orina, albumina,
+                   cetonas, sangre_orina, urobilinogeno, nitritos, leucocitos_orina,
+                   bilirrubina_orina, celulas_orina, leucocitos_microscopio, piocitos,
+                   hematies, cilindros, bacterias_orina, moco_orina, blastoconidias,
+                   pseudomicelos, cristales, observaciones_orina
+            FROM laboratorios
+            WHERE orden_id = %s AND tipo_prueba = 'PARCIAL_ORINA'
+            ORDER BY updated_at DESC LIMIT 1;
+        """, (orden_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return None
+
+        etiquetas = [
+            ("Aspecto", row[0]), ("Color", row[1]), ("Densidad", row[2]),
+            ("pH", row[3]), ("Glucosa", row[4]), ("Albúmina", row[5]),
+            ("Cetonas", row[6]), ("Sangre", row[7]), ("Urobilinógeno", row[8]),
+            ("Nitritos", row[9]), ("Leucocitos", row[10]), ("Bilirrubina", row[11]),
+            ("Células", row[12]), ("Leucocitos (microscópico)", row[13]),
+            ("Piocitos", row[14]), ("Hematíes", row[15]), ("Cilindros", row[16]),
+            ("Bacterias", row[17]), ("Moco", row[18]), ("Blastoconidias", row[19]),
+            ("Pseudomicelos", row[20]), ("Cristales", row[21]),
+        ]
+        partes = [f"{lbl}: {str(val).strip()}" for lbl, val in etiquetas if val and str(val).strip()]
+        observaciones = row[22]
+        if observaciones and str(observaciones).strip():
+            partes.append(str(observaciones).strip())
+
+        if not partes:
+            return None
+        return {"descripcion": ". ".join(partes)}
+
+    except ImportError:
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar parcial de orina: {e}")
+        return None
+
+
+def obtener_panel_drogas_postgres(orden_id):
+    """
+    Consulta el panel de drogas desde 'laboratorios' (tipo_prueba='PANEL_DROGAS').
+    Devuelve dict con 'descripcion' o None si no hay registro ni datos.
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password:
+            return None
+
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT alcohol_aire_respirado, marihuana_orina, morfina, cocaina,
+                   metanfetaminas, alcohol_saliva, anfetaminas, alcohol_sangre,
+                   toxicologia_observaciones
+            FROM laboratorios
+            WHERE orden_id = %s AND tipo_prueba = 'PANEL_DROGAS'
+            ORDER BY updated_at DESC LIMIT 1;
+        """, (orden_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return None
+
+        etiquetas = [
+            ("Alcohol (aire respirado)", row[0]), ("Marihuana", row[1]),
+            ("Morfina", row[2]), ("Cocaína", row[3]), ("Metanfetaminas", row[4]),
+            ("Alcohol (saliva)", row[5]), ("Anfetaminas", row[6]),
+            ("Alcohol (sangre)", row[7]),
+        ]
+        partes = [f"{lbl}: {str(val).strip()}" for lbl, val in etiquetas if val and str(val).strip()]
+        observaciones = row[8]
+        if observaciones and str(observaciones).strip():
+            partes.append(str(observaciones).strip())
+
+        if not partes:
+            return None
+        return {"descripcion": ". ".join(partes)}
+
+    except ImportError:
+        return None
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar panel de drogas: {e}")
+        return None
+
+
 def obtener_voximetria_postgres(orden_id):
     """
     Consulta los datos de voximetría desde PostgreSQL (tabla voximetrias_virtual) usando el orden_id.
@@ -5457,6 +5580,20 @@ def api_generar_certificado_pdf(wix_id):
                     descripcion = datos_serologia['descripcion']
                 else:
                     continue
+            # Parcial de orina: usar datos reales de laboratorios o omitir
+            elif "PARCIAL DE ORINA" in examen.upper() or "PARCIAL ORINA" in examen.upper():
+                datos_orina = obtener_parcial_orina_postgres(datos_wix.get('_id', ''))
+                if datos_orina and datos_orina.get('descripcion'):
+                    descripcion = datos_orina['descripcion']
+                else:
+                    continue
+            # Panel de drogas: usar datos reales de laboratorios o omitir
+            elif "PANEL DE DROGAS" in examen.upper() or "PANEL DROGAS" in examen.upper():
+                datos_drogas = obtener_panel_drogas_postgres(datos_wix.get('_id', ''))
+                if datos_drogas and datos_drogas.get('descripcion'):
+                    descripcion = datos_drogas['descripcion']
+                else:
+                    continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
             elif "VOXIMETR" in examen.upper():
                 if datos_voximetria:
@@ -6535,6 +6672,20 @@ def preview_certificado_html(wix_id):
                 datos_serologia = obtener_serologia_postgres(datos_wix.get('_id', ''))
                 if datos_serologia and datos_serologia.get('descripcion'):
                     descripcion = datos_serologia['descripcion']
+                else:
+                    continue
+            # Parcial de orina: usar datos reales de laboratorios o omitir
+            elif "PARCIAL DE ORINA" in examen.upper() or "PARCIAL ORINA" in examen.upper():
+                datos_orina = obtener_parcial_orina_postgres(datos_wix.get('_id', ''))
+                if datos_orina and datos_orina.get('descripcion'):
+                    descripcion = datos_orina['descripcion']
+                else:
+                    continue
+            # Panel de drogas: usar datos reales de laboratorios o omitir
+            elif "PANEL DE DROGAS" in examen.upper() or "PANEL DROGAS" in examen.upper():
+                datos_drogas = obtener_panel_drogas_postgres(datos_wix.get('_id', ''))
+                if datos_drogas and datos_drogas.get('descripcion'):
+                    descripcion = datos_drogas['descripcion']
                 else:
                     continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
