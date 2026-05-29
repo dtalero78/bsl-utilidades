@@ -5574,13 +5574,9 @@ def api_generar_certificado_pdf(wix_id):
                     descripcion = datos_audiometria['diagnostico']
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            # Si es serología y hay datos en la tabla laboratorios, usar la descripción combinada
+            # Serología: ocultar siempre el resultado en el certificado
             elif "SEROLOG" in examen.upper():
-                datos_serologia = obtener_serologia_postgres(datos_wix.get('_id', ''))
-                if datos_serologia and datos_serologia.get('descripcion'):
-                    descripcion = datos_serologia['descripcion']
-                else:
-                    continue
+                continue
             # Parcial de orina: usar datos reales de laboratorios o omitir
             elif "PARCIAL DE ORINA" in examen.upper() or "PARCIAL ORINA" in examen.upper():
                 datos_orina = obtener_parcial_orina_postgres(datos_wix.get('_id', ''))
@@ -6668,13 +6664,9 @@ def preview_certificado_html(wix_id):
                     descripcion = datos_audiometria['diagnostico']
                 else:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            # Si es serología y hay datos en la tabla laboratorios, usar la descripción combinada
+            # Serología: ocultar siempre el resultado en el certificado
             elif "SEROLOG" in examen.upper():
-                datos_serologia = obtener_serologia_postgres(datos_wix.get('_id', ''))
-                if datos_serologia and datos_serologia.get('descripcion'):
-                    descripcion = datos_serologia['descripcion']
-                else:
-                    continue
+                continue
             # Parcial de orina: usar datos reales de laboratorios o omitir
             elif "PARCIAL DE ORINA" in examen.upper() or "PARCIAL ORINA" in examen.upper():
                 datos_orina = obtener_parcial_orina_postgres(datos_wix.get('_id', ''))
