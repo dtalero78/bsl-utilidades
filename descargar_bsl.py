@@ -3385,7 +3385,9 @@ def generar_certificado_medico():
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
 
-            # Firma del fonoaudiólogo para audiometría (nombre y registro vienen dentro de la imagen)
+            # Firma del fonoaudiólogo para audiometría
+            "fono_nombre": data.get("fono_nombre", "JENNY MARCELA MARTINEZ HIGUERA"),
+            "fono_registro": data.get("fono_registro", "TP Resolución 4502 Dic 2012 - C.C.: 1.024.479.059"),
             "firma_fono_url": data.get("firma_fono_url", "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg"),
 
             # Exámenes detallados (página 2, opcional)
@@ -3678,7 +3680,9 @@ def generar_certificado_medico_puppeteer():
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
 
-            # Firma del fonoaudiólogo para audiometría (nombre y registro vienen dentro de la imagen)
+            # Firma del fonoaudiólogo para audiometría
+            "fono_nombre": data.get("fono_nombre", "JENNY MARCELA MARTINEZ HIGUERA"),
+            "fono_registro": data.get("fono_registro", "TP Resolución 4502 Dic 2012 - C.C.: 1.024.479.059"),
             "firma_fono_url": data.get("firma_fono_url", "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg"),
 
             # Exámenes detallados (página 2, opcional)
@@ -6844,6 +6848,8 @@ def preview_certificado_html(wix_id):
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
             "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
+            "fono_nombre": "JENNY MARCELA MARTINEZ HIGUERA",
+            "fono_registro": "TP Resolución 4502 Dic 2012 - C.C.: 1.024.479.059",
             "firma_fono_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg",
             "examenes_detallados": [],
             # Datos del tenant (logo + nombre/nit/licencia/direccion para encabezado PDF)
