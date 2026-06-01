@@ -3385,6 +3385,9 @@ def generar_certificado_medico():
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
 
+            # Firma del fonoaudiólogo para audiometría (nombre y registro vienen dentro de la imagen)
+            "firma_fono_url": data.get("firma_fono_url", "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg"),
+
             # Exámenes detallados (página 2, opcional)
             "examenes_detallados": data.get("examenes_detallados", []),
 
@@ -3674,6 +3677,9 @@ def generar_certificado_medico_puppeteer():
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
+
+            # Firma del fonoaudiólogo para audiometría (nombre y registro vienen dentro de la imagen)
+            "firma_fono_url": data.get("firma_fono_url", "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg"),
 
             # Exámenes detallados (página 2, opcional)
             "examenes_detallados": data.get("examenes_detallados", []),
@@ -6838,6 +6844,7 @@ def preview_certificado_html(wix_id):
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
             "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
+            "firma_fono_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg",
             "examenes_detallados": [],
             # Datos del tenant (logo + nombre/nit/licencia/direccion para encabezado PDF)
             **_tenant_data,

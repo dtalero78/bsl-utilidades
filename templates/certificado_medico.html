@@ -976,6 +976,22 @@
                 <p>{{ datos_audiometria.diagnostico }}</p>
             </div>
             {% endif %}
+
+            <!-- Firma del Fonoaudiólogo (el nombre y registro vienen dentro de la imagen) -->
+            {% if firma_fono_url %}
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: end;">
+                    <div style="text-align: center;">
+                        <div style="min-height: 50px; display: flex; align-items: center; justify-content: center;">
+                            <img src="{{ firma_fono_url }}" alt="Firma Fonoaudióloga" class="signature-img">
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="font-size: 9px; margin: 0; color: #666;">Fecha: {{ fecha_atencion }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             {% else %}
                 <div class="result-item" style="text-align: center; padding: 40px; background: #fff3cd; border-left: 4px solid #ffc107;">
                     <h3 style="color: #856404;">NO HAY DATOS DISPONIBLES</h3>
