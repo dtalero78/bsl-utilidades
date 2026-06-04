@@ -5566,12 +5566,16 @@ def api_generar_certificado_pdf(wix_id):
             # Remover análisis postural de las observaciones
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
+        # Si el paciente no ha sido atendido, no usar textos genéricos hardcodeados ni firmas
+        paciente_atendido = str(datos_wix.get('atendido', '')).strip().upper() in ('ATENDIDO', 'ATENDIDA')
+
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
             # ADC tiene su propia sección dedicada con datos calculados, no mostrar texto genérico
             if "ADC" in examen.upper():
                 continue
+            descripcion = None
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
             if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
@@ -5582,7 +5586,7 @@ def api_generar_certificado_pdf(wix_id):
                     continue
                 if datos_audiometria and datos_audiometria.get('diagnostico'):
                     descripcion = datos_audiometria['diagnostico']
-                else:
+                elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             # Serología: ocultar siempre el resultado en el certificado
             elif "SEROLOG" in examen.upper():
@@ -5609,19 +5613,25 @@ def api_generar_certificado_pdf(wix_id):
                         partes.append(datos_voximetria['concepto'])
                     if datos_voximetria.get('interpretacion'):
                         partes.append(datos_voximetria['interpretacion'])
-                    descripcion = '. '.join(partes) if partes else textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-                else:
+                    if partes:
+                        descripcion = '. '.join(partes)
+                    elif paciente_atendido:
+                        descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+                elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            else:
+            elif paciente_atendido:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+
+            if descripcion is None:
+                continue
             resultados_generales.append({
                 "examen": examen,
                 "descripcion": descripcion
             })
 
-        # Recomendaciones médicas
+        # Recomendaciones médicas: solo usar texto genérico si el paciente fue atendido
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
-        if not recomendaciones:
+        if not recomendaciones and paciente_atendido:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
@@ -6656,12 +6666,16 @@ def preview_certificado_html(wix_id):
             # Remover análisis postural de las observaciones
             observaciones_sin_analisis = re.sub(r'=== ANÁLISIS POSTURAL ===.*?=== FIN ANÁLISIS POSTURAL ===\s*', '', observaciones_certificado, flags=re.DOTALL).strip()
 
+        # Si el paciente no ha sido atendido, no usar textos genéricos hardcodeados ni firmas
+        paciente_atendido = str(datos_wix.get('atendido', '')).strip().upper() in ('ATENDIDO', 'ATENDIDA')
+
         # Usar examenes_normalizados que ya fue definido arriba (con normalizar_lista_examenes)
         # Si hay observaciones del médico, usarlas en lugar del texto hardcodeado
         for i, examen in enumerate(examenes_normalizados):
             # ADC tiene su propia sección dedicada con datos calculados, no mostrar texto genérico
             if "ADC" in examen.upper():
                 continue
+            descripcion = None
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
             if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
                 descripcion = observaciones_sin_analisis
@@ -6672,7 +6686,7 @@ def preview_certificado_html(wix_id):
                     continue
                 if datos_audiometria and datos_audiometria.get('diagnostico'):
                     descripcion = datos_audiometria['diagnostico']
-                else:
+                elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             # Serología: ocultar siempre el resultado en el certificado
             elif "SEROLOG" in examen.upper():
@@ -6699,19 +6713,25 @@ def preview_certificado_html(wix_id):
                         partes.append(datos_voximetria['concepto'])
                     if datos_voximetria.get('interpretacion'):
                         partes.append(datos_voximetria['interpretacion'])
-                    descripcion = '. '.join(partes) if partes else textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-                else:
+                    if partes:
+                        descripcion = '. '.join(partes)
+                    elif paciente_atendido:
+                        descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+                elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            else:
+            elif paciente_atendido:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+
+            if descripcion is None:
+                continue
             resultados_generales.append({
                 "examen": examen,
                 "descripcion": descripcion
             })
 
-        # Recomendaciones médicas
+        # Recomendaciones médicas: solo usar texto genérico si el paciente fue atendido
         recomendaciones = datos_wix.get('mdRecomendacionesMedicasAdicionales', '')
-        if not recomendaciones:
+        if not recomendaciones and paciente_atendido:
             recomendaciones = "RECOMENDACIONES GENERALES:\n1. PAUSAS ACTIVAS\n2. HIGIENE POSTURAL\n3. MEDIDAS ERGONOMICAS\n4. TÉCNICAS DE MANEJO DE ESTRÉS\n5. ALIMENTACIÓN BALANCEADA"
 
         # Mapear médico a imagen de firma y datos
@@ -6832,6 +6852,7 @@ def preview_certificado_html(wix_id):
             "examenes_realizados": examenes_realizados,
             "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)
             "resultados_generales": resultados_generales,
+            "paciente_atendido": paciente_atendido,
             "analisis_postural": analisis_postural,
             "concepto_medico": datos_wix.get('mdConceptoFinal', '') or ('ELEGIBLE PARA EL CARGO' if datos_wix.get('codEmpresa') == 'SANITHELP-JJ' else ''),
             "recomendaciones_medicas": recomendaciones,

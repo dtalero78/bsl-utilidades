@@ -684,7 +684,7 @@
         {% endif %}
 
         <!-- RESULTADOS GENERALES -->
-        {% if not mostrar_sin_soporte %}
+        {% if not mostrar_sin_soporte and resultados_generales %}
         <div class="section">
             <div class="section-title">Resultados Generales</div>
             {% for resultado in resultados_generales %}
@@ -760,7 +760,8 @@
         {% endif %}
 
         <!-- FIRMAS -->
-        {% if not mostrar_sin_soporte %}
+        {# paciente_atendido: solo el preview lo pasa; otros endpoints conservan el comportamiento previo via default(True) #}
+        {% if not mostrar_sin_soporte and paciente_atendido|default(True) %}
         <div class="signatures-section">
             <div class="section-title">Firmas</div>
             <div class="signatures-container" style="grid-template-columns: repeat(2, 1fr);">
