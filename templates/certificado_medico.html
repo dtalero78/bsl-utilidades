@@ -684,7 +684,9 @@
         {% endif %}
 
         <!-- RESULTADOS GENERALES -->
-        {% if not mostrar_sin_soporte and resultados_generales %}
+        {# Nota: este if-not-mostrar-sin-soporte envuelve TODAS las secciones hasta el cierre en ~linea 1008 #}
+        {% if not mostrar_sin_soporte %}
+        {% if resultados_generales %}
         <div class="section">
             <div class="section-title">Resultados Generales</div>
             {% for resultado in resultados_generales %}
@@ -696,6 +698,7 @@
             {% endif %}
             {% endfor %}
         </div>
+        {% endif %}
 
         <!-- ANÁLISIS POSTURAL (oculto para REMOTE) -->
         {% if analisis_postural and analisis_postural|length > 0 and cod_empresa != 'REMOTE' %}
