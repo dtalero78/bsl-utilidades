@@ -191,6 +191,81 @@ def obtener_firma_medico_db(alias, tenant_id, wix_id_historia=None):
     return firma
 
 
+def obtener_datos_medico_db(alias, tenant_id, wix_id_historia=None):
+    """
+    Lee los datos del médico/profesional desde la tabla 'medicos' por alias (scoped por tenant).
+    Construye nombre, registro (tipo+numero documento) y licencia (tipo+numero) en formato display.
+    Retorna dict con keys: nombre, registro, licencia, fecha. None si no existe el alias.
+    """
+    if not alias:
+        return None
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=os.getenv("POSTGRES_PASSWORD"),
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode='require'
+        )
+        cur = conn.cursor()
+
+        if not tenant_id and wix_id_historia:
+            cur.execute('SELECT tenant_id FROM "HistoriaClinica" WHERE _id = %s LIMIT 1', (wix_id_historia,))
+            r = cur.fetchone()
+            if r and r[0]:
+                tenant_id = r[0]
+        tid = tenant_id or 'bsl'
+
+        cur.execute(
+            """
+            SELECT primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
+                   tipo_documento, numero_documento, tipo_licencia, numero_licencia
+            FROM medicos
+            WHERE alias = %s AND tenant_id = %s AND activo = true
+            LIMIT 1
+            """,
+            (alias, tid)
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return None
+
+        pn, sn, pa, sa, tdoc, ndoc, tlic, nlic = row
+        nombre = ' '.join(p.strip() for p in [pn, sn, pa, sa] if p and str(p).strip()).upper()
+
+        registro = ''
+        if ndoc:
+            ndoc_str = str(ndoc).strip()
+            try:
+                ndoc_fmt = f"{int(ndoc_str):,}".replace(',', '.')
+            except ValueError:
+                ndoc_fmt = ndoc_str
+            tdoc_str = (tdoc or 'CC').strip().upper()
+            tdoc_display = {'CC': 'C.C.', 'CE': 'C.E.', 'TI': 'T.I.', 'PA': 'PA'}.get(tdoc_str, tdoc_str)
+            registro = f"{tdoc_display}: {ndoc_fmt}"
+
+        partes_lic = []
+        if tlic:
+            partes_lic.append(str(tlic).strip().upper())
+        if nlic:
+            partes_lic.append(f"- Licencia {str(nlic).strip()}")
+        licencia = ' '.join(partes_lic)
+
+        return {
+            "nombre": nombre,
+            "registro": registro,
+            "licencia": licencia,
+            "fecha": ""
+        }
+    except Exception as e:
+        print(f"⚠️  Error leyendo datos médico {alias}/{tenant_id}: {e}")
+        return None
+
+
 _TENANT_NOMBRE_CACHE = {}
 
 def obtener_nombre_tenant(tenant_id):
@@ -5705,8 +5780,15 @@ def api_generar_certificado_pdf(wix_id):
             firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
             print(f"✅ Firma médico: static fallback ({firma_medico_filename or 'ninguna'})")
 
-        # Obtener datos del médico
-        datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
+        # Obtener datos del médico: prioridad 1 = map hardcodeado, prioridad 2 = tabla medicos en BD
+        datos_medico = medico_datos_map.get(medico)
+        if not datos_medico:
+            datos_medico_db = obtener_datos_medico_db(medico, tenant_id_med, wix_id_historia)
+            if datos_medico_db:
+                datos_medico = datos_medico_db
+                print(f"✅ Datos médico: desde BD (alias={medico})")
+            else:
+                datos_medico = {"nombre": "", "registro": "", "licencia": "", "fecha": ""}
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde PostgreSQL
@@ -6805,8 +6887,15 @@ def preview_certificado_html(wix_id):
             firma_medico_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{firma_medico_filename}" if firma_medico_filename else ""
             print(f"✅ Firma médico: static fallback ({firma_medico_filename or 'ninguna'})")
 
-        # Obtener datos del médico
-        datos_medico = medico_datos_map.get(medico, {"nombre": "", "registro": "", "licencia": "", "fecha": ""})
+        # Obtener datos del médico: prioridad 1 = map hardcodeado, prioridad 2 = tabla medicos en BD
+        datos_medico = medico_datos_map.get(medico)
+        if not datos_medico:
+            datos_medico_db = obtener_datos_medico_db(medico, tenant_id_med, wix_id_historia)
+            if datos_medico_db:
+                datos_medico = datos_medico_db
+                print(f"✅ Datos médico: desde BD (alias={medico})")
+            else:
+                datos_medico = {"nombre": "", "registro": "", "licencia": "", "fecha": ""}
         print(f"👨‍⚕️ Médico: {datos_medico['nombre']}")
 
         # Firma del paciente desde PostgreSQL
