@@ -627,70 +627,73 @@
             document.getElementById('fechaActual').textContent = `(Actual: ${nuevaFecha})`;
         }
 
-        function actualizarHorasTodas(horaInicial) {
-            if (!window.lastProcessedData || !horaInicial) return;
+        // Devuelve la lista de médicos seleccionados en los checkboxes
+        function obtenerMedicosSeleccionados() {
+            const checkboxes = document.querySelectorAll('#medicosContainer input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
 
-            // Parsear la hora inicial
-            const [horas, minutos] = horaInicial.split(':').map(Number);
+        // Devuelve la hora inicial configurada (por defecto 08:00)
+        function obtenerHoraInicial() {
+            const selector = document.getElementById('horaAtencionSelector');
+            return (selector && selector.value) ? selector.value : '08:00';
+        }
 
-            // Contador solo para registros no-PRESENCIAL
-            let contadorNoPresencial = 0;
+        // Recalcula las horas de atención agrupando los registros NO-BOGOTA en bloques cuyo
+        // tamaño es el número de médicos seleccionados: todos los pacientes de un mismo bloque
+        // comparten la misma hora y la hora se incrementa 10 minutos por bloque.
+        // Ej. con 2 médicos: pacientes 1-2 = 08:00, 3-4 = 08:10, 5-6 = 08:20...
+        function recalcularHorasAgrupadas() {
+            if (!window.lastProcessedData) return;
+            const numMedicos = Math.max(1, obtenerMedicosSeleccionados().length);
+            const [horas, minutos] = obtenerHoraInicial().split(':').map(Number);
+            const minutosBase = horas * 60 + minutos;
 
-            // Actualizar las horas con incrementos de 10 minutos
-            window.lastProcessedData.datos.forEach((persona, index) => {
-                // NO afectar registros PRESENCIAL
-                if (persona.medico === 'PRESENCIAL') {
-                    return; // Mantener su hora original (07:00 para Bogotá)
-                }
-
-                // Calcular los minutos totales desde la hora base
-                const minutosBase = horas * 60 + minutos;
-                const minutosNuevos = minutosBase + (contadorNoPresencial * 10);
-
-                // Convertir de vuelta a formato HH:MM
-                const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
-                const minutosRestantes = minutosNuevos % 60;
-                const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
-
-                persona.horaAtencion = horaFormateada;
-                contadorNoPresencial++;
-            });
-
-            // Actualizar todos los inputs de hora en la tabla
-            const inputsHora = document.querySelectorAll('.hora-atencion input[type="time"]');
-            contadorNoPresencial = 0;
-            inputsHora.forEach((input, index) => {
-                const persona = window.lastProcessedData.datos[index];
-
-                // NO afectar registros PRESENCIAL
-                if (persona.medico === 'PRESENCIAL') {
-                    input.value = persona.horaAtencion; // Mantener hora original
-                    const span = input.nextElementSibling;
-                    if (span) span.textContent = persona.horaAtencion;
+            let contador = 0; // solo cuenta registros NO-BOGOTA
+            window.lastProcessedData.datos.forEach((persona) => {
+                const esBogota = (persona.ciudad || '').toUpperCase().includes('BOGOT');
+                if (esBogota) {
+                    persona.horaAtencion = '07:00'; // Bogotá siempre 07:00
                     return;
                 }
 
-                const minutosBase = horas * 60 + minutos;
-                const minutosNuevos = minutosBase + (contadorNoPresencial * 10);
+                const grupo = Math.floor(contador / numMedicos);
+                const minutosNuevos = minutosBase + (grupo * 10);
                 const horasNuevas = Math.floor(minutosNuevos / 60) % 24;
                 const minutosRestantes = minutosNuevos % 60;
-                const horaFormateada = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
-                input.value = horaFormateada;
-                // Actualizar span oculto
+                persona.horaAtencion = `${String(horasNuevas).padStart(2, '0')}:${String(minutosRestantes).padStart(2, '0')}`;
+                contador++;
+            });
+        }
+
+        // Vuelca las horas del modelo de datos a la tabla (inputs de hora, spans ocultos y celda fecha/hora)
+        function renderizarHorasEnTabla() {
+            if (!window.lastProcessedData) return;
+            const datos = window.lastProcessedData.datos;
+
+            document.querySelectorAll('.hora-atencion input[type="time"]').forEach((input) => {
+                const index = parseInt(input.dataset.index, 10);
+                const persona = datos[index];
+                if (!persona) return;
+                input.value = persona.horaAtencion;
                 const span = input.nextElementSibling;
-                if (span) span.textContent = horaFormateada;
-                contadorNoPresencial++;
+                if (span) span.textContent = persona.horaAtencion;
             });
 
-            // Actualizar todas las celdas de fecha/hora concatenada
-            const celdasFechaHora = document.querySelectorAll('.fecha-hora-concatenada');
-            celdasFechaHora.forEach((celda, index) => {
-                const persona = window.lastProcessedData.datos[index];
+            document.querySelectorAll('.fecha-hora-concatenada').forEach((celda) => {
+                const index = parseInt(celda.dataset.index, 10);
+                const persona = datos[index];
+                if (!persona) return;
                 const [year, month, day] = persona.fechaAtencion.split('-');
-                const fechaFormateada = `${month}/${day}/${year}`;
-                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
-                celda.textContent = fechaHoraConcatenada;
+                celda.textContent = `${month}/${day}/${year} ${persona.horaAtencion}`;
             });
+        }
+
+        function actualizarHorasTodas(horaInicial) {
+            if (!window.lastProcessedData || !horaInicial) return;
+
+            recalcularHorasAgrupadas();
+            renderizarHorasEnTabla();
 
             // Actualizar el texto informativo
             document.getElementById('horaActual').textContent = `(Actual: ${horaInicial})`;
@@ -734,34 +737,20 @@
                 }
             });
 
-            // Actualizar las celdas de médico y horas en la tabla
+            // Recalcular las horas: al cambiar el número de médicos cambia el tamaño de bloque,
+            // por lo que las horas agrupadas deben recalcularse (2 médicos → bloques de 2, etc.)
+            recalcularHorasAgrupadas();
+
+            // Actualizar las celdas de médico en la tabla
             const celdasMedico = document.querySelectorAll('.medico-asignado');
-            celdasMedico.forEach((celda, index) => {
+            celdasMedico.forEach((celda) => {
+                const index = parseInt(celda.dataset.index, 10);
                 const persona = window.lastProcessedData.datos[index];
-                celda.textContent = persona.medico;
-
-                // Actualizar la hora si es Bogotá (07:00)
-                const ciudad = persona.ciudad || '';
-                const esBogota = ciudad.toUpperCase().includes('BOGOT');
-                if (esBogota) {
-                    const inputHora = document.querySelector(`.hora-atencion input[data-index="${index}"]`);
-                    if (inputHora) {
-                        inputHora.value = '07:00';
-                        const spanHora = inputHora.nextElementSibling;
-                        if (spanHora) spanHora.textContent = '07:00';
-                    }
-                }
+                if (persona) celda.textContent = persona.medico;
             });
 
-            // Actualizar todas las celdas de fecha/hora concatenada
-            const celdasFechaHora = document.querySelectorAll('.fecha-hora-concatenada');
-            celdasFechaHora.forEach((celda, index) => {
-                const persona = window.lastProcessedData.datos[index];
-                const [year, month, day] = persona.fechaAtencion.split('-');
-                const fechaFormateada = `${month}/${day}/${year}`;
-                const fechaHoraConcatenada = `${fechaFormateada} ${persona.horaAtencion}`;
-                celda.textContent = fechaHoraConcatenada;
-            });
+            // Volcar las horas recalculadas (inputs, spans y celdas fecha/hora) a la tabla
+            renderizarHorasEnTabla();
 
             // Actualizar el texto informativo
             const totalRegistros = window.lastProcessedData.datos.length;

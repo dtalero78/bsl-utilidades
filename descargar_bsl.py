@@ -4176,9 +4176,13 @@ def procesar_csv():
                     hora_atencion = "07:00"
                 else:
                     # Usar contador solo para registros que NO son BOGOTA
-                    medico_asignado = medicos_disponibles[contador_no_bogota % len(medicos_disponibles)]
-                    # Calcular hora de atención con incrementos de 10 minutos por registro no-BOGOTA
-                    hora_atencion = (hora_base + timedelta(minutes=contador_no_bogota * 10)).strftime('%H:%M')
+                    num_medicos = len(medicos_disponibles)
+                    medico_asignado = medicos_disponibles[contador_no_bogota % num_medicos]
+                    # Agrupar en bloques del tamaño = número de médicos: todos los pacientes de un
+                    # mismo bloque comparten la misma hora y ésta se incrementa 10 min por bloque.
+                    # Ej. con 7 médicos: registros 1-7 = 08:00, 8-14 = 08:10, ...
+                    grupo = contador_no_bogota // num_medicos
+                    hora_atencion = (hora_base + timedelta(minutes=grupo * 10)).strftime('%H:%M')
                     contador_no_bogota += 1
 
                 # Construir objeto persona
