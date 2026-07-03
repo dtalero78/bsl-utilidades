@@ -68,6 +68,20 @@ def generar_fecha_custodia_texto():
     return f"{mes} {fecha.day} de {fecha.year}"
 
 
+def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia_explicit=None):
+    """Calcula la vigencia del certificado respetando overrides explícitos."""
+    if vigencia_explicit:
+        return vigencia_explicit
+
+    if str(documento_identidad or "").strip() == "53014728":
+        return "3 años"
+
+    if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"]:
+        return "1 año"
+
+    return "3 años"
+
+
 # Cache simple de credenciales tenant (TTL 60s). Evita hit a BD por cada mensaje.
 _TENANT_CRED_CACHE = {}
 _TENANT_CRED_TTL = 60  # segundos
@@ -3400,7 +3414,11 @@ def generar_certificado_medico():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"] else "3 años"),
+            "vigencia": obtener_vigencia_certificado(
+                data.get("codEmpresa"),
+                data.get("documento_identidad"),
+                data.get("vigencia"),
+            ),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -3695,7 +3713,11 @@ def generar_certificado_medico_puppeteer():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"] else "3 años"),
+            "vigencia": obtener_vigencia_certificado(
+                data.get("codEmpresa"),
+                data.get("documento_identidad"),
+                data.get("vigencia"),
+            ),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -5837,7 +5859,10 @@ def api_generar_certificado_pdf(wix_id):
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL', 'PARTICULAR', 'COLDRONE'] else "3 años",
+            "vigencia": obtener_vigencia_certificado(
+                datos_wix.get('codEmpresa'),
+                datos_wix.get('numeroId'),
+            ),
             "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
 
             # Exámenes
@@ -6940,7 +6965,10 @@ def preview_certificado_html(wix_id):
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL', 'PARTICULAR', 'COLDRONE'] else "3 años",
+            "vigencia": obtener_vigencia_certificado(
+                datos_wix.get('codEmpresa'),
+                datos_wix.get('numeroId'),
+            ),
             "ips_sede": _tenant_data.get('tenant_distintivo', 'Sede norte DHSS0244914'),
             "examenes_realizados": examenes_realizados,
             "examenes": examenes_para_template,  # Lista de exámenes para secciones detalladas (filtrada para SITEL)

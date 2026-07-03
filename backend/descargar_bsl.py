@@ -60,6 +60,20 @@ def obtener_fecha_colombia():
     """
     return datetime.now(COLOMBIA_TZ)
 
+
+def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia_explicit=None):
+    """Calcula la vigencia del certificado respetando overrides explícitos."""
+    if vigencia_explicit:
+        return vigencia_explicit
+
+    if str(documento_identidad or "").strip() == "53014728":
+        return "3 años"
+
+    if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"]:
+        return "1 año"
+
+    return "3 años"
+
 # Intentar importar Twilio (opcional)
 try:
     from twilio.rest import Client as TwilioClient
@@ -1733,7 +1747,11 @@ def generar_certificado_medico():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL"] else "3 años"),
+            "vigencia": obtener_vigencia_certificado(
+                data.get("codEmpresa"),
+                data.get("documento_identidad"),
+                data.get("vigencia"),
+            ),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -1997,7 +2015,11 @@ def generar_certificado_medico_puppeteer():
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", fecha_actual.strftime("%d de %B de %Y")),
             "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
-            "vigencia": data.get("vigencia", "1 año" if data.get("codEmpresa") in ["GODRONE", "SITEL"] else "3 años"),
+            "vigencia": obtener_vigencia_certificado(
+                data.get("codEmpresa"),
+                data.get("documento_identidad"),
+                data.get("vigencia"),
+            ),
             "ips_sede": data.get("ips_sede", "Sede norte DHSS0244914"),
 
             # Datos personales
@@ -3693,7 +3715,10 @@ def api_generar_certificado_pdf(wix_id):
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else datos_wix.get('ciudad', 'Bogotá'),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
+            "vigencia": obtener_vigencia_certificado(
+                datos_wix.get('codEmpresa'),
+                datos_wix.get('numeroId'),
+            ),
             "ips_sede": "Sede norte DHSS0244914",
 
             # Exámenes
@@ -4515,7 +4540,10 @@ def preview_certificado_html(wix_id):
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
             "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else datos_wix.get('ciudad', 'Bogotá'),
-            "vigencia": "1 año" if datos_wix.get('codEmpresa') in ['GODRONE', 'SITEL'] else "3 años",
+            "vigencia": obtener_vigencia_certificado(
+                datos_wix.get('codEmpresa'),
+                datos_wix.get('numeroId'),
+            ),
             "ips_sede": "Sede norte DHSS0244914",
             "examenes_realizados": examenes_realizados,
             "examenes": examenes,  # Lista de exámenes para verificar tipo
