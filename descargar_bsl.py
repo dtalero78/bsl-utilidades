@@ -5700,13 +5700,9 @@ def api_generar_certificado_pdf(wix_id):
                     descripcion = datos_orina['descripcion']
                 else:
                     continue
-            # Panel de drogas: usar datos reales de laboratorios o omitir
+            # Panel de drogas: nunca imprimir resultados en el certificado
             elif "PANEL DE DROGAS" in examen.upper() or "PANEL DROGAS" in examen.upper():
-                datos_drogas = obtener_panel_drogas_postgres(datos_wix.get('_id', ''))
-                if datos_drogas and datos_drogas.get('descripcion'):
-                    descripcion = datos_drogas['descripcion']
-                else:
-                    continue
+                continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
             elif "VOXIMETR" in examen.upper():
                 if datos_voximetria:
@@ -6810,13 +6806,9 @@ def preview_certificado_html(wix_id):
                     descripcion = datos_orina['descripcion']
                 else:
                     continue
-            # Panel de drogas: usar datos reales de laboratorios o omitir
+            # Panel de drogas: nunca imprimir resultados en el certificado
             elif "PANEL DE DROGAS" in examen.upper() or "PANEL DROGAS" in examen.upper():
-                datos_drogas = obtener_panel_drogas_postgres(datos_wix.get('_id', ''))
-                if datos_drogas and datos_drogas.get('descripcion'):
-                    descripcion = datos_drogas['descripcion']
-                else:
-                    continue
+                continue
             # Si es voximetría y hay datos, usar concepto + interpretación de la BD
             elif "VOXIMETR" in examen.upper():
                 if datos_voximetria:
