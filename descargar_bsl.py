@@ -73,11 +73,8 @@ def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia
     if vigencia_explicit:
         return vigencia_explicit
 
-    if str(documento_identidad or "").strip() == "53014728":
+    if str(documento_identidad or "").strip() in ["53014728", "52781027"]:
         return "3 años"
-
-    if str(documento_identidad or "").strip() == "52781027":
-        return "1 año"
 
     if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"]:
         return "1 año"
