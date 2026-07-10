@@ -76,10 +76,15 @@ def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia
     if str(documento_identidad or "").strip() in ["53014728", "52781027"]:
         return "3 años"
 
-    if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE"]:
+    if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE", "COLDRON"]:
         return "1 año"
 
     return "3 años"
+
+
+# Empresas que se emiten como PARTICULAR en Bogotá:
+# ciudad forzada a "BOGOTÁ" y nombre de empresa forzado a "PARTICULAR".
+EMPRESAS_COMO_PARTICULAR = ("GODRONE", "COLDRON", "COLDRONE")
 
 
 # Cache simple de credenciales tenant (TTL 60s). Evita hit a BD por cada mensaje.
@@ -3414,7 +3419,7 @@ def generar_certificado_medico():
             "codigo_seguridad": codigo_seguridad,
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
-            "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
+            "ciudad": "BOGOTÁ" if data.get("codEmpresa") in EMPRESAS_COMO_PARTICULAR else data.get("ciudad", "Bogotá"),
             "vigencia": obtener_vigencia_certificado(
                 data.get("codEmpresa"),
                 data.get("documento_identidad"),
@@ -3426,7 +3431,7 @@ def generar_certificado_medico():
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
             "cod_empresa": data.get("codEmpresa", ""),
-            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
+            "empresa": "PARTICULAR" if data.get("codEmpresa") in EMPRESAS_COMO_PARTICULAR else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
             "edad": data.get("edad", ""),
@@ -3713,7 +3718,7 @@ def generar_certificado_medico_puppeteer():
             "codigo_seguridad": codigo_seguridad,
             "logo_bsl_url": logo_bsl_base64,
             "fecha_atencion": data.get("fecha_atencion", formatear_fecha_espanol(fecha_actual)),
-            "ciudad": "BOGOTÁ" if data.get("codEmpresa") == "GODRONE" else data.get("ciudad", "Bogotá"),
+            "ciudad": "BOGOTÁ" if data.get("codEmpresa") in EMPRESAS_COMO_PARTICULAR else data.get("ciudad", "Bogotá"),
             "vigencia": obtener_vigencia_certificado(
                 data.get("codEmpresa"),
                 data.get("documento_identidad"),
@@ -3725,7 +3730,7 @@ def generar_certificado_medico_puppeteer():
             "nombres_apellidos": data.get("nombres_apellidos", ""),
             "documento_identidad": data.get("documento_identidad", ""),
             "cod_empresa": data.get("codEmpresa", ""),
-            "empresa": "PARTICULAR" if data.get("codEmpresa") == "GODRONE" else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
+            "empresa": "PARTICULAR" if data.get("codEmpresa") in EMPRESAS_COMO_PARTICULAR else ("FOUNDEVER" if data.get("codEmpresa") == "SITEL" else data.get("empresa", "PARTICULAR")),
             "cargo": data.get("cargo", ""),
             "genero": data.get("genero", ""),
             "edad": data.get("edad", ""),
@@ -5835,7 +5840,7 @@ def api_generar_certificado_pdf(wix_id):
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
             "cod_empresa": datos_wix.get('codEmpresa', ''),
-            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
+            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') in EMPRESAS_COMO_PARTICULAR else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
             "fecha_nacimiento": datos_wix.get('fechaNacimiento', ''),
@@ -5855,7 +5860,7 @@ def api_generar_certificado_pdf(wix_id):
 
             # Información de la consulta
             "fecha_atencion": fecha_formateada,
-            "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
+            "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') in EMPRESAS_COMO_PARTICULAR else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
             "vigencia": obtener_vigencia_certificado(
                 datos_wix.get('codEmpresa'),
                 datos_wix.get('numeroId'),
@@ -6945,7 +6950,7 @@ def preview_certificado_html(wix_id):
             "documento_identidad": datos_wix.get('numeroId', ''),
             "cargo": datos_wix.get('cargo', ''),
             "cod_empresa": datos_wix.get('codEmpresa', ''),
-            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') == 'GODRONE' else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
+            "empresa": "PARTICULAR" if datos_wix.get('codEmpresa') in EMPRESAS_COMO_PARTICULAR else ("FOUNDEVER" if datos_wix.get('codEmpresa') == 'SITEL' else datos_wix.get('empresa', '')),
             "genero": datos_wix.get('genero', ''),
             "edad": str(datos_wix.get('edad', '')),
             "fecha_nacimiento": datos_wix.get('fechaNacimiento', ''),
@@ -6957,7 +6962,7 @@ def preview_certificado_html(wix_id):
             "tipo_examen": datos_wix.get('tipoExamen', ''),
             "foto_paciente": datos_wix.get('foto_paciente', None),
             "fecha_atencion": fecha_formateada,
-            "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') == 'GODRONE' else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
+            "ciudad": "BOGOTÁ" if datos_wix.get('codEmpresa') in EMPRESAS_COMO_PARTICULAR else (datos_wix.get('ciudadDeResidencia') or datos_wix.get('ciudad', 'Bogotá')),
             "vigencia": obtener_vigencia_certificado(
                 datos_wix.get('codEmpresa'),
                 datos_wix.get('numeroId'),
