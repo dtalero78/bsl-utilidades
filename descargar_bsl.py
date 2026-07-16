@@ -1459,6 +1459,14 @@ def obtener_optometria_postgres(orden_id):
         diagnostico = row[14] or ''
         observaciones = row[15] or ''
 
+        # Si la fila profesional está vacía (sin agudeza visual ni diagnóstico),
+        # tratarla como no diligenciada para permitir el fallback al test virtual.
+        _valores_av = [vl_od_sc, vl_od_cc, vl_oi_sc, vl_oi_cc, vl_ao_sc, vl_ao_cc,
+                       vc_od_sc, vc_od_cc, vc_oi_sc, vc_oi_cc, vc_ao_sc, vc_ao_cc]
+        if not any(str(v).strip() for v in _valores_av) and not str(diagnostico).strip():
+            print(f"ℹ️  [PostgreSQL] Optometría profesional vacía para orden_id: {orden_id} (se usará fallback)")
+            return None
+
         # Formatear resultado numérico para el template
         resultado_numerico = f"""VISIÓN LEJANA (VL):
   OD: SC {vl_od_sc} / CC {vl_od_cc}
@@ -5368,14 +5376,14 @@ def api_generar_certificado_pdf(wix_id):
         if tiene_examen_visual and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', '')
 
-            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
-            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias_virtual en PostgreSQL para: {wix_id_historia}")
-            datos_visual = obtener_visiometria_postgres(wix_id_historia)
+            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias (optometría profesional)
+            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias (optometría profesional) en PostgreSQL para: {wix_id_historia}")
+            datos_visual = obtener_optometria_postgres(wix_id_historia)
 
-            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias (optometría profesional)
+            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias_virtual (examen virtual) como fallback
             if not datos_visual:
-                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias (optometría) en PostgreSQL...")
-                datos_visual = obtener_optometria_postgres(wix_id_historia)
+                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias_virtual en PostgreSQL...")
+                datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
             # PRIORIDAD 3: Fallback a Wix si PostgreSQL no tiene datos
             if not datos_visual:
@@ -5722,11 +5730,15 @@ def api_generar_certificado_pdf(wix_id):
                         descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            # Optometría/Visiometría: si hay datos reales, se muestran en la sección dedicada.
-            # No repetir el texto genérico aquí; solo usar el default si NO hay valores.
+            # Optometría/Visiometría: si hay datos reales, mostrar el diagnóstico/concepto real
+            # (los valores numéricos completos van en la sección dedicada). Nunca ocultar la fila:
+            # si no hay datos reales, usar el texto predeterminado como fallback.
             elif "OPTOMETR" in examen.upper() or "VISIOMETR" in examen.upper():
+                resultado_visual = ''
                 if datos_visual:
-                    continue
+                    resultado_visual = (datos_visual.get('diagnostico') or datos_visual.get('concepto') or '').strip()
+                if resultado_visual:
+                    descripcion = resultado_visual
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             elif paciente_atendido:
@@ -6406,14 +6418,14 @@ def preview_certificado_html(wix_id):
         if tiene_examen_visual and datos_wix.get('codEmpresa') != 'SITEL':
             wix_id_historia = datos_wix.get('_id', wix_id)  # Usar wix_id del parámetro si no viene en datos_wix
 
-            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias_virtual (examen virtual)
-            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias_virtual en PostgreSQL para: {wix_id_historia}", flush=True)
-            datos_visual = obtener_visiometria_postgres(wix_id_historia)
+            # PRIORIDAD 1: Consultar PostgreSQL - visiometrias (optometría profesional)
+            print(f"🔍 [PRIORIDAD 1] Consultando visiometrias (optometría profesional) en PostgreSQL para: {wix_id_historia}", flush=True)
+            datos_visual = obtener_optometria_postgres(wix_id_historia)
 
-            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias (optometría profesional)
+            # PRIORIDAD 2: Consultar PostgreSQL - visiometrias_virtual (examen virtual) como fallback
             if not datos_visual:
-                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias (optometría) en PostgreSQL...", flush=True)
-                datos_visual = obtener_optometria_postgres(wix_id_historia)
+                print(f"🔍 [PRIORIDAD 2] Consultando visiometrias_virtual en PostgreSQL...", flush=True)
+                datos_visual = obtener_visiometria_postgres(wix_id_historia)
 
             # PRIORIDAD 3: Fallback a Wix si PostgreSQL no tiene datos
             if not datos_visual:
@@ -6835,11 +6847,15 @@ def preview_certificado_html(wix_id):
                         descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
-            # Optometría/Visiometría: si hay datos reales, se muestran en la sección dedicada.
-            # No repetir el texto genérico aquí; solo usar el default si NO hay valores.
+            # Optometría/Visiometría: si hay datos reales, mostrar el diagnóstico/concepto real
+            # (los valores numéricos completos van en la sección dedicada). Nunca ocultar la fila:
+            # si no hay datos reales, usar el texto predeterminado como fallback.
             elif "OPTOMETR" in examen.upper() or "VISIOMETR" in examen.upper():
+                resultado_visual = ''
                 if datos_visual:
-                    continue
+                    resultado_visual = (datos_visual.get('diagnostico') or datos_visual.get('concepto') or '').strip()
+                if resultado_visual:
+                    descripcion = resultado_visual
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             elif paciente_atendido:
