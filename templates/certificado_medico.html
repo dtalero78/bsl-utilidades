@@ -833,6 +833,9 @@
                 </div>
                 {% endif %}
 
+                {# El texto fijo de "Evaluación General" solo se muestra como fallback #}
+                {# cuando NO hay resultados numéricos reales de la visiometría/optometría. #}
+                {% if not datos_visual.resultadoNumerico %}
                 <div class="result-item">
                     <h3>Evaluación General</h3>
                     <p>Presión intraocular (PIO): 15 mmHg en ambos ojos<br>
@@ -841,6 +844,7 @@
                     Visión de colores: Normal<br>
                     Fondo de ojo: Normal.</p>
                 </div>
+                {% endif %}
 
                 <!-- Firma del Optómetra -->
                 <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #eee;">

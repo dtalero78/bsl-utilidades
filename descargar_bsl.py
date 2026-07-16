@@ -5722,6 +5722,13 @@ def api_generar_certificado_pdf(wix_id):
                         descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Optometría/Visiometría: si hay datos reales, se muestran en la sección dedicada.
+            # No repetir el texto genérico aquí; solo usar el default si NO hay valores.
+            elif "OPTOMETR" in examen.upper() or "VISIOMETR" in examen.upper():
+                if datos_visual:
+                    continue
+                elif paciente_atendido:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             elif paciente_atendido:
                 descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
 
@@ -6826,6 +6833,13 @@ def preview_certificado_html(wix_id):
                         descripcion = '. '.join(partes)
                     elif paciente_atendido:
                         descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+                elif paciente_atendido:
+                    descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
+            # Optometría/Visiometría: si hay datos reales, se muestran en la sección dedicada.
+            # No repetir el texto genérico aquí; solo usar el default si NO hay valores.
+            elif "OPTOMETR" in examen.upper() or "VISIOMETR" in examen.upper():
+                if datos_visual:
+                    continue
                 elif paciente_atendido:
                     descripcion = textos_examenes.get(examen, "Resultados dentro de parámetros normales.")
             elif paciente_atendido:
