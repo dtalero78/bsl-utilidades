@@ -7380,7 +7380,10 @@ def enviar_certificado_whatsapp():
         # "57+573008021701" — número inválido que Twilio rechaza. Afecta a 655 registros
         # con el celular guardado con prefijo '+': para ellos el certificado por WhatsApp
         # nunca pudo salir.
-        solo_digitos = re.sub(r'\D', '', str(celular_raw))
+        # `re` NO está importado a nivel de módulo en este archivo (solo dentro de
+        # funciones puntuales), así que hay que importarlo acá o revienta con NameError.
+        import re as _re
+        solo_digitos = _re.sub(r'\D', '', str(celular_raw))
         if len(solo_digitos) == 10:
             celular = '57' + solo_digitos          # colombiano sin indicativo
         elif solo_digitos.startswith('57'):
