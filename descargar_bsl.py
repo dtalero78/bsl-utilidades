@@ -7144,6 +7144,73 @@ def api_tenant_info(historia_id):
 
 
 # --- Endpoint: ENVIAR CERTIFICADO POR WHATSAPP ---
+# ============================================================
+# Anti-reenvío del certificado por WhatsApp
+#
+# solicitar-certificado.html llama al endpoint automáticamente en cada `load`, y el
+# link vive en el chat del paciente. Sin esto, cada toque/recarga = un PDF más
+# (medido: 783 envíos a 426 pacientes en 7 días; uno recibió 14).
+#
+# Memoria del proceso: el Procfile corre `python descargar_bsl.py` (un solo proceso),
+# así que alcanza. Si algún día se pasa a gunicorn con varios workers, hay que moverlo
+# a la BD o a Redis.
+# ============================================================
+_ULTIMO_ENVIO_CERTIFICADO = {}          # wix_id -> timestamp del último envío
+VENTANA_DEDUPE_CERTIFICADO_SEG = 10 * 60
+
+
+def _certificado_enviado_recientemente(wix_id, marcar=True):
+    """True si a esta orden ya se le envió el certificado dentro de la ventana."""
+    ahora = time.time()
+
+    # Limpieza oportunista para que el dict no crezca sin control
+    if len(_ULTIMO_ENVIO_CERTIFICADO) > 500:
+        for k, ts in list(_ULTIMO_ENVIO_CERTIFICADO.items()):
+            if ahora - ts > VENTANA_DEDUPE_CERTIFICADO_SEG:
+                _ULTIMO_ENVIO_CERTIFICADO.pop(k, None)
+
+    ultimo = _ULTIMO_ENVIO_CERTIFICADO.get(wix_id)
+    if ultimo and (ahora - ultimo) < VENTANA_DEDUPE_CERTIFICADO_SEG:
+        return True
+
+    if marcar:
+        _ULTIMO_ENVIO_CERTIFICADO[wix_id] = ahora
+    return False
+
+
+def _enviar_whatsapp_simple(datos_wix, celular, mensaje):
+    """
+    Envía un WhatsApp de texto plano con las credenciales del tenant del paciente.
+    Best-effort: devuelve True/False y nunca lanza — el caller ya está respondiendo
+    algo útil al paciente aunque el envío falle.
+    """
+    try:
+        from twilio.rest import Client as TwilioClient
+
+        tenant_id_paciente = datos_wix.get('tenant_id', 'bsl') if isinstance(datos_wix, dict) else 'bsl'
+        creds = obtener_credenciales_twilio_tenant(tenant_id_paciente)
+        if not creds.get('account_sid') or not creds.get('auth_token'):
+            print(f"⚠️  Sin credenciales Twilio para tenant {tenant_id_paciente}")
+            return False
+
+        destino = celular
+        if not destino.startswith('whatsapp:'):
+            if not destino.startswith('+'):
+                destino = f'+{destino}' if destino.startswith('57') else f'+57{destino}'
+            destino = f'whatsapp:{destino}'
+
+        msg = TwilioClient(creds['account_sid'], creds['auth_token']).messages.create(
+            from_=creds['whatsapp_from'],
+            to=destino,
+            body=mensaje
+        )
+        print(f"✅ WhatsApp enviado. SID: {msg.sid}")
+        return True
+    except Exception as e:
+        print(f"⚠️  No se pudo enviar WhatsApp: {e}")
+        return False
+
+
 @app.route("/enviar-certificado-whatsapp", methods=["POST", "OPTIONS"])
 def enviar_certificado_whatsapp():
     """
@@ -7197,11 +7264,14 @@ def enviar_certificado_whatsapp():
             )
             cur = conn.cursor()
 
+            # pvEstado y codEmpresa se traen para poder decidir ANTES de generar el PDF
+            # si la orden está pagada (ver determinar_mostrar_sin_soporte más abajo).
             if historia_id:
                 print(f"   Buscando por Historia ID: {historia_id}")
                 cur.execute('''
                     SELECT _id, "numeroId", celular, tenant_id,
-                           "primerNombre", "segundoNombre", "primerApellido", "segundoApellido"
+                           "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
+                           "pvEstado", "codEmpresa", pagado
                     FROM "HistoriaClinica" WHERE _id = %s LIMIT 1
                 ''', (historia_id,))
             else:
@@ -7209,7 +7279,8 @@ def enviar_certificado_whatsapp():
                 # Priorizar registros que tengan datos en formularios usando LEFT JOIN
                 cur.execute('''
                     SELECT h._id, h."numeroId", h.celular, h.tenant_id,
-                           h."primerNombre", h."segundoNombre", h."primerApellido", h."segundoApellido"
+                           h."primerNombre", h."segundoNombre", h."primerApellido", h."segundoApellido",
+                           h."pvEstado", h."codEmpresa", h.pagado
                     FROM "HistoriaClinica" h
                     LEFT JOIN formularios f ON h._id = f.wix_id
                     WHERE h."numeroId" = %s
@@ -7234,7 +7305,14 @@ def enviar_certificado_whatsapp():
                     'primerNombre': row[4] or '',
                     'segundoNombre': row[5] or '',
                     'primerApellido': row[6] or '',
-                    'segundoApellido': row[7] or ''
+                    'segundoApellido': row[7] or '',
+                    'pvEstado': row[8] or '',
+                    'codEmpresa': row[9] or '',
+                    'pagado': row[10] is True,
+                    # Marca que estos datos vienen de Postgres (fuente autoritativa).
+                    # El fallback de Wix no trae 'pagado', y sin esa marca no se puede
+                    # distinguir "confirmado impago" de "no pude averiguarlo".
+                    '_fuente': 'postgres'
                 }
                 print(f"✅ Encontrado en PostgreSQL: {wix_id} (tenant={tenant_id_paciente})")
             else:
@@ -7302,6 +7380,72 @@ def enviar_certificado_whatsapp():
 
         print(f"✅ Certificado encontrado: {wix_id}")
         print(f"📱 Celular de envío: {celular}")
+
+        # ============================================================
+        # GUARDA 1 — no generar un "certificado" que en realidad es un muñón.
+        #
+        # Antes, si la orden no registraba pago, igual se generaba y enviaba el PDF:
+        # el renderizador le estampa un banner rojo y BORRA concepto médico, resultados
+        # y firmas (ver determinar_mostrar_sin_soporte + certificado_medico.html), pero
+        # el mensaje de WhatsApp igual decía "✅ Tu certificado está listo". El paciente
+        # recibía un documento inservible anunciado como bueno, no entendía qué hacer, y
+        # recargaba el link una y otra vez (medido: 783 envíos a 426 pacientes en 7 días).
+        #
+        # Ahora se corta acá y se le manda instrucciones de pago concretas.
+        # ============================================================
+        # FALLA ABIERTO a propósito: solo se bloquea con datos de Postgres en la mano
+        # (la fila que ya trajimos arriba). Si vino por el fallback de Wix, o si algo
+        # revienta, se envía el certificado igual. Un paciente que pagó y no recibe su
+        # certificado es MUCHO peor que uno que no pagó y lo recibe: eso último ya lo
+        # cubre el banner rojo del renderizador.
+        sin_pago_confirmado = False
+        try:
+            if datos_wix.get('_fuente') == 'postgres' and not es_empresa_especial(datos_wix.get('codEmpresa', '')):
+                pagado_pg = datos_wix.get('pagado') is True
+                pagado_pv = datos_wix.get('pvEstado', '') == 'Pagado'
+                sin_pago_confirmado = not (pagado_pg or pagado_pv)
+        except Exception as e:
+            print(f"⚠️  No se pudo verificar el pago ({e}) — se envía el certificado igual")
+            sin_pago_confirmado = False
+
+        if sin_pago_confirmado:
+            print(f"🚫 Orden {wix_id} SIN PAGO — no se genera PDF, se envían instrucciones de pago")
+            nombre_paciente = (datos_wix.get('primerNombre') or '').strip() or 'Hola'
+            mensaje_pago = (
+                f"Hola {nombre_paciente} 👋\n\n"
+                "Tu certificado ya está listo, pero *aún no registramos tu pago*, "
+                "así que todavía no podemos liberarlo.\n\n"
+                "*Medios de pago:*\n"
+                "• Bancolombia Ahorros 44291192456 (cédula 79981585)\n"
+                "• Nequi: 3008021701\n"
+                "• Daviplata: 3014400818\n"
+                "• Transfiya\n\n"
+                "📸 Cuando pagues, envía *la foto del comprobante por este mismo chat* "
+                "y te liberamos el certificado enseguida."
+            )
+            enviado_ok = _enviar_whatsapp_simple(datos_wix, celular, mensaje_pago)
+            return jsonify({
+                "success": False,
+                "motivo": "sin_pago",
+                "whatsappEnviado": enviado_ok,
+                "message": "Tu certificado aún no registra el pago. Te enviamos por WhatsApp los medios de pago; "
+                           "envía la foto del comprobante por ese chat y lo liberamos enseguida."
+            }), 402  # 402 Payment Required
+
+        # ============================================================
+        # GUARDA 2 — dedupe. La página solicitar-certificado.html dispara este endpoint
+        # sola en cada `load`, y el link queda guardado en el chat del paciente: cada
+        # toque o recarga era un PDF más. Con esto, reabrir el link dentro de la ventana
+        # no reenvía nada (el paciente ya tiene el documento en su chat).
+        # ============================================================
+        if _certificado_enviado_recientemente(wix_id):
+            print(f"⏭️  Certificado de {wix_id} ya enviado hace poco — no se reenvía (dedupe)")
+            return jsonify({
+                "success": True,
+                "duplicado": True,
+                "message": "Ya te enviamos el certificado por WhatsApp hace un momento. "
+                           "Revisa tu chat: el archivo PDF está ahí."
+            })
 
         # Generar URL del certificado PDF
         pdf_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/generar-certificado-desde-wix/{wix_id}"

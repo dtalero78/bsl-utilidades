@@ -364,7 +364,19 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    showMessage('✓ ¡Certificado enviado exitosamente! Revisa tu WhatsApp en unos momentos.', 'success');
+                    // data.duplicado = ya se envió hace poco; no se reenvió nada
+                    showMessage(
+                        data.duplicado
+                            ? '✓ ' + data.message
+                            : '✓ ¡Certificado enviado exitosamente! Revisa tu WhatsApp en unos momentos.',
+                        'success'
+                    );
+                } else if (data.motivo === 'sin_pago') {
+                    // No es un error del paciente ni algo que se arregle reintentando:
+                    // falta el pago. Antes acá se mostraba "enviado exitosamente" y se le
+                    // mandaba un PDF mutilado, así que el paciente recargaba sin entender.
+                    showMessage(data.message, 'error');
+                    // NO reabrir el formulario: reintentar no cambia nada hasta que pague.
                 } else {
                     showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
                     // Mostrar el formulario nuevamente en caso de error
