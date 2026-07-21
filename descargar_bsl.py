@@ -7271,7 +7271,7 @@ def enviar_certificado_whatsapp():
                 cur.execute('''
                     SELECT _id, "numeroId", celular, tenant_id,
                            "primerNombre", "segundoNombre", "primerApellido", "segundoApellido",
-                           "pvEstado", "codEmpresa", pagado
+                           "pvEstado", "codEmpresa", pagado, "tipoExamen"
                     FROM "HistoriaClinica" WHERE _id = %s LIMIT 1
                 ''', (historia_id,))
             else:
@@ -7280,7 +7280,7 @@ def enviar_certificado_whatsapp():
                 cur.execute('''
                     SELECT h._id, h."numeroId", h.celular, h.tenant_id,
                            h."primerNombre", h."segundoNombre", h."primerApellido", h."segundoApellido",
-                           h."pvEstado", h."codEmpresa", h.pagado
+                           h."pvEstado", h."codEmpresa", h.pagado, h."tipoExamen"
                     FROM "HistoriaClinica" h
                     LEFT JOIN formularios f ON h._id = f.wix_id
                     WHERE h."numeroId" = %s
@@ -7309,6 +7309,7 @@ def enviar_certificado_whatsapp():
                     'pvEstado': row[8] or '',
                     'codEmpresa': row[9] or '',
                     'pagado': row[10] is True,
+                    'tipoExamen': row[11] or '',
                     # Marca que estos datos vienen de Postgres (fuente autoritativa).
                     # El fallback de Wix no trae 'pagado', y sin esa marca no se puede
                     # distinguir "confirmado impago" de "no pude averiguarlo".
@@ -7417,9 +7418,13 @@ def enviar_certificado_whatsapp():
         # revienta, se envía el certificado igual. Un paciente que pagó y no recibe su
         # certificado es MUCHO peor que uno que no pagó y lo recibe: eso último ya lo
         # cubre el banner rojo del renderizador.
+        # Las exclusiones son las MISMAS que usa la generación del PDF, vía
+        # debe_colapsar_soporte: empresas de EMPRESAS_SIN_SOPORTE, códigos numéricos de
+        # 6+ dígitos, y tipos de examen de TIPOS_EXAMEN_SIN_AVISO. Se reusa la función en
+        # vez de duplicar la lista para que no se puedan desincronizar.
         sin_pago_confirmado = False
         try:
-            if datos_wix.get('_fuente') == 'postgres' and not es_empresa_especial(datos_wix.get('codEmpresa', '')):
+            if datos_wix.get('_fuente') == 'postgres' and not debe_colapsar_soporte(datos_wix):
                 pagado_pg = datos_wix.get('pagado') is True
                 pagado_pv = datos_wix.get('pvEstado', '') == 'Pagado'
                 sin_pago_confirmado = not (pagado_pg or pagado_pv)
@@ -7447,8 +7452,7 @@ def enviar_certificado_whatsapp():
                 "success": False,
                 "motivo": "sin_pago",
                 "whatsappEnviado": enviado_ok,
-                "message": "Tu certificado aún no registra el pago. Te enviamos por WhatsApp los medios de pago; "
-                           "envía la foto del comprobante por ese chat y lo liberamos enseguida."
+                "message": "Tu certificado aún no registra el pago. Comunícate con un asesor."
             }), 402  # 402 Payment Required
 
         # ============================================================
