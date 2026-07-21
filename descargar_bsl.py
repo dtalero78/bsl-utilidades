@@ -7433,21 +7433,36 @@ def enviar_certificado_whatsapp():
             sin_pago_confirmado = False
 
         if sin_pago_confirmado:
-            print(f"🚫 Orden {wix_id} SIN PAGO — no se genera PDF, se envían instrucciones de pago")
-            nombre_paciente = (datos_wix.get('primerNombre') or '').strip() or 'Hola'
-            mensaje_pago = (
-                f"Hola {nombre_paciente} 👋\n\n"
-                "Tu certificado ya está listo, pero *aún no registramos tu pago*, "
-                "así que todavía no podemos liberarlo.\n\n"
-                "*Medios de pago:*\n"
-                "• Bancolombia Ahorros 44291192456 (cédula 79981585)\n"
-                "• Nequi: 3008021701\n"
-                "• Daviplata: 3014400818\n"
-                "• Transfiya\n\n"
-                "📸 Cuando pagues, envía *la foto del comprobante por este mismo chat* "
-                "y te liberamos el certificado enseguida."
-            )
-            enviado_ok = _enviar_whatsapp_simple(datos_wix, celular, mensaje_pago)
+            print(f"🚫 Orden {wix_id} SIN PAGO — no se genera PDF")
+
+            # Los medios de pago solo se le mandan a SANITHELP-JJ, que es el flujo donde
+            # el paciente paga directamente y manda el comprobante por WhatsApp. Para el
+            # resto de empresas el cobro lo maneja otra persona, así que publicarle las
+            # cuentas al paciente sería incorrecto: solo ve el aviso de la página.
+            #
+            # OJO: esto es texto libre, NO plantilla, así que Twilio solo lo entrega
+            # dentro de la ventana de 24h que haya abierto el propio paciente. Si abre el
+            # link días después, no le llega nada (ve únicamente el mensaje de la página).
+            # Para cubrir ese caso haría falta una plantilla aprobada por Meta.
+            enviado_ok = False
+            if (datos_wix.get('codEmpresa') or '').strip().upper() == 'SANITHELP-JJ':
+                nombre_paciente = (datos_wix.get('primerNombre') or '').strip() or 'Hola'
+                mensaje_pago = (
+                    f"Hola {nombre_paciente} 👋\n\n"
+                    "Tu certificado ya está listo, pero *aún no registramos tu pago*, "
+                    "así que todavía no podemos liberarlo.\n\n"
+                    "*Medios de pago:*\n"
+                    "• Bancolombia Ahorros 44291192456 (cédula 79981585)\n"
+                    "• Nequi: 3008021701\n"
+                    "• Daviplata: 3014400818\n"
+                    "• Transfiya\n\n"
+                    "📸 Cuando pagues, envía *la foto del comprobante por este mismo chat* "
+                    "y te liberamos el certificado enseguida."
+                )
+                enviado_ok = _enviar_whatsapp_simple(datos_wix, celular, mensaje_pago)
+            else:
+                print(f"   codEmpresa={datos_wix.get('codEmpresa')} — no es SANITHELP-JJ, no se envían medios de pago")
+
             return jsonify({
                 "success": False,
                 "motivo": "sin_pago",
