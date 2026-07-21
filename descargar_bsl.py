@@ -7374,9 +7374,25 @@ def enviar_certificado_whatsapp():
             }), 400
 
         # Limpiar y formatear el celular (agregar prefijo 57 si no lo tiene)
-        celular = str(celular_raw).strip().replace(' ', '').replace('-', '')
-        if not celular.startswith('57'):
-            celular = '57' + celular
+        # Normalización robusta: se quita TODO lo que no sea dígito, el '+' incluido.
+        # Antes solo se limpiaban espacios y guiones, así que un celular guardado como
+        # "+573008021701" no empezaba por "57" (empezaba por "+") y terminaba como
+        # "57+573008021701" — número inválido que Twilio rechaza. Afecta a 655 registros
+        # con el celular guardado con prefijo '+': para ellos el certificado por WhatsApp
+        # nunca pudo salir.
+        solo_digitos = re.sub(r'\D', '', str(celular_raw))
+        if len(solo_digitos) == 10:
+            celular = '57' + solo_digitos          # colombiano sin indicativo
+        elif solo_digitos.startswith('57'):
+            celular = solo_digitos                 # ya viene con indicativo
+        else:
+            celular = solo_digitos                 # extranjero u otro formato: que valide Twilio
+
+        if not celular:
+            return jsonify({
+                "success": False,
+                "message": "El número de celular registrado no es válido"
+            }), 400
 
         print(f"✅ Certificado encontrado: {wix_id}")
         print(f"📱 Celular de envío: {celular}")
