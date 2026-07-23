@@ -7178,39 +7178,6 @@ def _certificado_enviado_recientemente(wix_id, marcar=True):
     return False
 
 
-def _enviar_whatsapp_simple(datos_wix, celular, mensaje):
-    """
-    Envía un WhatsApp de texto plano con las credenciales del tenant del paciente.
-    Best-effort: devuelve True/False y nunca lanza — el caller ya está respondiendo
-    algo útil al paciente aunque el envío falle.
-    """
-    try:
-        from twilio.rest import Client as TwilioClient
-
-        tenant_id_paciente = datos_wix.get('tenant_id', 'bsl') if isinstance(datos_wix, dict) else 'bsl'
-        creds = obtener_credenciales_twilio_tenant(tenant_id_paciente)
-        if not creds.get('account_sid') or not creds.get('auth_token'):
-            print(f"⚠️  Sin credenciales Twilio para tenant {tenant_id_paciente}")
-            return False
-
-        destino = celular
-        if not destino.startswith('whatsapp:'):
-            if not destino.startswith('+'):
-                destino = f'+{destino}' if destino.startswith('57') else f'+57{destino}'
-            destino = f'whatsapp:{destino}'
-
-        msg = TwilioClient(creds['account_sid'], creds['auth_token']).messages.create(
-            from_=creds['whatsapp_from'],
-            to=destino,
-            body=mensaje
-        )
-        print(f"✅ WhatsApp enviado. SID: {msg.sid}")
-        return True
-    except Exception as e:
-        print(f"⚠️  No se pudo enviar WhatsApp: {e}")
-        return False
-
-
 @app.route("/enviar-certificado-whatsapp", methods=["POST", "OPTIONS"])
 def enviar_certificado_whatsapp():
     """
@@ -7433,40 +7400,16 @@ def enviar_certificado_whatsapp():
             sin_pago_confirmado = False
 
         if sin_pago_confirmado:
-            print(f"🚫 Orden {wix_id} SIN PAGO — no se genera PDF")
+            print(f"🚫 Orden {wix_id} SIN PAGO — no se genera PDF ni se envía WhatsApp")
 
-            # Los medios de pago solo se le mandan a SANITHELP-JJ, que es el flujo donde
-            # el paciente paga directamente y manda el comprobante por WhatsApp. Para el
-            # resto de empresas el cobro lo maneja otra persona, así que publicarle las
-            # cuentas al paciente sería incorrecto: solo ve el aviso de la página.
-            #
-            # OJO: esto es texto libre, NO plantilla, así que Twilio solo lo entrega
-            # dentro de la ventana de 24h que haya abierto el propio paciente. Si abre el
-            # link días después, no le llega nada (ve únicamente el mensaje de la página).
-            # Para cubrir ese caso haría falta una plantilla aprobada por Meta.
-            enviado_ok = False
-            if (datos_wix.get('codEmpresa') or '').strip().upper() == 'SANITHELP-JJ':
-                nombre_paciente = (datos_wix.get('primerNombre') or '').strip() or 'Hola'
-                mensaje_pago = (
-                    f"Hola {nombre_paciente} 👋\n\n"
-                    "Tu certificado ya está listo, pero *aún no registramos tu pago*, "
-                    "así que todavía no podemos liberarlo.\n\n"
-                    "*Medios de pago:*\n"
-                    "• Bancolombia Ahorros 44291192456 (cédula 79981585)\n"
-                    "• Nequi: 3008021701\n"
-                    "• Daviplata: 3014400818\n"
-                    "• Transfiya\n\n"
-                    "📸 Cuando pagues, envía *la foto del comprobante por este mismo chat* "
-                    "y te liberamos el certificado enseguida."
-                )
-                enviado_ok = _enviar_whatsapp_simple(datos_wix, celular, mensaje_pago)
-            else:
-                print(f"   codEmpresa={datos_wix.get('codEmpresa')} — no es SANITHELP-JJ, no se envían medios de pago")
-
+            # NO se envía WhatsApp: el aviso vive solo en la página ("Comunícate con un
+            # asesor"). Antes se mandaban los medios de pago por texto libre, pero eso solo
+            # se entrega dentro de la ventana de 24h de Twilio → medido, >50% caía como
+            # undelivered (error 63016) porque el paciente abría el link fuera de esa
+            # ventana. Un mensaje que llega a la mitad confunde más de lo que ayuda.
             return jsonify({
                 "success": False,
                 "motivo": "sin_pago",
-                "whatsappEnviado": enviado_ok,
                 "message": "Tu certificado aún no registra el pago. Comunícate con un asesor."
             }), 402  # 402 Payment Required
 
