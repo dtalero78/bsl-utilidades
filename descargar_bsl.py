@@ -144,7 +144,13 @@ def obtener_credenciales_twilio_tenant(tenant_id):
             'whatsapp_from': os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+573008021701'),
             'messaging_service_sid': os.getenv('TWILIO_MESSAGING_SERVICE_SID'),
             'templates': {
-                'certificado_pdf_media': os.getenv('TWILIO_TEMPLATE_CERTIFICADO_PDF'),
+                # Fallback hardcodeado al SID de la plantilla (patrón de PLATAFORMA2):
+                # sin esto el certificado salía como free-text, que Twilio SOLO entrega
+                # dentro de la ventana de 24h → medido, muchos caían undelivered (63016)
+                # cuando el paciente abría el link días después. La plantilla es UTILITY
+                # (barata) y tipo media (manda el PDF adjunto), approved en Meta. El env
+                # var, si está seteado, le gana al default. SID BSL-only.
+                'certificado_pdf_media': os.getenv('TWILIO_TEMPLATE_CERTIFICADO_PDF') or 'HX1f578891413df18b85d5974ad447287e',
             },
             'source': 'env:bsl'
         }
