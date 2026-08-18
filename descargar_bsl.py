@@ -5698,8 +5698,8 @@ def api_generar_certificado_pdf(wix_id):
                 continue
             descripcion = None
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
-            if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
-                descripcion = observaciones_sin_analisis
+            if observaciones_sin_analisis.strip() and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
+                descripcion = observaciones_sin_analisis.strip()
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
                 # Excepción puntual: omitir item para cédula 1140837675 (no imprimir nada en Resultados Generales)
@@ -6815,8 +6815,8 @@ def preview_certificado_html(wix_id):
                 continue
             descripcion = None
             # Si hay observaciones y este es el examen médico principal, usar las observaciones
-            if observaciones_sin_analisis and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
-                descripcion = observaciones_sin_analisis
+            if observaciones_sin_analisis.strip() and ("OSTEOMUSCULAR" in examen.upper() or "OCUPACIONAL" in examen.upper()):
+                descripcion = observaciones_sin_analisis.strip()
             # Si es audiometría y hay datos de audiometría, usar el diagnóstico del audiograma
             elif "AUDIOMETRÍA" in examen.upper() or "AUDIOMETRIA" in examen.upper():
                 # Excepción puntual: omitir item para cédula 1140837675 (no imprimir nada en Resultados Generales)
