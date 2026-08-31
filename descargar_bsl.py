@@ -7130,7 +7130,11 @@ def api_tenant_info(historia_id):
                 "nombre": nombre,
                 "logo_url": config.get("logo_url") or "/static/logo-bsl.png",
                 "web": config.get("web") or "www.bsl.com.co",
-                "email": config.get("email", "")
+                "email": config.get("email", ""),
+                # Canal de comunidad para el CTA de la página (invitación al WhatsApp).
+                # Si el tenant no tiene canal, va null y la página no muestra el bloque.
+                "canal_whatsapp_url": config.get("canal_whatsapp_url"),
+                "canal_whatsapp_titulo": config.get("canal_whatsapp_titulo") or "Únete a nuestra comunidad de salud"
             })
             resp.headers["Access-Control-Allow-Origin"] = "*"
             return resp

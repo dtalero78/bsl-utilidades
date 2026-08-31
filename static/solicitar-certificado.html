@@ -255,6 +255,9 @@
 
         <div class="message" id="message"></div>
 
+        <!-- Invitación al canal de comunidad (se puebla desde /api/tenant-info si el tenant tiene canal) -->
+        <div id="canalComunidad" style="display:none;"></div>
+
         <div class="footer">
             <p id="tenantNombre">Bienestar y Salud Laboral SAS</p>
             <p id="tenantWeb">www.bsl.com.co</p>
@@ -284,6 +287,26 @@
                     if (info.nombre) document.getElementById('tenantNombre').textContent = info.nombre;
                     if (info.web) document.getElementById('tenantWeb').textContent = info.web;
                     if (info.nombre) document.title = `Certificado - ${info.nombre}`;
+
+                    // CTA del canal de comunidad. Es el punto de mayor tráfico (todos los
+                    // que descargan su certificado pasan por acá) y el mejor momento
+                    // (acaban de recibir lo que querían). Solo si el tenant tiene canal.
+                    if (info.canal_whatsapp_url) {
+                        const cont = document.getElementById('canalComunidad');
+                        if (cont) {
+                            const titulo = (info.canal_whatsapp_titulo || 'Únete a nuestra comunidad de salud')
+                                .replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+                            const url = String(info.canal_whatsapp_url).replace(/"/g, '&quot;');
+                            cont.innerHTML =
+                                '<div style="margin-top:20px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;text-align:center;">' +
+                                  '<div style="font-size:28px;line-height:1;margin-bottom:8px;">💚</div>' +
+                                  '<div style="color:#065F46;font-weight:700;font-size:16px;margin-bottom:6px;">' + titulo + '</div>' +
+                                  '<p style="color:#047857;font-size:14px;margin:0 0 14px;line-height:1.5;">Consulta médica general gratis, consejos de nuestros médicos y descuentos. Sin costo y sin que nadie vea tu número.</p>' +
+                                  '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 28px;border-radius:8px;">Unirme a la comunidad</a>' +
+                                '</div>';
+                            cont.style.display = 'block';
+                        }
+                    }
                 })
                 .catch(() => {});
         })();
