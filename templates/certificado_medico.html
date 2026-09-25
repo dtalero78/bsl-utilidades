@@ -1310,7 +1310,11 @@
                     </td>
                     <!-- Columna Firma SST -->
                     <td style="width: 33%; vertical-align: top; padding-left: 15px;">
+                        {% if firma_sst_url %}
+                        <img src="{{ firma_sst_url }}" alt="Firma SST" style="max-height: 40px;">
+                        {% else %}
                         <div style="height: 40px;"></div>
+                        {% endif %}
                         <hr style="border: none; border-top: 1px solid #000; margin: 4px 0;">
                         <div style="font-weight: bold; font-size: 11px;">Firma SST</div>
                     </td>

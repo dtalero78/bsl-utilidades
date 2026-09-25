@@ -86,6 +86,23 @@ def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia
 # ciudad forzada a "BOGOTÁ" y nombre de empresa forzado a "PARTICULAR".
 EMPRESAS_COMO_PARTICULAR = ("GODRONE", "COLDRON", "COLDRONE")
 
+# Firma de SST que va en la tercera columna del certificado. Es fija por empresa:
+# la firma el área de SST del cliente, no alguien de la IPS, así que no sale de
+# `medicos.firma` ni del flujo de aprobación. Una empresa que no esté en el mapa
+# deja la casilla en blanco, que es el comportamiento histórico.
+FIRMAS_SST_POR_EMPRESA = {
+    "PROTEGEMOS": "FIRMA-SST-PROTEGEMOS.png",
+}
+
+
+def firma_sst_para(cod_empresa):
+    """URL de la firma de SST de esa empresa, o "" si no tiene."""
+    archivo = FIRMAS_SST_POR_EMPRESA.get((cod_empresa or "").strip().upper())
+    if not archivo:
+        return ""
+    return f"https://bsl-utilidades-yp78a.ondigitalocean.app/static/{archivo}"
+
+
 
 # Cache simple de credenciales tenant (TTL 60s). Evita hit a BD por cada mensaje.
 _TENANT_CRED_CACHE = {}
@@ -3497,6 +3514,7 @@ def generar_certificado_medico():
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
+            "firma_sst_url": data.get("firma_sst_url"),
 
             # Firma del fonoaudiólogo para audiometría
             "fono_nombre": data.get("fono_nombre", "JENNY MARCELA MARTINEZ HIGUERA"),
@@ -3796,6 +3814,7 @@ def generar_certificado_medico_puppeteer():
             "optometra_nombre": data.get("optometra_nombre", "Dr. Miguel Garzón Rincón"),
             "optometra_registro": data.get("optometra_registro", "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017"),
             "firma_optometra_url": data.get("firma_optometra_url"),
+            "firma_sst_url": data.get("firma_sst_url"),
 
             # Firma del fonoaudiólogo para audiometría
             "fono_nombre": data.get("fono_nombre", "JENNY MARCELA MARTINEZ HIGUERA"),
@@ -5853,6 +5872,7 @@ def api_generar_certificado_pdf(wix_id):
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
+        firma_sst_url = firma_sst_para(datos_wix.get('codEmpresa'))
         print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.jpeg")
 
         # Datos del tenant (distintivo, nombre, etc.) para usar en el payload
@@ -5928,6 +5948,7 @@ def api_generar_certificado_pdf(wix_id):
             "firma_medico_url": firma_medico_url,
             "firma_paciente_url": firma_paciente_url,
             "firma_optometra_url": firma_optometra_url,
+            "firma_sst_url": firma_sst_url,
 
             # Almacenamiento
             "guardar_drive": guardar_drive,
@@ -6970,6 +6991,7 @@ def preview_certificado_html(wix_id):
 
         # Firma del optómetra (siempre la misma)
         firma_optometra_url = "https://bsl-utilidades-yp78a.ondigitalocean.app/static/FIRMA-OPTOMETRA.jpeg"
+        firma_sst_url = firma_sst_para(datos_wix.get('codEmpresa'))
         print(f"✅ Firma optómetra: FIRMA-OPTOMETRA.jpeg")
 
         # Generar código de seguridad
@@ -7024,6 +7046,7 @@ def preview_certificado_html(wix_id):
             "optometra_nombre": "Dr. Miguel Garzón Rincón",
             "optometra_registro": "C.C.: 79.569.881 - Optómetra Ocupacional Res. 6473 04/07/2017",
             "firma_optometra_url": firma_optometra_url,
+            "firma_sst_url": firma_sst_url,
             "fono_nombre": "JENNY MARCELA MARTINEZ HIGUERA",
             "fono_registro": "TP Resolución 4502 Dic 2012 - C.C.: 1.024.479.059",
             "firma_fono_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/firmaFono.jpeg",
