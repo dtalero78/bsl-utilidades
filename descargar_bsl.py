@@ -5376,7 +5376,7 @@ def api_generar_certificado_pdf(wix_id):
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
         print(f"📋 Exámenes normalizados: {examenes_normalizados}")
         # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
-        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA'}
         if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
             examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
@@ -5582,18 +5582,15 @@ def api_generar_certificado_pdf(wix_id):
 
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
-        cod_empresa_actual = datos_wix.get('codEmpresa', '')
         tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
 
-        if tiene_examen_adc and cod_empresa_actual != 'SITEL':
+        if tiene_examen_adc:
             wix_id_historia_adc = datos_wix.get('_id', '')
             print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}")
             datos_adc = obtener_adc_postgres(wix_id_historia_adc)
 
             if not datos_adc:
                 print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}")
-        elif cod_empresa_actual == 'SITEL':
-            print(f"ℹ️ ADC excluido para empresa SITEL (codEmpresa={cod_empresa_actual})")
 
         # ===== LÓGICA DE TEXTOS DINÁMICOS SEGÚN EXÁMENES (como en Wix) =====
         # Nota: Las claves deben coincidir con los nombres normalizados (MAYÚSCULAS de tabla examenes PostgreSQL)
@@ -6420,7 +6417,7 @@ def preview_certificado_html(wix_id):
         examenes = normalizar_lista_examenes(datos_wix.get('examenes', []))
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
         # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
-        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA', 'PERFIL PSICOLÓGICO ADC'}
+        EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA'}
         if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
             examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
@@ -6633,18 +6630,15 @@ def preview_certificado_html(wix_id):
 
         # ===== CONSULTAR DATOS DE ADC (Perfil Psicológico) =====
         datos_adc = None
-        cod_empresa_actual = datos_wix.get('codEmpresa', '')
         tiene_examen_adc = any(e in ['PERFIL PSICOLÓGICO ADC', 'PERFIL PSICOLOGICO ADC', 'Perfil Psicológico ADC'] for e in examenes_normalizados)
 
-        if tiene_examen_adc and cod_empresa_actual != 'SITEL':
+        if tiene_examen_adc:
             wix_id_historia_adc = datos_wix.get('_id', wix_id)
             print(f"🔍 [PRIORIDAD 1] Consultando pruebasADC en PostgreSQL para: {wix_id_historia_adc}", flush=True)
             datos_adc = obtener_adc_postgres(wix_id_historia_adc)
 
             if not datos_adc:
                 print(f"⚠️ No se encontraron datos ADC para {wix_id_historia_adc}", flush=True)
-        elif cod_empresa_actual == 'SITEL':
-            print(f"ℹ️ ADC excluido para empresa SITEL (codEmpresa={cod_empresa_actual})", flush=True)
 
         # ===== CONSULTAR DATOS DEL FORMULARIO DESDE POSTGRESQL =====
         # Solo consultar PostgreSQL si NO venimos de Alegra con datos ya cargados

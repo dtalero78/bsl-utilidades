@@ -1112,12 +1112,14 @@
         </div>
         {% endif %}
 
-        <!-- RESULTADOS DE PERFIL PSICOLÓGICO ADC -->
-        {% if 'PERFIL PSICOLÓGICO ADC' in examenes or 'Perfil Psicológico ADC' in examenes or 'PERFIL PSICOLOGICO ADC' in examenes %}
+        <!-- RESULTADOS DE PERFIL PSICOLÓGICO ADC
+             La página existe solo si hay resultados. Antes se abría por el campo
+             `examenes` y el contenido dependía de `datos_adc`: cuando no coincidían,
+             el certificado dedicaba una página entera a afirmar que no había
+             resultados de una prueba que sí se había hecho. -->
+        {% if datos_adc %}
         <div class="section" style="page-break-before: always; margin-top: 30px;">
             <div class="section-title">Resultados del Perfil Psicológico ADC</div>
-
-            {% if datos_adc %}
 
             <!-- ANSIEDAD -->
             <div class="adc-subsection">
@@ -1254,12 +1256,6 @@
             </div>
             {% endif %}
 
-            {% else %}
-                <div class="result-item" style="text-align: center; padding: 40px; background: #fff3cd; border-left: 4px solid #ffc107;">
-                    <h3 style="color: #856404;">NO HAY DATOS DISPONIBLES</h3>
-                    <p style="color: #856404;">No se encontraron resultados del Perfil Psicológico ADC para este paciente.</p>
-                </div>
-            {% endif %}
         </div>
         {% endif %}
 
