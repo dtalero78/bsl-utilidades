@@ -700,8 +700,8 @@
         </div>
         {% endif %}
 
-        <!-- ANÁLISIS POSTURAL (oculto para REMOTE) -->
-        {% if analisis_postural and analisis_postural|length > 0 and cod_empresa != 'REMOTE' %}
+        <!-- ANÁLISIS POSTURAL (oculto para PROTEGEMOS) -->
+        {% if analisis_postural and analisis_postural|length > 0 and cod_empresa != 'PROTEGEMOS' %}
         <div class="section">
             <div class="section-title">Análisis Postural</div>
             {% for ejercicio in analisis_postural %}
@@ -1260,7 +1260,7 @@
         {% endif %}
 
         <!-- PÁGINA DE RECOMENDACIONES GENERALES Y CONCEPTO APTITUDINAL -->
-        {% if cod_empresa == 'REMOTE' and not mostrar_sin_soporte and concepto_medico %}
+        {% if cod_empresa == 'PROTEGEMOS' and not mostrar_sin_soporte and concepto_medico %}
         <div style="page-break-before: always; padding: 20px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.5;">
 
             <!-- Título -->

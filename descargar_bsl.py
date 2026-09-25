@@ -5377,7 +5377,7 @@ def api_generar_certificado_pdf(wix_id):
         print(f"📋 Exámenes normalizados: {examenes_normalizados}")
         # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
         EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA'}
-        if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
+        if datos_wix.get('codEmpresa') in ('SITEL', 'PROTEGEMOS'):
             examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
             examenes_para_template = examenes_normalizados
@@ -6418,7 +6418,7 @@ def preview_certificado_html(wix_id):
         examenes_normalizados = [normalizar_examen(e) for e in examenes]
         # SITEL/REMOTE: excluir secciones detalladas de optometría, audiometría y ADC
         EXAMENES_DETALLE_EXCLUIDOS = {'OPTOMETRÍA', 'VISIOMETRÍA', 'AUDIOMETRÍA'}
-        if datos_wix.get('codEmpresa') in ('SITEL', 'REMOTE'):
+        if datos_wix.get('codEmpresa') in ('SITEL', 'PROTEGEMOS'):
             examenes_para_template = [e for e in examenes_normalizados if e not in EXAMENES_DETALLE_EXCLUIDOS]
         else:
             examenes_para_template = examenes_normalizados
