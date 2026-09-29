@@ -689,8 +689,16 @@
         {% if resultados_generales %}
         <div class="section">
             <div class="section-title">Resultados Generales</div>
+            {# Flags por empresa (config_certificado): con audiometría Y visiometría ocultas solo queda el
+               osteomuscular; con uno solo, se omite la línea de ese examen. La tarjeta de "Exámenes
+               Realizados" no se toca. #}
+            {% set solo_osteo = ocultar_audiometria and ocultar_visiometria %}
             {% for resultado in resultados_generales %}
-            {% if resultado.examen %}
+            {% set ex = (resultado.examen or '')|upper %}
+            {% if resultado.examen
+                  and not (solo_osteo and 'OSTEOMUSCULAR' not in ex)
+                  and not (ocultar_audiometria and 'AUDIOMETR' in ex)
+                  and not (ocultar_visiometria and ('OPTOMETR' in ex or 'VISIOMETR' in ex)) %}
             <div class="result-item">
                 <h3>{{ resultado.examen }}</h3>
                 <p>{{ resultado.descripcion }}</p>
