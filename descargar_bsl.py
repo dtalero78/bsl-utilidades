@@ -5787,7 +5787,8 @@ def api_generar_certificado_pdf(wix_id):
             "MARY": "FIRMA-MARY.jpeg",
             "NUBIA": "FIRMA-JUAN134.jpeg",
             "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg",
-            "PILAR": "FIRMA_PILAR.png"
+            "PILAR": "FIRMA_PILAR.png",
+            "GINA": "FIRMA-GINA.png"
         }
 
         # Datos de cada médico
@@ -5833,6 +5834,12 @@ def api_generar_certificado_pdf(wix_id):
                 "registro": "C.C.: 1.090.419.867 - MÉDICO OCUPACIONAL",
                 "licencia": "Resolución No. 27293",
                 "fecha": "05 DE AGOSTO DE 2025"
+            },
+            "GINA": {
+                "nombre": "GINA YOLANDA HERNANDEZ YABRUDY",
+                "registro": "REGISTRO MÉDICO NO 3560-07",
+                "licencia": "LICENCIA SST NO. 3858 DEL 12/07/2012",
+                "fecha": "12 DE JULIO DE 2012"
             }
         }
 
@@ -6903,7 +6910,8 @@ def preview_certificado_html(wix_id):
             "MARY": "FIRMA-MARY.jpeg",
             "NUBIA": "FIRMA-JUAN134.jpeg",
             "PRESENCIAL": "FIRMA-PRESENCIAL.jpeg",
-            "PILAR": "FIRMA_PILAR.png"
+            "PILAR": "FIRMA_PILAR.png",
+            "GINA": "FIRMA-GINA.png"
         }
 
         # Datos de cada médico
@@ -6949,6 +6957,12 @@ def preview_certificado_html(wix_id):
                 "registro": "C.C.: 1.090.419.867 - MÉDICO OCUPACIONAL",
                 "licencia": "Resolución No. 27293",
                 "fecha": "05 DE AGOSTO DE 2025"
+            },
+            "GINA": {
+                "nombre": "GINA YOLANDA HERNANDEZ YABRUDY",
+                "registro": "REGISTRO MÉDICO NO 3560-07",
+                "licencia": "LICENCIA SST NO. 3858 DEL 12/07/2012",
+                "fecha": "12 DE JULIO DE 2012"
             }
         }
 
