@@ -366,7 +366,7 @@ def obtener_nit_empresa(cod_empresa):
 
 def obtener_config_certificado_empresa(cod_empresa):
     """Lee config_certificado (JSONB) de la empresa. Shape esperado:
-    { 'ocultar_audiometria': bool, 'ocultar_visiometria': bool }.
+    { 'ocultar_audiometria': bool, 'ocultar_visiometria': bool, 'ocultar_adc': bool }.
     Se usa para omitir bloques numéricos detallados en el PDF. Retorna dict vacío
     si no hay config, la columna no existe todavía, o falla la consulta."""
     try:
@@ -3602,6 +3602,7 @@ def generar_certificado_medico():
         _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML...")
@@ -3902,6 +3903,7 @@ def generar_certificado_medico_puppeteer():
         _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # PRE-PROCESAR IMÁGENES: convertir URLs de Wix a DO Spaces ANTES de renderizar
         print("🖼️ Pre-procesando imágenes para usar DO Spaces...")
@@ -4563,6 +4565,7 @@ def test_certificado_postgres(wix_id):
         _cfg_cert = obtener_config_certificado_empresa(cod_empresa or "")
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # Datos del tenant (endpoint de prueba: usa defaults BSL)
         datos_certificado.update(obtener_datos_tenant(None))
@@ -7084,6 +7087,7 @@ def preview_certificado_html(wix_id):
         _cfg_cert = obtener_config_certificado_empresa(datos_wix.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")

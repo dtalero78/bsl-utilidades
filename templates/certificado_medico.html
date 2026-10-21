@@ -1125,7 +1125,7 @@
              `examenes` y el contenido dependía de `datos_adc`: cuando no coincidían,
              el certificado dedicaba una página entera a afirmar que no había
              resultados de una prueba que sí se había hecho. -->
-        {% if datos_adc %}
+        {% if datos_adc and not ocultar_adc %}
         <div class="section" style="page-break-before: always; margin-top: 30px;">
             <div class="section-title">Resultados del Perfil Psicológico ADC</div>
 
