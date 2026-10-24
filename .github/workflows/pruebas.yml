@@ -1,0 +1,17 @@
+# Pruebas de tests/ (sin red ni base). OJO: DigitalOcean despliega cada push a main
+# (.do/app.yaml, deploy_on_push) sin esperar este resultado: revisarlo en el PR antes del merge.
+name: Pruebas
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install flask jinja2
+      - run: python -m unittest discover -s tests -v
