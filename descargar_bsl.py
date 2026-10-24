@@ -38,6 +38,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from push_notifications import register_push_token, send_new_message_notification
 from openai import OpenAI
+import certificado_firma  # link firmado del certificado (Paso A): acepta la firma y cuenta
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -672,6 +673,13 @@ CORS(app, resources={
     r"/api/actualizar-formulario": {"origins": "*", "methods": ["POST", "OPTIONS"]},  # API para actualizar formularios
     r"/ver-formularios.html": {"origins": "*", "methods": ["GET", "OPTIONS"]}  # Página para ver y editar formularios
 })
+
+
+# Link firmado del certificado, Paso A (ver certificado_firma.py): cuenta cada apertura de una
+# puerta del certificado, con o sin firma. NO bloquea nada: devuelve None y el request sigue.
+@app.before_request
+def _contar_apertura_certificado():
+    return certificado_firma.registrar_apertura(request)
 
 # Configuración de carpetas por empresa
 EMPRESA_FOLDERS = {
@@ -5157,8 +5165,12 @@ def generar_certificado_desde_wix(wix_id):
     tenant_id = datos_hc.get('tenant_id') if datos_hc else None
     logo_url = obtener_logo_tenant(tenant_id)
 
+    # Si el link vino firmado por BSL-PLATAFORMA2, la firma sigue hasta la descarga del PDF
+    firma_exp, firma = certificado_firma.parametros_para_reenviar(request.args)
+
     # Mostrar página de loader
-    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url)
+    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url,
+                           firma_exp=firma_exp, firma=firma)
 
 
 @app.route("/generar-certificado-desde-wix-puppeteer/<wix_id>", methods=["GET", "OPTIONS"])
@@ -5976,6 +5988,10 @@ def api_generar_certificado_pdf(wix_id):
         cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
         preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
         print(f"🔗 URL del preview: {preview_url}")
+        # Puppeteer es este mismo servidor: firma interna para no contarse como apertura (Paso A)
+        firma_interna = certificado_firma.query_interna(wix_id)
+        if firma_interna:
+            preview_url += f"&{firma_interna}"
 
         # Generar PDF usando Puppeteer
         try:
@@ -7482,7 +7498,13 @@ def enviar_certificado_whatsapp():
         cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
 
         # Generar el PDF (hacer request al endpoint) - Timeout aumentado a 180s por certificados complejos
-        pdf_response = requests.get(f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}", timeout=180)
+        # Es este mismo servidor: va con firma interna para no contarse como apertura (Paso A).
+        # El envío por WhatsApp ya se contó al entrar a este endpoint.
+        url_pdf = f"https://bsl-utilidades-yp78a.ondigitalocean.app/api/generar-certificado-pdf/{wix_id}?v={cache_buster}"
+        firma_interna = certificado_firma.query_interna(wix_id)
+        if firma_interna:
+            url_pdf += f"&{firma_interna}"
+        pdf_response = requests.get(url_pdf, timeout=180)
 
         if pdf_response.status_code != 200:
             return jsonify({

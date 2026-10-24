@@ -212,7 +212,11 @@
 
         // Iniciar descarga en segundo plano
         const wixId = "{{ wix_id }}";
-        const downloadUrl = `/api/generar-certificado-pdf/${wixId}`;
+        // Link firmado por BSL-PLATAFORMA2: la firma sigue hasta el PDF (solo dígitos y hex).
+        const firmaExp = "{{ firma_exp or '' }}";
+        const firma = "{{ firma or '' }}";
+        const downloadUrl = `/api/generar-certificado-pdf/${wixId}` +
+            (firma ? `?exp=${firmaExp}&firma=${firma}` : '');
 
         fetch(downloadUrl)
             .then(response => {
