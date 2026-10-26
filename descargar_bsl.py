@@ -21,6 +21,8 @@ import time
 import queue
 import threading
 import locale
+import re
+import unicodedata
 
 # Configurar locale español para fechas
 try:
@@ -10333,23 +10335,55 @@ def contar_hijos(items):
     }
 
 
+def _clave_texto_libre(texto):
+    """Clave para agrupar texto libre escrito de varias formas: sin tildes ni puntuación."""
+    sin_tildes = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('ascii')
+    return ' '.join(re.sub(r'[^A-Z0-9 ]', ' ', sin_tildes.upper()).split())
+
+
+def _agrupar_texto_libre(valores, clave_fn=_clave_texto_libre):
+    """Agrupa variantes de escritura y nombra cada grupo con su variante más frecuente.
+    Retorna {clave: (nombre, cantidad)}."""
+    grupos = {}
+    for valor in valores:
+        variantes = grupos.setdefault(clave_fn(valor), {})
+        variantes[valor] = variantes.get(valor, 0) + 1
+    return {
+        clave: (max(variantes, key=variantes.get), sum(variantes.values()))
+        for clave, variantes in grupos.items()
+    }
+
+
+def _clave_ciudad(ciudad):
+    # "BARRANQUILLA, ATLÁNTICO" -> "BARRANQUILLA" (el departamento no separa la ciudad)
+    clave = _clave_texto_libre(ciudad.split(',')[0])
+    # BOGOTA, BOGOTA D C, BOGOTA DC, SANTAFE DE BOGOTA... son la misma ciudad
+    if 'BOGOTA' in clave:
+        return 'BOGOTA'
+    return clave
+
+
 def contar_ciudad_residencia(items):
     total = len(items)
-    ciudades_map = {}
+    valores = []
 
     for item in items:
         # PostgreSQL usa ciudad_residencia, Wix usa ciudadDeResidencia
-        ciudad = str(item.get('ciudad_residencia', item.get('ciudadDeResidencia', ''))).upper().strip()
+        ciudad = str(item.get('ciudad_residencia', item.get('ciudadDeResidencia', '')) or '').upper().strip()
         if ciudad:
-            ciudades_map[ciudad] = ciudades_map.get(ciudad, 0) + 1
+            valores.append(ciudad)
+
+    grupos = _agrupar_texto_libre(valores, _clave_ciudad)
+    if 'BOGOTA' in grupos:
+        grupos['BOGOTA'] = ('BOGOTÁ D.C.', grupos['BOGOTA'][1])
 
     ciudades = sorted([
         {
-            'nombre': ciudad,
+            'nombre': nombre,
             'cantidad': cantidad,
             'porcentaje': (cantidad / total * 100) if total > 0 else 0
         }
-        for ciudad, cantidad in ciudades_map.items()
+        for nombre, cantidad in grupos.values()
     ], key=lambda x: x['cantidad'], reverse=True)
 
     return {'total': total, 'ciudades': ciudades}
@@ -10357,13 +10391,15 @@ def contar_ciudad_residencia(items):
 
 def contar_profesion(items):
     total = len(items)
-    profesiones_map = {}
+    valores = []
 
     for item in items:
         # PostgreSQL usa profesion_oficio, Wix usa profesionUOficio
-        profesion = str(item.get('profesion_oficio', item.get('profesionUOficio', ''))).upper().strip()
+        profesion = str(item.get('profesion_oficio', item.get('profesionUOficio', '')) or '').upper().strip()
         if profesion:
-            profesiones_map[profesion] = profesiones_map.get(profesion, 0) + 1
+            valores.append(profesion)
+
+    profesiones_map = dict(_agrupar_texto_libre(valores).values())
 
     profesiones = sorted([
         {
@@ -10438,14 +10474,17 @@ def contar_encuesta_salud(items):
 def contar_diagnosticos(items):
     total = len(items)
     diagnosticos_map = {}
+    sin_diagnostico = 0
 
     for item in items:
-        md_dx1 = str(item.get('mdDx1', '')).strip()
-        if md_dx1:
-            for dx in md_dx1.replace(';', ',').split(','):
-                dx_clean = dx.strip().upper()
-                if dx_clean:
-                    diagnosticos_map[dx_clean] = diagnosticos_map.get(dx_clean, 0) + 1
+        md_dx1 = str(item.get('mdDx1') or '').strip()
+        if not md_dx1:
+            sin_diagnostico += 1
+            continue
+        for dx in md_dx1.replace(';', ',').split(','):
+            dx_clean = dx.strip().upper()
+            if dx_clean:
+                diagnosticos_map[dx_clean] = diagnosticos_map.get(dx_clean, 0) + 1
 
     diagnosticos = sorted([
         {
@@ -10456,7 +10495,14 @@ def contar_diagnosticos(items):
         for dx, cantidad in diagnosticos_map.items()
     ], key=lambda x: x['cantidad'], reverse=True)
 
-    return {'total': total, 'diagnosticos': diagnosticos}
+    return {
+        'total': total,
+        'diagnosticos': diagnosticos,
+        'sinDiagnostico': {
+            'cantidad': sin_diagnostico,
+            'porcentaje': (sin_diagnostico / total * 100) if total > 0 else 0
+        }
+    }
 
 
 def generar_sve(items):
@@ -10470,7 +10516,7 @@ def generar_sve(items):
 
         all_dx = []
         for dx_field in ['mdDx1', 'mdDx2']:
-            dx_value = str(item.get(dx_field, '')).strip()
+            dx_value = str(item.get(dx_field) or '').strip()
             if dx_value:
                 all_dx.extend([d.strip().upper() for d in dx_value.replace(';', ',').split(',')])
 
@@ -10507,277 +10553,109 @@ def serve_informes():
     return send_from_directory('static', 'informes.html')
 
 
-def generar_grafico_pie(datos, titulo, colores=None):
-    """
-    Genera un gráfico de torta (pie chart) y retorna la imagen en base64.
-
-    Args:
-        datos: dict con formato {'label': valor}
-        titulo: str con el título del gráfico
-        colores: list de colores hexadecimales (opcional)
-
-    Returns:
-        str: imagen en formato base64
-    """
-    import matplotlib
-    matplotlib.use('Agg')  # Backend sin GUI
-    import matplotlib.pyplot as plt
-    from io import BytesIO
-
-    # Filtrar valores vacíos o cero
-    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
-
-    if not datos_filtrados:
-        return None
-
-    # Configurar figura con fondo blanco
-    fig, ax = plt.subplots(figsize=(8, 6), facecolor='white')
-
-    labels = list(datos_filtrados.keys())
-    sizes = list(datos_filtrados.values())
-
-    # Paleta de colores profesional para salud ocupacional (tonos azules, verdes, naranjas suaves)
-    if not colores:
-        colores = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#ec4899', '#6366f1']
-
-    # Crear el gráfico con efecto de explosión sutil en el segmento más grande
-    explode = [0.05 if size == max(sizes) else 0 for size in sizes]
-
-    wedges, texts, autotexts = ax.pie(
-        sizes,
-        labels=labels,
-        autopct='%1.1f%%',
-        colors=colores[:len(sizes)],
-        startangle=90,
-        explode=explode,
-        textprops={'fontsize': 11, 'weight': '600', 'family': 'sans-serif'},
-        wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'antialiased': True}
+def _titulo_legible(texto):
+    """'SERVICIO AL CLIENTE' -> 'Servicio al Cliente' (conectores en minúscula)."""
+    conectores = {'De', 'Del', 'La', 'Las', 'Los', 'Y', 'En', 'Al', 'El', 'O'}
+    palabras = texto.title().split(' ')
+    return ' '.join(
+        p.lower() if i > 0 and p in conectores else p
+        for i, p in enumerate(palabras)
     )
 
-    # Hacer el texto de porcentaje blanco y más legible
-    for autotext in autotexts:
-        autotext.set_color('white')
-        autotext.set_fontsize(10)
-        autotext.set_weight('bold')
 
-    # Mejorar etiquetas de categorías
-    for text in texts:
-        text.set_fontsize(11)
-        text.set_weight('600')
-        text.set_color('#1f2937')
-
-    # Título moderno con mejor tipografía
-    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
-
-    # Convertir a base64
-    buffer = BytesIO()
-    plt.tight_layout(pad=1.5)
-    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-    plt.close(fig)
-
-    return image_base64
+def _filas_porcentaje(pares, no_reporta=True):
+    """[(nombre, porcentaje)] -> filas para el PDF. Agrega 'No reporta' con lo que falta para el 100%."""
+    filas = [{'nombre': nombre, 'porcentaje': porcentaje} for nombre, porcentaje in pares]
+    resto = 100 - sum(porcentaje for _, porcentaje in pares)
+    if no_reporta and resto >= 0.05:
+        filas.append({'nombre': 'No reporta', 'porcentaje': resto, 'sinDato': True})
+    return filas
 
 
-def generar_grafico_barras(datos, titulo, xlabel='', ylabel='Cantidad', colores=None):
+def _filas_top(lista, max_items, etiqueta_otros):
+    """Top N de una lista {nombre, porcentaje}; el resto se agrupa en una sola fila."""
+    pares = [(_titulo_legible(x['nombre']), x['porcentaje']) for x in lista[:max_items]]
+    otros = sum(x['porcentaje'] for x in lista[max_items:])
+    if otros >= 0.05:
+        pares.append((etiqueta_otros, otros))
+    return _filas_porcentaje(pares)
+
+
+def construir_distribuciones_pdf(estadisticas):
     """
-    Genera un gráfico de barras y retorna la imagen en base64.
-
-    Args:
-        datos: dict con formato {'label': valor}
-        titulo: str con el título del gráfico
-        xlabel: str con etiqueta del eje X
-        ylabel: str con etiqueta del eje Y
-        colores: list de colores hexadecimales (opcional)
-
-    Returns:
-        str: imagen en formato base64
+    Filas de cada sección del PDF del informe, solo en porcentajes.
+    El PDF va al cliente y no debe revelar cuántas personas se atendieron.
     """
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    from io import BytesIO
-    import numpy as np
+    edad = estadisticas['edad']['rangos']
+    estados = estadisticas['estadoCivil']['estados']
+    niveles = estadisticas['nivelEducativo']['niveles']
+    hijos = estadisticas['hijos']['grupos']
+    genero = estadisticas['genero']
 
-    # Filtrar valores vacíos o cero
-    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
+    # SVE: porcentaje de trabajadores evaluados (únicos) que entran a cada sistema
+    total_evaluados = estadisticas['diagnosticos']['total']
+    documentos_sve = {'Visual': set(), 'Auditivo': set(), 'Control de Peso': set()}
+    for paciente in estadisticas['sve']['pacientes']:
+        documentos_sve[paciente['sistema']].add(paciente['documento'])
+    sve = {
+        sistema: (len(documentos) / total_evaluados * 100) if total_evaluados > 0 else 0
+        for sistema, documentos in documentos_sve.items()
+    }
 
-    if not datos_filtrados:
-        return None
-
-    # Configurar figura con fondo blanco
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-
-    labels = list(datos_filtrados.keys())
-    values = list(datos_filtrados.values())
-
-    # Gradiente de colores moderno (azul a verde)
-    if not colores:
-        colores = ['#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b']
-
-    # Crear el gráfico con bordes redondeados y sombra
-    x_pos = np.arange(len(labels))
-    bars = ax.bar(x_pos, values, color=colores[:len(values)],
-                   edgecolor='white', linewidth=2.5, alpha=0.9,
-                   width=0.7)
-
-    # Agregar valores encima de las barras con mejor formato
-    for i, (bar, value) in enumerate(zip(bars, values)):
-        height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2.,
-            height + (max(values) * 0.01),
-            f'{int(height)}',
-            ha='center',
-            va='bottom',
-            fontsize=11,
-            weight='bold',
-            color='#374151'
-        )
-
-    # Títulos y etiquetas con mejor tipografía
-    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
-    if xlabel:
-        ax.set_xlabel(xlabel, fontsize=12, weight='600', color='#374151', labelpad=10)
-    ax.set_ylabel(ylabel, fontsize=12, weight='600', color='#374151', labelpad=10)
-
-    # Grid más sutil y profesional
-    ax.grid(axis='y', alpha=0.2, linestyle='-', linewidth=0.8, color='#cbd5e1')
-    ax.set_axisbelow(True)
-
-    # Mejorar ejes
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#cbd5e1')
-    ax.spines['bottom'].set_color('#cbd5e1')
-
-    # Etiquetas del eje X
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=10, color='#4b5563')
-    ax.tick_params(axis='y', labelsize=10, colors='#4b5563')
-
-    # Convertir a base64
-    buffer = BytesIO()
-    plt.tight_layout(pad=1.5)
-    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-    plt.close(fig)
-
-    return image_base64
+    return {
+        'sve': sve,
+        'genero': _filas_porcentaje([
+            ('Masculino', genero['masculino']['porcentaje']),
+            ('Femenino', genero['femenino']['porcentaje'])
+        ]),
+        'edad': _filas_porcentaje([
+            ('15 a 20 años', edad['15-20']['porcentaje']),
+            ('21 a 30 años', edad['21-30']['porcentaje']),
+            ('31 a 40 años', edad['31-40']['porcentaje']),
+            ('41 a 50 años', edad['41-50']['porcentaje']),
+            ('Mayor de 50 años', edad['mayor50']['porcentaje'])
+        ]),
+        'estadoCivil': _filas_porcentaje([
+            ('Soltero(a)', estados['soltero']['porcentaje']),
+            ('Unión libre', estados['unionLibre']['porcentaje']),
+            ('Casado(a)', estados['casado']['porcentaje']),
+            ('Divorciado(a)', estados['divorciado']['porcentaje']),
+            ('Viudo(a)', estados['viudo']['porcentaje'])
+        ]),
+        'nivelEducativo': _filas_porcentaje([
+            ('Primaria', niveles['primaria']['porcentaje']),
+            ('Secundaria', niveles['secundaria']['porcentaje']),
+            ('Universitario', niveles['universitario']['porcentaje']),
+            ('Postgrado', niveles['postgrado']['porcentaje'])
+        ]),
+        'hijos': _filas_porcentaje([
+            ('Sin hijos', hijos['sinHijos']['porcentaje']),
+            ('1 hijo', hijos['unHijo']['porcentaje']),
+            ('2 hijos', hijos['dosHijos']['porcentaje']),
+            ('3 o más hijos', hijos['tresOMas']['porcentaje'])
+        ]),
+        'ciudadResidencia': _filas_top(estadisticas['ciudadResidencia']['ciudades'], 12, 'Otras ciudades'),
+        'profesionUOficio': _filas_top(estadisticas['profesionUOficio']['profesiones'], 12, 'Otras profesiones u oficios'),
+        # Una persona puede marcar varias condiciones: no suman 100%
+        'encuestaSalud': [
+            {'nombre': _titulo_legible(r['nombre']), 'porcentaje': r['porcentaje']}
+            for r in estadisticas['encuestaSalud']['respuestas'][:20]
+        ],
+        'diagnosticos': [
+            {'nombre': d['nombre'], 'porcentaje': d['porcentaje']}
+            for d in estadisticas['diagnosticos']['diagnosticos'][:15]
+        ]
+    }
 
 
-def generar_grafico_barras_horizontales(datos, titulo, xlabel='Cantidad', ylabel='', colores=None, max_items=15):
-    """
-    Genera un gráfico de barras horizontales y retorna la imagen en base64.
-    Útil para datos con muchas categorías o etiquetas largas.
-
-    Args:
-        datos: dict con formato {'label': valor}
-        titulo: str con el título del gráfico
-        xlabel: str con etiqueta del eje X
-        ylabel: str con etiqueta del eje Y
-        colores: list de colores hexadecimales (opcional)
-        max_items: int número máximo de items a mostrar
-
-    Returns:
-        str: imagen en formato base64
-    """
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    from io import BytesIO
-    import numpy as np
-
-    # Filtrar valores vacíos o cero
-    datos_filtrados = {k: v for k, v in datos.items() if v > 0}
-
-    if not datos_filtrados:
-        return None
-
-    # Ordenar por valor descendente y tomar top N
-    datos_ordenados = dict(sorted(datos_filtrados.items(), key=lambda x: x[1], reverse=True)[:max_items])
-
-    labels = list(datos_ordenados.keys())
-    values = list(datos_ordenados.values())
-
-    # Ajustar altura de figura según número de items
-    altura = max(6, len(labels) * 0.5)
-    fig, ax = plt.subplots(figsize=(10, altura), facecolor='white')
-
-    # Crear gradiente de colores del más oscuro al más claro
-    if not colores:
-        # Gradiente azul-turquesa para barras horizontales
-        base_colors = ['#0369a1', '#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc']
-        n_bars = len(values)
-        if n_bars <= len(base_colors):
-            colores = base_colors[:n_bars]
-        else:
-            # Interpolar colores si hay muchas barras
-            colores = [base_colors[int(i * (len(base_colors) - 1) / (n_bars - 1))] for i in range(n_bars)]
-
-    # Crear el gráfico (invertir para que el mayor esté arriba)
-    y_pos = np.arange(len(labels))
-    bars = ax.barh(y_pos, values, color=colores[:len(values)],
-                    edgecolor='white', linewidth=2.5, alpha=0.9,
-                    height=0.7)
-
-    # Agregar valores al final de las barras con mejor formato
-    for i, (bar, value) in enumerate(zip(bars, values)):
-        width = bar.get_width()
-        ax.text(
-            width + (max(values) * 0.01),
-            bar.get_y() + bar.get_height() / 2.,
-            f' {int(value)}',
-            ha='left',
-            va='center',
-            fontsize=10,
-            weight='bold',
-            color='#374151'
-        )
-
-    # Configurar ejes y etiquetas
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels, fontsize=10, color='#4b5563')
-    ax.invert_yaxis()  # Mayor valor arriba
-
-    # Títulos con mejor tipografía
-    ax.set_title(titulo, fontsize=15, weight='bold', pad=25, color='#1f2937', family='sans-serif')
-    ax.set_xlabel(xlabel, fontsize=12, weight='600', color='#374151', labelpad=10)
-    if ylabel:
-        ax.set_ylabel(ylabel, fontsize=12, weight='600', color='#374151', labelpad=10)
-
-    # Grid más sutil
-    ax.grid(axis='x', alpha=0.2, linestyle='-', linewidth=0.8, color='#cbd5e1')
-    ax.set_axisbelow(True)
-
-    # Mejorar ejes
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#cbd5e1')
-    ax.spines['bottom'].set_color('#cbd5e1')
-    ax.tick_params(axis='x', labelsize=10, colors='#4b5563')
-
-    # Convertir a base64
-    buffer = BytesIO()
-    plt.tight_layout(pad=1.5)
-    plt.savefig(buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-    plt.close(fig)
-
-    return image_base64
-
-
-def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
+def generar_conclusiones_informe(estadisticas, total_atenciones, empresa_nombre):
     """
     Genera conclusiones y recomendaciones finales basadas en las estadísticas del informe.
 
     Args:
         estadisticas: dict con todas las estadísticas calculadas
         total_atenciones: int número total de atenciones
-        cod_empresa: str código de la empresa
+        empresa_nombre: str razón social que aparece en el informe
 
     Returns:
         list de conclusiones/recomendaciones
@@ -10787,7 +10665,7 @@ def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
     # 1. Conclusión sobre cobertura (sin mencionar cantidad específica)
     conclusiones.append(
         f"Durante el período analizado se realizaron evaluaciones médicas ocupacionales "
-        f"a los trabajadores de {cod_empresa}, cumpliendo con los requisitos establecidos en la normatividad vigente "
+        f"a los trabajadores de {empresa_nombre}, cumpliendo con los requisitos establecidos en la normatividad vigente "
         f"de salud ocupacional y seguridad en el trabajo."
     )
 
@@ -10880,7 +10758,8 @@ def generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa):
 @app.route('/api/generar-pdf-informe', methods=['POST', 'OPTIONS'])
 def generar_pdf_informe():
     """
-    Genera un PDF profesional del informe de condiciones de salud usando WeasyPrint con gráficos matplotlib.
+    Genera un PDF profesional del informe de condiciones de salud usando WeasyPrint.
+    El PDF muestra solo porcentajes: nunca el número de personas atendidas.
 
     Recibe:
         - codEmpresa: Código de la empresa
@@ -11103,129 +10982,10 @@ def generar_pdf_informe():
         firma_representante_base64 = firma_reatiga_base64
 
         # 2.2 Generar conclusiones finales
-        conclusiones_finales = generar_conclusiones_informe(estadisticas, total_atenciones, cod_empresa)
+        conclusiones_finales = generar_conclusiones_informe(estadisticas, total_atenciones, empresa_razon_social)
 
-        # 2.5 Generar gráficos con matplotlib
-        logger.info("📊 Generando gráficos con matplotlib...")
-        graficos = {}
-
-        try:
-            # Gráfico de género (pie chart)
-            if estadisticas.get('genero'):
-                genero_data = {
-                    'Masculino': estadisticas['genero'].get('masculino', {}).get('cantidad', 0),
-                    'Femenino': estadisticas['genero'].get('femenino', {}).get('cantidad', 0)
-                }
-                graficos['genero'] = generar_grafico_pie(
-                    genero_data,
-                    'Distribución por Género'
-                )
-
-            # Gráfico de edad (bar chart)
-            if estadisticas.get('edad'):
-                edad_rangos = estadisticas['edad'].get('rangos', {})
-                edad_data = {
-                    '15-20': edad_rangos.get('15-20', {}).get('cantidad', 0),
-                    '21-30': edad_rangos.get('21-30', {}).get('cantidad', 0),
-                    '31-40': edad_rangos.get('31-40', {}).get('cantidad', 0),
-                    '41-50': edad_rangos.get('41-50', {}).get('cantidad', 0),
-                    'Mayor 50': edad_rangos.get('mayor50', {}).get('cantidad', 0)
-                }
-                graficos['edad'] = generar_grafico_barras(
-                    edad_data,
-                    'Distribución por Edad',
-                    xlabel='Rango de Edad',
-                    ylabel='Cantidad de Trabajadores'
-                )
-
-            # Gráfico de estado civil (pie chart)
-            if estadisticas.get('estadoCivil'):
-                estados = estadisticas['estadoCivil'].get('estados', {})
-                estado_civil_data = {
-                    'Soltero': estados.get('soltero', {}).get('cantidad', 0),
-                    'Casado': estados.get('casado', {}).get('cantidad', 0),
-                    'Unión Libre': estados.get('unionLibre', {}).get('cantidad', 0),
-                    'Divorciado': estados.get('divorciado', {}).get('cantidad', 0),
-                    'Viudo': estados.get('viudo', {}).get('cantidad', 0)
-                }
-                graficos['estadoCivil'] = generar_grafico_pie(
-                    estado_civil_data,
-                    'Distribución por Estado Civil'
-                )
-
-            # Gráfico de nivel educativo (bar chart)
-            if estadisticas.get('nivelEducativo'):
-                niveles = estadisticas['nivelEducativo'].get('niveles', {})
-                nivel_educativo_data = {
-                    'Primaria': niveles.get('primaria', {}).get('cantidad', 0),
-                    'Secundaria': niveles.get('secundaria', {}).get('cantidad', 0),
-                    'Universitario': niveles.get('universitario', {}).get('cantidad', 0),
-                    'Postgrado': niveles.get('postgrado', {}).get('cantidad', 0)
-                }
-                graficos['nivelEducativo'] = generar_grafico_barras(
-                    nivel_educativo_data,
-                    'Distribución por Nivel Educativo',
-                    xlabel='Nivel Educativo',
-                    ylabel='Cantidad de Trabajadores'
-                )
-
-            # Gráfico de hijos (bar chart)
-            if estadisticas.get('hijos'):
-                grupos = estadisticas['hijos'].get('grupos', {})
-                hijos_data = {
-                    'Sin hijos': grupos.get('sinHijos', {}).get('cantidad', 0),
-                    '1 hijo': grupos.get('unHijo', {}).get('cantidad', 0),
-                    '2 hijos': grupos.get('dosHijos', {}).get('cantidad', 0),
-                    '3+ hijos': grupos.get('tresOMas', {}).get('cantidad', 0)
-                }
-                graficos['hijos'] = generar_grafico_barras(
-                    hijos_data,
-                    'Distribución por Número de Hijos',
-                    xlabel='Número de Hijos',
-                    ylabel='Cantidad de Trabajadores'
-                )
-
-            # Gráfico de ciudad de residencia (barras horizontales - puede haber muchas)
-            if estadisticas.get('ciudadResidencia'):
-                ciudades_list = estadisticas['ciudadResidencia'].get('ciudades', [])
-                ciudad_data = {ciudad['nombre']: ciudad['cantidad'] for ciudad in ciudades_list if ciudad.get('cantidad', 0) > 0}
-                graficos['ciudadResidencia'] = generar_grafico_barras_horizontales(
-                    ciudad_data,
-                    'Top 15 Ciudades de Residencia',
-                    xlabel='Cantidad de Trabajadores',
-                    max_items=15
-                )
-
-            # Gráfico de profesión (barras horizontales - puede haber muchas)
-            if estadisticas.get('profesionUOficio'):
-                profesiones_list = estadisticas['profesionUOficio'].get('profesiones', [])
-                profesion_data = {prof['nombre']: prof['cantidad'] for prof in profesiones_list if prof.get('cantidad', 0) > 0}
-                graficos['profesionUOficio'] = generar_grafico_barras_horizontales(
-                    profesion_data,
-                    'Top 15 Profesiones u Oficios',
-                    xlabel='Cantidad de Trabajadores',
-                    max_items=15
-                )
-
-            # Gráfico de diagnósticos (barras horizontales - suelen ser muchos)
-            if estadisticas.get('diagnosticos'):
-                diagnosticos_list = estadisticas['diagnosticos'].get('diagnosticos', [])
-                # Convertir lista a dict para el gráfico
-                diagnosticos_data = {diag['diagnostico']: diag['total'] for diag in diagnosticos_list if diag.get('total', 0) > 0}
-                graficos['diagnosticos'] = generar_grafico_barras_horizontales(
-                    diagnosticos_data,
-                    'Top 15 Diagnósticos Encontrados',
-                    xlabel='Número de Casos',
-                    max_items=15
-                )
-
-            logger.info(f"✅ Gráficos generados: {list(graficos.keys())}")
-
-        except Exception as e:
-            logger.error(f"❌ Error generando gráficos: {str(e)}")
-            logger.error(traceback.format_exc())
-            # Continuar sin gráficos si hay un error
-            graficos = {}
+        # 2.5 Filas en porcentaje para tablas y barras del PDF
+        distribuciones = construir_distribuciones_pdf(estadisticas)
 
         # 3. Formatear fechas en español
         def formatear_fecha_espanol(fecha_str):
@@ -11240,17 +11000,9 @@ def generar_pdf_informe():
 
         fecha_inicio_formato = formatear_fecha_espanol(fecha_inicio)
         fecha_fin_formato = formatear_fecha_espanol(fecha_fin)
-        fecha_elaboracion = datetime.now().strftime('%d de %B de %Y')
-
-        # Intentar usar locale si está disponible
-        try:
-            fecha_elaboracion = datetime.now().strftime('%d de %B de %Y')
-        except:
-            mes_actual = MESES_ESPANOL.get(datetime.now().month, str(datetime.now().month))
-            fecha_elaboracion = f"{datetime.now().day} de {mes_actual} de {datetime.now().year}"
-
-        # Fecha para la página de custodia (formato: FEBRERO 6 de 2026)
+        # Fecha para la portada, la firma y la página de custodia (formato custodia: FEBRERO 6 de 2026)
         fecha_ahora = obtener_fecha_colombia()
+        fecha_elaboracion = f"{fecha_ahora.day} de {MESES_ESPANOL[fecha_ahora.month]} de {fecha_ahora.year}"
         fecha_custodia_mes = MESES_ESPANOL.get(fecha_ahora.month, '').upper()
         fecha_custodia_dia = fecha_ahora.day
         fecha_custodia_anio = fecha_ahora.year
@@ -11269,7 +11021,7 @@ def generar_pdf_informe():
             'fecha': '6 DE JULIO DE 2020'
         }
 
-        logger.info(f"🎨 Renderizando template con {len(graficos)} gráficos y {len(recomendaciones_ia)} recomendaciones IA")
+        logger.info(f"🎨 Renderizando template con {len(recomendaciones_ia)} recomendaciones IA")
         logger.info(f"📋 Datos de empresa para template:")
         logger.info(f"  - empresa_nombre: '{empresa_razon_social}'")
         logger.info(f"  - empresa_nit: '{empresa_nit}'")
@@ -11283,13 +11035,10 @@ def generar_pdf_informe():
             fecha_inicio_formato=fecha_inicio_formato,
             fecha_fin_formato=fecha_fin_formato,
             fecha_elaboracion=fecha_elaboracion,
-            total_atenciones=total_atenciones,
-            total_formularios=total_formularios,
-            total_diagnosticos=len(estadisticas.get('diagnosticos', {}).get('diagnosticos', [])),
             logo_base64=logo_base64,
             info_teorica=info_teorica,
             stats=estadisticas,
-            graficos=graficos,
+            distribuciones=distribuciones,
             conclusiones_finales=conclusiones_finales,
             medico_firmante=medico_firmante,
             firma_medico_base64=firma_reatiga_base64,

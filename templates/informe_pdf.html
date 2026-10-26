@@ -2,22 +2,20 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe de Condiciones de Salud - {{ empresa_nombre }}</title>
     <style>
-        /* Importar fuentes de Google */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-        /* Variables de color BSL */
+        /* Colores BSL */
         :root {
-            --la-palma: #16a330;
-            --olive-drab: #5bae27;
-            --bahama-blue: #00668e;
-            --niagara: #03978f;
-            --green-haze: #029967;
-            --abbey: #4c4c4d;
-            --bondi-blue: #0190b6;
-            --fun-green: #007932;
+            --azul: #00668e;
+            --turquesa: #03978f;
+            --verde: #029967;
+            --texto: #1f2937;
+            --texto-suave: #4a5568;
+            --texto-tenue: #718096;
+            --linea: #e2e8f0;
+            --fondo-suave: #f5f8fa;
         }
 
         * {
@@ -28,446 +26,659 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: #2d3748;
-            line-height: 1.6;
+            color: var(--texto);
+            font-size: 10pt;
+            line-height: 1.55;
             background: white;
         }
 
-        /* Configuración de página */
+        p {
+            orphans: 3;
+            widows: 3;
+        }
+
         @page {
             size: A4;
-            margin: 20mm 15mm 25mm 15mm;
+            margin: 22mm 16mm 22mm 16mm;
 
             @top-left {
                 content: element(header-left);
+                vertical-align: bottom;
+                padding-bottom: 4mm;
             }
 
             @top-right {
                 content: element(header-right);
+                vertical-align: bottom;
+                padding-bottom: 4mm;
             }
 
-            @bottom-center {
-                content: "Página " counter(page) " de " counter(pages);
-                font-size: 9pt;
-                color: #718096;
+            @bottom-left {
+                content: "BSL - Bienestar y Salud Laboral";
+                font-size: 7.5pt;
+                color: #a0aec0;
                 font-family: 'Inter', sans-serif;
             }
 
             @bottom-right {
-                content: "BSL - Bienestar y Salud Laboral";
-                font-size: 8pt;
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 7.5pt;
                 color: #a0aec0;
                 font-family: 'Inter', sans-serif;
             }
         }
 
-        /* Portada - página separada */
-        .portada {
-            page-break-after: always;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: white;
-            text-align: center;
-            padding: 60px;
-            margin: -20mm -15mm;
+        /* La portada no lleva encabezado ni pie */
+        @page :first {
+            @top-left { content: none; }
+            @top-right { content: none; }
+            @bottom-left { content: none; }
+            @bottom-right { content: none; }
         }
 
-        .portada-logo {
-            width: 180px;
-            margin-bottom: 40px;
-            padding: 20px;
-            border-radius: 15px;
-        }
-
-        .portada h1 {
-            color: #00668e;
-            font-size: 36pt;
-            font-weight: 800;
-            margin-bottom: 20px;
-            letter-spacing: -0.5px;
-        }
-
-        .portada h2 {
-            color: #03978f;
-            font-size: 24pt;
-            font-weight: 600;
-            margin-bottom: 50px;
-        }
-
-        .portada-info {
-            background: #f7fafc;
-            border: 2px solid #e2e8f0;
-            padding: 30px 50px;
-            border-radius: 15px;
-            margin-top: 40px;
-        }
-
-        .portada-info p {
-            color: #2d3748;
-            font-size: 14pt;
-            margin: 10px 0;
-        }
-
-        .portada-info .periodo {
-            font-size: 18pt;
-            font-weight: 600;
-            color: #00668e;
-            margin-top: 20px;
-        }
-
-        /* Headers personalizados (se muestran en páginas después de portada) */
         .page-header {
             position: running(header-left);
-            font-size: 9pt;
-            color: #4a5568;
+            font-size: 8pt;
+            font-weight: 600;
+            color: var(--azul);
         }
 
         .page-header-right {
             position: running(header-right);
-            font-size: 9pt;
-            color: #4a5568;
+            font-size: 8pt;
+            color: var(--texto-tenue);
             text-align: right;
         }
 
-        /* Secciones */
-        section {
-            page-break-inside: avoid;
-            margin-bottom: 30px;
+        .salto {
+            break-before: page;
         }
 
+        /* ---------- Portada ---------- */
+        .portada {
+            height: 250mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .portada-logo {
+            width: 150px;
+        }
+
+        .portada-centro {
+            border-left: 6px solid var(--turquesa);
+            padding-left: 22px;
+        }
+
+        .portada-etiqueta {
+            font-size: 10pt;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--turquesa);
+            margin-bottom: 10px;
+        }
+
+        .portada h1 {
+            color: var(--azul);
+            font-size: 34pt;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.5px;
+        }
+
+        .portada-empresa {
+            margin-top: 18px;
+            font-size: 18pt;
+            font-weight: 600;
+            color: var(--texto);
+        }
+
+        .portada-nit {
+            margin-top: 4px;
+            font-size: 11pt;
+            color: var(--texto-suave);
+        }
+
+        .portada-datos {
+            display: flex;
+            gap: 14px;
+        }
+
+        .portada-dato {
+            flex: 1;
+            background: var(--fondo-suave);
+            border-radius: 8px;
+            padding: 14px 18px;
+        }
+
+        .portada-dato-label {
+            font-size: 8pt;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--texto-tenue);
+        }
+
+        .portada-dato-valor {
+            margin-top: 4px;
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--azul);
+        }
+
+        .portada-pie {
+            font-size: 8.5pt;
+            color: var(--texto-tenue);
+            border-top: 1px solid var(--linea);
+            padding-top: 10px;
+        }
+
+        /* ---------- Títulos ---------- */
         .section-title {
-            color: var(--bahama-blue);
-            font-size: 20pt;
+            color: var(--azul);
+            font-size: 17pt;
             font-weight: 700;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid var(--niagara);
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--turquesa);
+            break-after: avoid;
         }
 
         .subsection-title {
-            color: var(--green-haze);
-            font-size: 16pt;
-            font-weight: 600;
-            margin-top: 25px;
-            margin-bottom: 15px;
+            color: var(--azul);
+            font-size: 13pt;
+            font-weight: 700;
+            margin-bottom: 4px;
+            break-after: avoid;
         }
 
-        /* Resumen ejecutivo con stats cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin: 30px 0;
+        .subsection-nota {
+            font-size: 8.5pt;
+            color: var(--texto-tenue);
+            margin-bottom: 10px;
+            break-after: avoid;
         }
 
-        .stat-card {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            border-left: 4px solid var(--niagara);
-            padding: 20px;
-            border-radius: 8px;
+        .bloque {
+            margin-bottom: 26px;
         }
 
-        .stat-value {
-            font-size: 32pt;
-            font-weight: 800;
-            color: var(--bahama-blue);
-            line-height: 1;
+        .grupo {
+            break-inside: avoid;
         }
 
-        .stat-label {
-            font-size: 11pt;
-            color: #718096;
-            margin-top: 8px;
-            font-weight: 500;
+        /* ---------- Contenido teórico ---------- */
+        .marco-general {
+            background: #eef7f3;
+            padding: 18px 20px;
+            border-left: 4px solid var(--verde);
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 26px;
         }
 
-        /* Objetivos con números grandes */
+        .marco-general p {
+            font-size: 10.5pt;
+            line-height: 1.7;
+        }
+
         .objetivos-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 20px 0;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 26px;
         }
 
         .objetivo-card {
-            background: linear-gradient(135deg, #f7fafc 0%, #ffffff 100%);
-            border-left: 4px solid var(--niagara);
-            padding: 20px;
-            border-radius: 8px;
             display: flex;
-            gap: 15px;
+            align-items: flex-start;
+            gap: 12px;
+            background: var(--fondo-suave);
+            border-radius: 8px;
+            padding: 12px 14px;
+            break-inside: avoid;
         }
 
         .objetivo-numero {
-            font-size: 42pt;
+            font-size: 20pt;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--niagara) 0%, var(--bahama-blue) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--turquesa);
             line-height: 1;
-            flex-shrink: 0;
+            min-width: 34px;
         }
 
         .objetivo-texto {
-            font-size: 10pt;
-            color: #4a5568;
-            line-height: 1.5;
-            padding-top: 8px;
+            font-size: 9.5pt;
+            color: var(--texto-suave);
+            line-height: 1.45;
         }
 
-        /* Conceptos médicos con badges */
-        .concepto-item {
-            background: #f7fafc;
-            padding: 15px;
-            margin-bottom: 12px;
+        .texto-intro {
+            font-size: 10pt;
+            color: var(--texto-suave);
+            margin-bottom: 14px;
+        }
+
+        .metodologia-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 26px;
+        }
+
+        .metodologia-item {
+            background: var(--fondo-suave);
+            padding: 12px 14px;
             border-radius: 8px;
-            border-left: 3px solid #e2e8f0;
+            border-top: 3px solid var(--turquesa);
+            break-inside: avoid;
+        }
+
+        .metodologia-item h4 {
+            color: var(--azul);
+            font-size: 10pt;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .metodologia-item p {
+            font-size: 8.8pt;
+            color: var(--texto-suave);
+            line-height: 1.5;
+        }
+
+        ol {
+            margin: 0 0 26px 0;
+            padding-left: 22px;
+        }
+
+        ol li {
+            margin-bottom: 6px;
+            color: var(--texto-suave);
+            font-size: 9.5pt;
+            line-height: 1.5;
+        }
+
+        ol li::marker {
+            color: var(--turquesa);
+            font-weight: 700;
+        }
+
+        .concepto-item {
+            background: var(--fondo-suave);
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            break-inside: avoid;
         }
 
         .concepto-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 9pt;
-            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 8pt;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            letter-spacing: 0.4px;
+            margin-bottom: 6px;
         }
 
-        .concepto-green { background: #d4f1ef; color: #029967; }
-        .concepto-yellow { background: #fff3cd; color: #856404; }
-        .concepto-red { background: #f8d7da; color: #721c24; }
-        .concepto-orange { background: #ffe5d0; color: #c05600; }
+        .concepto-green { background: #d4f1ef; color: #027a52; }
+        .concepto-yellow { background: #fff3cd; color: #7a5b00; }
+        .concepto-red { background: #f8d7da; color: #8a1c27; }
+        .concepto-orange { background: #ffe5d0; color: #a84900; }
 
         .concepto-descripcion {
-            font-size: 10pt;
-            color: #4a5568;
-            line-height: 1.6;
+            font-size: 9.3pt;
+            color: var(--texto-suave);
         }
 
-        /* Tablas profesionales */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            font-size: 10pt;
-        }
-
-        thead {
-            background: linear-gradient(135deg, var(--bahama-blue) 0%, var(--niagara) 100%);
-            color: white;
-        }
-
-        thead th {
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 10pt;
-        }
-
-        tbody tr {
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        tbody tr:nth-child(even) {
-            background: #f7fafc;
-        }
-
-        tbody td {
-            padding: 10px 12px;
-            color: #4a5568;
-        }
-
-        /* Gráficos - contenedor para imágenes de Chart.js */
-        .chart-container {
-            text-align: center;
-            margin: 25px 0;
-            page-break-inside: avoid;
-        }
-
-        .chart-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-        }
-
-        .chart-title {
-            font-size: 12pt;
-            font-weight: 600;
-            color: var(--bahama-blue);
-            margin-bottom: 15px;
-        }
-
-        /* Grid para distribuciones */
-        .distribution-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin: 20px 0;
-        }
-
-        .distribution-item {
-            background: linear-gradient(135deg, #f7fafc 0%, #ffffff 100%);
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 3px solid var(--niagara);
-            text-align: center;
-        }
-
-        .distribution-value {
-            font-size: 24pt;
-            font-weight: 700;
-            color: var(--bahama-blue);
-        }
-
-        .distribution-label {
-            font-size: 10pt;
-            color: #718096;
-            margin-top: 5px;
-        }
-
-        /* Listas con estilo */
-        ol, ul {
-            margin: 15px 0;
-            padding-left: 25px;
-        }
-
-        ol li, ul li {
-            margin-bottom: 8px;
-            color: #4a5568;
-            font-size: 10pt;
-            line-height: 1.6;
-        }
-
-        /* Page breaks */
-        .page-break {
-            page-break-before: always;
-        }
-
-        .avoid-break {
-            page-break-inside: avoid;
-        }
-
-        /* Marco general */
-        .marco-general {
-            background: linear-gradient(135deg, #f0f9f4 0%, #e8f5f0 100%);
-            padding: 25px;
-            border-left: 5px solid var(--green-haze);
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-
-        .marco-general p {
-            font-size: 11pt;
-            color: #2d3748;
-            line-height: 1.8;
-        }
-
-        /* Metodología */
-        .metodologia-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .metodologia-item {
-            background: linear-gradient(135deg, #e6f7f6 0%, #ffffff 100%);
-            padding: 15px;
-            border-radius: 8px;
-            border-top: 3px solid var(--niagara);
-        }
-
-        .metodologia-item h4 {
-            color: var(--bahama-blue);
-            font-size: 11pt;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .metodologia-item p {
-            font-size: 9pt;
-            color: #4a5568;
-            line-height: 1.5;
-        }
-
-        /* Divider con estilo */
-        .divider {
-            height: 2px;
-            background: linear-gradient(90deg, transparent 0%, var(--niagara) 50%, transparent 100%);
-            margin: 30px 0;
-        }
-
-        /* Info boxes */
-        .info-box {
-            background: #ebf8ff;
-            border-left: 4px solid var(--bondi-blue);
-            padding: 15px 20px;
-            margin: 15px 0;
-            border-radius: 0 8px 8px 0;
-        }
-
-        .info-box p {
-            font-size: 10pt;
-            color: #2c5282;
-            margin: 0;
-        }
-
-        /* Capitulo header */
+        /* ---------- Capítulo de resultados ---------- */
         .capitulo-header {
-            background: linear-gradient(135deg, var(--bahama-blue) 0%, var(--niagara) 100%);
+            background: linear-gradient(135deg, var(--azul) 0%, var(--turquesa) 100%);
             color: white;
-            padding: 30px;
-            text-align: center;
+            padding: 22px 26px;
             border-radius: 10px;
-            margin: 40px 0 30px 0;
-            page-break-after: avoid;
+            margin-bottom: 14px;
+            break-after: avoid;
         }
 
         .capitulo-header h2 {
-            font-size: 28pt;
+            font-size: 20pt;
             font-weight: 800;
-            margin-bottom: 10px;
         }
 
         .capitulo-header p {
-            font-size: 13pt;
+            font-size: 10.5pt;
             color: rgba(255, 255, 255, 0.9);
+        }
+
+        .aviso-porcentajes {
+            font-size: 9pt;
+            color: var(--texto-suave);
+            background: var(--fondo-suave);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 26px;
+        }
+
+        /* Tarjetas grandes (género, SVE) */
+        .tarjetas {
+            display: flex;
+            gap: 12px;
+            margin: 8px 0 12px 0;
+        }
+
+        .tarjeta {
+            flex: 1;
+            background: var(--fondo-suave);
+            border-radius: 8px;
+            border-left: 4px solid var(--turquesa);
+            padding: 14px 16px;
+        }
+
+        .tarjeta-valor {
+            font-size: 24pt;
+            font-weight: 800;
+            color: var(--azul);
+            line-height: 1.1;
+        }
+
+        .tarjeta-label {
+            font-size: 9pt;
+            color: var(--texto-tenue);
+            margin-top: 2px;
+        }
+
+        /* Tabla con barra de porcentaje */
+        table.barras {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.3pt;
+        }
+
+        table.barras thead th {
+            font-size: 7.5pt;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--texto-tenue);
+            text-align: left;
+            padding: 0 8px 5px 0;
+            border-bottom: 1.5px solid var(--azul);
+        }
+
+        table.barras thead th.col-pct {
+            text-align: right;
+            padding-right: 0;
+            white-space: nowrap;
+        }
+
+        table.barras tbody tr {
+            border-bottom: 1px solid var(--linea);
+            break-inside: avoid;
+        }
+
+        table.barras td {
+            padding: 5px 8px 5px 0;
+            vertical-align: middle;
+        }
+
+        table.barras td.col-nombre {
+            width: 42%;
+            color: var(--texto);
+        }
+
+        table.barras td.col-barra {
+            width: 44%;
+        }
+
+        table.barras td.col-pct {
+            width: 14%;
+            text-align: right;
+            padding-right: 0;
+            font-weight: 700;
+            color: var(--azul);
+            white-space: nowrap;
+        }
+
+        table.barras tr.sin-dato td.col-nombre,
+        table.barras tr.sin-dato td.col-pct {
+            color: var(--texto-tenue);
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        .pista {
+            height: 9px;
+            background: #edf2f7;
+            border-radius: 5px;
+        }
+
+        .relleno {
+            height: 9px;
+            min-width: 2px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, var(--azul) 0%, var(--turquesa) 100%);
+        }
+
+        tr.sin-dato .relleno {
+            background: #cbd5e0;
+        }
+
+        /* Recomendaciones de IA */
+        .recomendacion {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: #f0faf6;
+            border-left: 4px solid var(--verde);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .recomendacion-titulo {
+            font-size: 8pt;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--verde);
+            margin-bottom: 6px;
+            break-after: avoid;
+        }
+
+        .recomendacion p {
+            font-size: 9.5pt;
+            line-height: 1.6;
+            white-space: pre-line;
+            color: var(--texto);
+        }
+
+        /* Tabla del SVE */
+        table.tabla-simple {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.8pt;
+            margin-top: 6px;
+        }
+
+        table.tabla-simple thead th {
+            background: var(--azul);
+            color: white;
+            padding: 6px 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table.tabla-simple tbody tr {
+            border-bottom: 1px solid var(--linea);
+            break-inside: avoid;
+        }
+
+        table.tabla-simple tbody tr:nth-child(even) {
+            background: var(--fondo-suave);
+        }
+
+        table.tabla-simple td {
+            padding: 5px 8px;
+            color: var(--texto-suave);
+        }
+
+        /* ---------- Conclusiones y firma ---------- */
+        .conclusion {
+            display: flex;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--linea);
+            break-inside: avoid;
+        }
+
+        .conclusion-numero {
+            min-width: 26px;
+            height: 26px;
+            border-radius: 13px;
+            background: var(--azul);
+            color: white;
+            font-size: 9pt;
+            font-weight: 700;
+            text-align: center;
+            line-height: 26px;
+        }
+
+        .conclusion p {
+            font-size: 9.8pt;
+            line-height: 1.6;
+            text-align: justify;
+        }
+
+        .firma {
+            margin-top: 36px;
+            text-align: center;
+            break-inside: avoid;
+        }
+
+        .firma img {
+            max-width: 190px;
+            height: auto;
+        }
+
+        .firma-linea {
+            border-top: 1.5px solid var(--azul);
+            width: 280px;
+            margin: 4px auto 8px auto;
+        }
+
+        .firma-nombre {
+            font-weight: 700;
+            font-size: 11pt;
+            color: var(--azul);
+        }
+
+        .firma-dato {
+            font-size: 9pt;
+            color: var(--texto-suave);
+        }
+
+        .firma-cargo {
+            font-size: 8.5pt;
+            color: var(--texto-tenue);
+            margin-top: 4px;
+        }
+
+        .firma-fecha {
+            margin-top: 16px;
+            font-size: 9pt;
+            color: var(--texto-suave);
+        }
+
+        /* ---------- Carta de custodia ---------- */
+        .custodia {
+            font-size: 11pt;
+            line-height: 1.8;
+        }
+
+        .custodia-logo {
+            height: 70px;
+            margin-bottom: 36px;
         }
     </style>
 </head>
 <body>
+{# Porcentaje con un decimal; valores mínimos (>0 y <0.1) se muestran como <0.1% #}
+{% macro pct(valor) -%}
+{%- if valor > 0 and valor < 0.1 -%}&lt;0.1%{%- else -%}{{ '%.1f'|format(valor) }}%{%- endif -%}
+{%- endmacro %}
+
+{% macro barras(filas, titulo_columna) %}
+<table class="barras">
+    <thead>
+        <tr>
+            <th>{{ titulo_columna }}</th>
+            <th></th>
+            <th class="col-pct">Porcentaje</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for fila in filas %}
+        <tr{% if fila.sinDato %} class="sin-dato"{% endif %}>
+            <td class="col-nombre">{{ fila.nombre }}</td>
+            <td class="col-barra"><div class="pista"><div class="relleno" style="width: {{ [fila.porcentaje, 100]|min }}%;"></div></div></td>
+            <td class="col-pct">{{ pct(fila.porcentaje) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endmacro %}
+
+{% macro recomendacion(texto) %}
+{% if texto %}
+<div class="recomendacion">
+    <div class="recomendacion-titulo">Recomendaciones</div>
+    <p>{{ texto }}</p>
+</div>
+{% endif %}
+{% endmacro %}
+
     <!-- PORTADA -->
     <div class="portada">
-        <img src="data:image/png;base64,{{ logo_base64 }}" alt="BSL Logo" class="portada-logo">
-        <h1>Informe de Condiciones de Salud</h1>
-        <h2>{{ empresa_nombre }}</h2>
-        <div class="portada-info">
-            <p>NIT: {% if empresa_nit %}{{ empresa_nit }}{% else %}N/A{% endif %}</p>
-            <p class="periodo">Período: {{ fecha_inicio_formato }} - {{ fecha_fin_formato }}</p>
-            <p style="margin-top: 30px; font-size: 11pt;">Fecha de elaboración: {{ fecha_elaboracion }}</p>
+        <div>
+            <img src="data:image/png;base64,{{ logo_base64 }}" alt="BSL" class="portada-logo">
+        </div>
+
+        <div class="portada-centro">
+            <div class="portada-etiqueta">Salud ocupacional</div>
+            <h1>Informe de Condiciones de Salud</h1>
+            <div class="portada-empresa">{{ empresa_nombre }}</div>
+            {% if empresa_nit %}<div class="portada-nit">NIT: {{ empresa_nit }}</div>{% endif %}
+        </div>
+
+        <div>
+            <div class="portada-datos">
+                <div class="portada-dato">
+                    <div class="portada-dato-label">Período evaluado</div>
+                    <div class="portada-dato-valor">{{ fecha_inicio_formato }} – {{ fecha_fin_formato }}</div>
+                </div>
+                <div class="portada-dato">
+                    <div class="portada-dato-label">Fecha de elaboración</div>
+                    <div class="portada-dato-valor">{{ fecha_elaboracion }}</div>
+                </div>
+            </div>
+            <div class="portada-pie" style="margin-top: 18px;">
+                BIENESTAR Y SALUD LABORAL S.A.S · NIT 900.844.030-8
+            </div>
         </div>
     </div>
 
-    <!-- Headers (ocultos pero usados por @page) -->
+    <!-- Encabezados de página (los usa @page) -->
     <div class="page-header">{{ empresa_nombre }}</div>
     <div class="page-header-right">Informe de Condiciones de Salud</div>
 
-    <!-- MARCO GENERAL -->
-    <section class="avoid-break page-break">
+    <!-- MARCO GENERAL Y OBJETIVOS -->
+    <div class="salto">
         <h1 class="section-title">Marco General</h1>
         <div class="marco-general">
             <p>{{ info_teorica.marcoGeneral.descripcion }}</p>
         </div>
-    </section>
 
-    <!-- OBJETIVOS -->
-    <section class="avoid-break">
         <h1 class="section-title">Objetivos del Informe</h1>
         <div class="objetivos-grid">
             {% for objetivo in info_teorica.objetivos %}
@@ -477,13 +688,11 @@
             </div>
             {% endfor %}
         </div>
-    </section>
 
-    <!-- METODOLOGÍA -->
-    <section class="avoid-break page-break">
-        <h1 class="section-title">Metodología para Evaluar</h1>
-        <p style="font-size: 11pt; color: #4a5568; margin-bottom: 20px;">{{ info_teorica.metodologia.descripcion }}</p>
-
+        <div class="grupo">
+            <h1 class="section-title">Metodología para Evaluar</h1>
+            <p class="texto-intro">{{ info_teorica.metodologia.descripcion }}</p>
+        </div>
         <div class="metodologia-grid">
             {% for prueba in info_teorica.metodologia.pruebas %}
             <div class="metodologia-item">
@@ -492,540 +701,241 @@
             </div>
             {% endfor %}
         </div>
-    </section>
 
-    <!-- CONTENIDO DEL INFORME -->
-    <section class="avoid-break">
-        <h1 class="section-title">Información Contenida en Este Informe</h1>
-        <ol>
-            {% for item in info_teorica.contenidoInforme %}
-            <li>{{ item }}</li>
-            {% endfor %}
-        </ol>
-    </section>
-
-    <!-- CONCEPTOS MÉDICOS -->
-    <section class="avoid-break page-break">
-        <h1 class="section-title">Descripción de Conceptos Médicos Emitidos</h1>
-
-        {% for concepto in info_teorica.conceptosMedicos %}
-        <div class="concepto-item">
-            <div class="concepto-badge concepto-{{ concepto.color }}">{{ concepto.concepto }}</div>
-            <div class="concepto-descripcion">{{ concepto.descripcion }}</div>
+        <div class="grupo">
+            <h1 class="section-title">Información Contenida en Este Informe</h1>
+            <ol>
+                {% for item in info_teorica.contenidoInforme %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ol>
         </div>
-        {% endfor %}
-    </section>
 
-    <!-- SUGERENCIAS GENERALES -->
-    <section class="avoid-break">
-        <h1 class="section-title">Sugerencias Generales a partir del Profesiograma</h1>
-        <ol>
-            {% for sugerencia in info_teorica.sugerenciasGenerales %}
-            <li>{{ sugerencia }}</li>
+        <h1 class="section-title">Descripción de Conceptos Médicos Emitidos</h1>
+        <div class="bloque">
+            {% for concepto in info_teorica.conceptosMedicos %}
+            <div class="concepto-item">
+                <div class="concepto-badge concepto-{{ concepto.color }}">{{ concepto.concepto }}</div>
+                <div class="concepto-descripcion">{{ concepto.descripcion }}</div>
+            </div>
             {% endfor %}
-        </ol>
-    </section>
+        </div>
 
-    <div class="divider"></div>
-
-    <!-- CAPÍTULO DE RESULTADOS -->
-    <div class="capitulo-header page-break">
-        <h2>Capítulo de Resultados</h2>
-        <p>Análisis Estadístico de la Población Trabajadora</p>
+        <div class="grupo">
+            <h1 class="section-title">Sugerencias Generales a partir del Profesiograma</h1>
+            <ol>
+                {% for sugerencia in info_teorica.sugerenciasGenerales %}
+                <li>{{ sugerencia }}</li>
+                {% endfor %}
+            </ol>
+        </div>
     </div>
 
-    <!-- GÉNERO -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Distribución por Género</h2>
-
-        <div class="distribution-grid">
-            <div class="distribution-item">
-                <div class="distribution-value">{{ stats.genero.masculino.porcentaje|round|int }}%</div>
-                <div class="distribution-label">Masculino ({{ stats.genero.masculino.cantidad }})</div>
-            </div>
-            <div class="distribution-item">
-                <div class="distribution-value">{{ stats.genero.femenino.porcentaje|round|int }}%</div>
-                <div class="distribution-label">Femenino ({{ stats.genero.femenino.cantidad }})</div>
-            </div>
+    <!-- CAPÍTULO DE RESULTADOS -->
+    <div class="salto">
+        <div class="capitulo-header">
+            <h2>Capítulo de Resultados</h2>
+            <p>Análisis estadístico de la población trabajadora evaluada</p>
         </div>
+        <p class="aviso-porcentajes">
+            Los resultados se expresan como porcentaje de los trabajadores evaluados durante el período.
+            «No reporta» corresponde a quienes no diligenciaron ese dato en la historia clínica.
+        </p>
 
-        {% if graficos.genero %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.genero }}" alt="Gráfico de Género" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Género -->
-        {% if recomendaciones_ia and recomendaciones_ia.genero %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.genero }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- EDAD -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Distribución por Edad</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Rango de Edad</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>15-20 años</td>
-                    <td>{{ stats.edad.rangos['15-20'].porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>21-30 años</td>
-                    <td>{{ stats.edad.rangos['21-30'].porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>31-40 años</td>
-                    <td>{{ stats.edad.rangos['31-40'].porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>41-50 años</td>
-                    <td>{{ stats.edad.rangos['41-50'].porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Mayor de 50 años</td>
-                    <td>{{ stats.edad.rangos['mayor50'].porcentaje|round(1) }}%</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if graficos.edad %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.edad }}" alt="Gráfico de Edad" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Edad -->
-        {% if recomendaciones_ia and recomendaciones_ia.edad %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.edad }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- ESTADO CIVIL -->
-    <section class="avoid-break page-break">
-        <h2 class="subsection-title">Distribución por Estado Civil</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Estado Civil</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Soltero</td>
-                    <td>{{ stats.estadoCivil.estados.soltero.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Casado</td>
-                    <td>{{ stats.estadoCivil.estados.casado.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Unión Libre</td>
-                    <td>{{ stats.estadoCivil.estados.unionLibre.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Divorciado</td>
-                    <td>{{ stats.estadoCivil.estados.divorciado.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Viudo</td>
-                    <td>{{ stats.estadoCivil.estados.viudo.porcentaje|round(1) }}%</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if graficos.estadoCivil %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.estadoCivil }}" alt="Gráfico de Estado Civil" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Estado Civil -->
-        {% if recomendaciones_ia and recomendaciones_ia.estadoCivil %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.estadoCivil }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- NIVEL EDUCATIVO -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Distribución por Nivel Educativo</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Nivel Educativo</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Primaria</td>
-                    <td>{{ stats.nivelEducativo.niveles.primaria.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Secundaria</td>
-                    <td>{{ stats.nivelEducativo.niveles.secundaria.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Universitario</td>
-                    <td>{{ stats.nivelEducativo.niveles.universitario.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>Postgrado</td>
-                    <td>{{ stats.nivelEducativo.niveles.postgrado.porcentaje|round(1) }}%</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if graficos.nivelEducativo %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.nivelEducativo }}" alt="Gráfico de Nivel Educativo" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Nivel Educativo -->
-        {% if recomendaciones_ia and recomendaciones_ia.nivelEducativo %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.nivelEducativo }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- HIJOS -->
-    <section class="avoid-break page-break">
-        <h2 class="subsection-title">Distribución por Número de Hijos</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Número de Hijos</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Sin hijos</td>
-                    <td>{{ stats.hijos.grupos.sinHijos.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>1 hijo</td>
-                    <td>{{ stats.hijos.grupos.unHijo.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>2 hijos</td>
-                    <td>{{ stats.hijos.grupos.dosHijos.porcentaje|round(1) }}%</td>
-                </tr>
-                <tr>
-                    <td>3 o más hijos</td>
-                    <td>{{ stats.hijos.grupos.tresOMas.porcentaje|round(1) }}%</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if graficos.hijos %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.hijos }}" alt="Gráfico de Número de Hijos" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Hijos -->
-        {% if recomendaciones_ia and recomendaciones_ia.hijos %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.hijos }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- CIUDAD DE RESIDENCIA -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Distribución por Ciudad de Residencia</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Ciudad</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ciudad in stats.ciudadResidencia.ciudades[:15] %}
-                <tr>
-                    <td>{{ ciudad.nombre }}</td>
-                    <td>{{ ciudad.porcentaje|round(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        {% if graficos.ciudadResidencia %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.ciudadResidencia }}" alt="Gráfico de Ciudad de Residencia" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Ciudad -->
-        {% if recomendaciones_ia and recomendaciones_ia.ciudad %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.ciudad }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- PROFESIÓN U OFICIO -->
-    <section class="avoid-break page-break">
-        <h2 class="subsection-title">Distribución por Profesión u Oficio</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Profesión u Oficio</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for profesion in stats.profesionUOficio.profesiones[:15] %}
-                <tr>
-                    <td>{{ profesion.nombre }}</td>
-                    <td>{{ profesion.porcentaje|round(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        {% if graficos.profesionUOficio %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.profesionUOficio }}" alt="Gráfico de Profesión u Oficio" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Profesión -->
-        {% if recomendaciones_ia and recomendaciones_ia.profesion %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.profesion }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- ENCUESTA DE SALUD -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Resultados Encuesta de Salud</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Condición</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for respuesta in stats.encuestaSalud.respuestas[:20] %}
-                <tr>
-                    <td>{{ respuesta.nombre }}</td>
-                    <td>{{ respuesta.porcentaje|round(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
-
-    <!-- DIAGNÓSTICOS -->
-    <section class="avoid-break page-break">
-        <h2 class="subsection-title">Diagnósticos Principales (mdDx1)</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Diagnóstico</th>
-                    <th>Porcentaje</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for diagnostico in stats.diagnosticos.diagnosticos[:20] %}
-                <tr>
-                    <td>{{ diagnostico.nombre }}</td>
-                    <td>{{ diagnostico.porcentaje|round(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        {% if graficos.diagnosticos %}
-        <div style="text-align: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{{ graficos.diagnosticos }}" alt="Gráfico de Diagnósticos" style="max-width: 70%; height: auto;">
-        </div>
-        {% endif %}
-
-        <!-- Recomendación IA para Diagnósticos -->
-        {% if recomendaciones_ia and recomendaciones_ia.diagnosticos %}
-        <div style="margin-top: 25px; padding: 15px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px;">
-            <h4 style="color: #059669; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">💡 Recomendaciones Específicas</h4>
-            <p style="margin: 0; line-height: 1.6; text-align: justify; white-space: pre-line; font-size: 11pt; color: #1f2937;">{{ recomendaciones_ia.diagnosticos }}</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- SISTEMA DE VIGILANCIA EPIDEMIOLÓGICA -->
-    <section class="avoid-break">
-        <h2 class="subsection-title">Sistema de Vigilancia Epidemiológica (SVE)</h2>
-
-        <div class="distribution-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
-            <div class="distribution-item">
-                <div class="distribution-value">{{ stats.sve.resumen.visual }}</div>
-                <div class="distribution-label">SVE Visual</div>
-            </div>
-            <div class="distribution-item">
-                <div class="distribution-value">{{ stats.sve.resumen.auditivo }}</div>
-                <div class="distribution-label">SVE Auditivo</div>
-            </div>
-            <div class="distribution-item">
-                <div class="distribution-value">{{ stats.sve.resumen.controlPeso }}</div>
-                <div class="distribution-label">Control de Peso</div>
-            </div>
-        </div>
-
-        {% if stats.sve.pacientes|length > 0 %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Nombres</th>
-                    <th>Documento</th>
-                    <th>Sistema</th>
-                    <th>Diagnóstico</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for paciente in stats.sve.pacientes %}
-                <tr>
-                    <td>{{ paciente.nombres }}</td>
-                    <td>{{ paciente.documento }}</td>
-                    <td>{{ paciente.sistema }}</td>
-                    <td>{{ paciente.diagnostico }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endif %}
-    </section>
-
-    <!-- CONCLUSIONES FINALES -->
-    <section class="page-break">
-        <div class="section-header" style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-            <h2 style="margin: 0; font-size: 24px; font-weight: bold;">Conclusiones Generales</h2>
-            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Análisis General para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
-        </div>
-
-        {% if conclusiones_finales %}
-        <div style="margin-bottom: 40px;">
-            {% for conclusion in conclusiones_finales %}
-            <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
-                <p style="margin: 0; line-height: 1.6; text-align: justify;">
-                    <strong style="color: #1e40af;">{{ loop.index }}.</strong> {{ conclusion }}
-                </p>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Firma del Médico -->
-        <div style="margin-top: 50px; page-break-inside: avoid;">
-            <div style="border-top: 2px solid #e5e7eb; padding-top: 30px;">
-                <div style="text-align: center;">
-                    {% if firma_medico_base64 %}
-                    <div style="margin-bottom: 10px;">
-                        <img src="data:image/jpeg;base64,{{ firma_medico_base64 }}" alt="Firma" style="max-width: 200px; height: auto;">
+        <!-- GÉNERO -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Género</h2>
+                <div class="tarjetas">
+                    {% for fila in distribuciones.genero if not fila.sinDato %}
+                    <div class="tarjeta">
+                        <div class="tarjeta-valor">{{ pct(fila.porcentaje) }}</div>
+                        <div class="tarjeta-label">{{ fila.nombre }}</div>
                     </div>
-                    {% endif %}
+                    {% endfor %}
+                </div>
+                {{ barras(distribuciones.genero, 'Género') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.genero) }}
+        </div>
 
-                    <div style="border-top: 2px solid #1e40af; width: 300px; margin: 0 auto 10px auto;"></div>
+        <!-- EDAD -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Edad</h2>
+                {{ barras(distribuciones.edad, 'Rango de edad') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.edad) }}
+        </div>
 
-                    <p style="margin: 5px 0; font-weight: bold; font-size: 16px; color: #1e40af;">
-                        {{ medico_firmante.nombre }}
-                    </p>
-                    <p style="margin: 3px 0; font-size: 13px; color: #64748b;">
-                        {{ medico_firmante.registro }}
-                    </p>
-                    <p style="margin: 3px 0; font-size: 13px; color: #64748b;">
-                        {{ medico_firmante.licencia }}
-                    </p>
-                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #94a3b8;">
-                        Médico Especialista en Salud Ocupacional
-                    </p>
+        <!-- ESTADO CIVIL -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Estado Civil</h2>
+                {{ barras(distribuciones.estadoCivil, 'Estado civil') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.estadoCivil) }}
+        </div>
+
+        <!-- NIVEL EDUCATIVO -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Nivel Educativo</h2>
+                {{ barras(distribuciones.nivelEducativo, 'Nivel educativo') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.nivelEducativo) }}
+        </div>
+
+        <!-- HIJOS -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Número de Hijos</h2>
+                {{ barras(distribuciones.hijos, 'Número de hijos') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.hijos) }}
+        </div>
+
+        <!-- CIUDAD DE RESIDENCIA -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Ciudad de Residencia</h2>
+                {{ barras(distribuciones.ciudadResidencia, 'Ciudad') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.ciudad) }}
+        </div>
+
+        <!-- PROFESIÓN U OFICIO -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Distribución por Profesión u Oficio</h2>
+                <p class="subsection-nota">Profesión u oficio declarado por el trabajador.</p>
+                {{ barras(distribuciones.profesionUOficio, 'Profesión u oficio') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.profesion) }}
+        </div>
+
+        <!-- ENCUESTA DE SALUD -->
+        {% if distribuciones.encuestaSalud %}
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Resultados Encuesta de Salud</h2>
+                <p class="subsection-nota">Porcentaje de trabajadores que reportó cada condición. Una persona puede reportar varias, por eso no suman 100%.</p>
+                {{ barras(distribuciones.encuestaSalud, 'Condición reportada') }}
+            </div>
+            {{ recomendacion(recomendaciones_ia.encuestaSalud) }}
+        </div>
+        {% endif %}
+
+        <!-- DIAGNÓSTICOS -->
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Diagnósticos Principales</h2>
+                <p class="subsection-nota">
+                    El {{ pct(stats.diagnosticos.sinDiagnostico.porcentaje) }} de los trabajadores evaluados no presentó diagnóstico.
+                    {% if distribuciones.diagnosticos %}Se muestran los diagnósticos más frecuentes.{% endif %}
+                </p>
+                {% if distribuciones.diagnosticos %}
+                {{ barras(distribuciones.diagnosticos, 'Diagnóstico') }}
+                {% endif %}
+            </div>
+            {{ recomendacion(recomendaciones_ia.diagnosticos) }}
+        </div>
+
+        <!-- SISTEMA DE VIGILANCIA EPIDEMIOLÓGICA (se omite si nadie entra a ningún sistema) -->
+        {% if distribuciones.sve.values()|sum > 0 %}
+        <div class="bloque">
+            <div class="grupo">
+                <h2 class="subsection-title">Sistema de Vigilancia Epidemiológica (SVE)</h2>
+                <p class="subsection-nota">Porcentaje de trabajadores evaluados que requieren seguimiento en cada sistema.</p>
+                <div class="tarjetas">
+                    {% for sistema, porcentaje in distribuciones.sve.items() %}
+                    <div class="tarjeta">
+                        <div class="tarjeta-valor">{{ pct(porcentaje) }}</div>
+                        <div class="tarjeta-label">SVE {{ sistema }}</div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
-            <!-- Fecha de elaboración -->
-            <div style="margin-top: 30px; text-align: center; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-                <p style="margin: 0; font-size: 13px; color: #475569;">
-                    Elaborado el: <strong>{{ fecha_elaboracion }}</strong>
-                </p>
-            </div>
+            {% if stats.sve.pacientes|length > 0 %}
+            <table class="tabla-simple">
+                <thead>
+                    <tr>
+                        <th>Nombres</th>
+                        <th>Documento</th>
+                        <th>Sistema</th>
+                        <th>Diagnóstico</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for paciente in stats.sve.pacientes %}
+                    <tr>
+                        <td>{{ paciente.nombres }}</td>
+                        <td>{{ paciente.documento }}</td>
+                        <td>{{ paciente.sistema }}</td>
+                        <td>{{ paciente.diagnostico }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
         </div>
-    </section>
+        {% endif %}
+    </div>
 
-    <!-- PÁGINA DE CUSTODIA DE HISTORIAS CLÍNICAS -->
-    <section style="break-before: page; page-break-before: always; padding: 40px 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
-        <!-- Logo BSL -->
-        <div style="text-align: center; margin-bottom: 40px;">
-            <img src="data:image/png;base64,{{ logo_base64 }}" alt="BSL Logo" style="height: 80px;">
+    <!-- CONCLUSIONES FINALES -->
+    <div class="salto">
+        <div class="capitulo-header">
+            <h2>Conclusiones Generales</h2>
+            <p>Análisis general para el Sistema de Gestión de Seguridad y Salud en el Trabajo</p>
         </div>
 
-        <!-- Fecha -->
-        <p style="font-size: 12pt; color: #2d3748; margin-bottom: 30px;">
-            Bogotá, {{ fecha_custodia_mes }} {{ fecha_custodia_dia }} de {{ fecha_custodia_anio }}
+        {% for conclusion in conclusiones_finales %}
+        <div class="conclusion">
+            <div class="conclusion-numero">{{ loop.index }}</div>
+            <p>{{ conclusion }}</p>
+        </div>
+        {% endfor %}
+
+        <div class="firma">
+            {% if firma_medico_base64 %}
+            <img src="data:image/jpeg;base64,{{ firma_medico_base64 }}" alt="Firma">
+            {% endif %}
+            <div class="firma-linea"></div>
+            <div class="firma-nombre">{{ medico_firmante.nombre }}</div>
+            <div class="firma-dato">{{ medico_firmante.registro }}</div>
+            <div class="firma-dato">{{ medico_firmante.licencia }}</div>
+            <div class="firma-cargo">Médico Especialista en Salud Ocupacional</div>
+            <div class="firma-fecha">Elaborado el {{ fecha_elaboracion }}</div>
+        </div>
+    </div>
+
+    <!-- CARTA DE CUSTODIA DE HISTORIAS CLÍNICAS -->
+    <div class="salto custodia">
+        <img src="data:image/png;base64,{{ logo_base64 }}" alt="BSL" class="custodia-logo">
+
+        <p style="margin-bottom: 30px;">Bogotá, {{ fecha_custodia_mes }} {{ fecha_custodia_dia }} de {{ fecha_custodia_anio }}</p>
+
+        <div style="margin-bottom: 36px; font-weight: 700;">
+            <p>Señores:</p>
+            <p>{{ empresa_nombre }}</p>
+            {% if empresa_nit %}<p>NIT: {{ empresa_nit }}</p>{% endif %}
+        </div>
+
+        <p style="text-align: justify; margin-bottom: 50px;">
+            Por medio de la presente, damos constancia que como prestadores de salud BIENESTAR Y SALUD LABORAL SAS NIT No. 900.844.030-8, tenemos la custodia de historias clínicas en nuestro archivo digital y físico de la empresa en mención, de acuerdo con la Resolución 1843 de abril de 2025.
         </p>
 
-        <!-- Destinatario -->
-        <div style="margin-bottom: 40px;">
-            <p style="font-size: 12pt; font-weight: bold; color: #2d3748; margin: 0;">Señores:</p>
-            <p style="font-size: 12pt; font-weight: bold; color: #2d3748; margin: 0;">{{ empresa_nombre }}</p>
-            <p style="font-size: 12pt; font-weight: bold; color: #2d3748; margin: 0;">Nit: {% if empresa_nit %}{{ empresa_nit }}{% else %}N/A{% endif %}</p>
-        </div>
+        <p style="margin-bottom: 30px;">Cordialmente,</p>
 
-        <!-- Cuerpo de la carta -->
-        <div style="margin-bottom: 60px;">
-            <p style="font-size: 12pt; color: #2d3748; line-height: 1.8; text-align: justify;">
-                Por medio de la presente, damos constancia que como prestadores de salud BIENESTAR Y SALUD LABORAL SAS NIT No. 900.844.030-8, tenemos la custodia de historias clínicas en nuestro archivo digital y físico de la empresa en mención, de acuerdo con la Resolución 1843 de abril de 2025
-            </p>
-        </div>
-
-        <!-- Despedida -->
-        <p style="font-size: 12pt; color: #2d3748; margin-bottom: 60px;">Cordialmente;</p>
-
-        <!-- Firma -->
-        <div style="margin-top: 40px;">
-            {% if firma_representante_base64 %}
-            <div style="margin-bottom: 5px;">
-                <img src="data:image/jpeg;base64,{{ firma_representante_base64 }}" alt="Firma Representante Legal" style="max-width: 250px; height: auto;">
-            </div>
-            {% endif %}
-            <div style="border-top: 2px solid #2d3748; width: 350px; margin-bottom: 8px;"></div>
-            <p style="font-size: 12pt; font-weight: bold; color: #2d3748; margin: 0;">MARIA CLAUDIA REATIGA URREA</p>
-            <p style="font-size: 11pt; color: #2d3748; margin: 3px 0;">Representante Legal</p>
-            <p style="font-size: 11pt; color: #2d3748; margin: 3px 0;">BIENESTAR Y SALUD LABORAL S.A.S</p>
-        </div>
-    </section>
+        {% if firma_representante_base64 %}
+        <img src="data:image/jpeg;base64,{{ firma_representante_base64 }}" alt="Firma Representante Legal" style="max-width: 230px; height: auto;">
+        {% endif %}
+        <div style="border-top: 1.5px solid var(--texto); width: 320px; margin-bottom: 6px;"></div>
+        <p style="font-weight: 700;">MARIA CLAUDIA REATIGA URREA</p>
+        <p style="font-size: 10pt;">Representante Legal</p>
+        <p style="font-size: 10pt;">BIENESTAR Y SALUD LABORAL S.A.S</p>
+    </div>
 
 </body>
 </html>
