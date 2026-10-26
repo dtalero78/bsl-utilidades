@@ -161,6 +161,29 @@
             animation: spin 0.8s linear infinite;
         }
 
+        /* Progreso de recomendaciones IA */
+        .ia-progreso {
+            height: 6px;
+            background: #e8eef2;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .ia-progreso-relleno {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--bahama-blue) 0%, var(--niagara) 100%);
+            transition: width 0.4s ease;
+        }
+        .recomendacion-pendiente {
+            color: #718096;
+            font-style: italic;
+        }
+        .recomendacion-fallida {
+            color: #c05621;
+            font-style: italic;
+        }
+
         /* Caja de recomendaciones */
         .recomendacion-box {
             background: linear-gradient(135deg, #f0f9f4 0%, #e8f5f0 100%);
@@ -364,11 +387,20 @@
                 <p class="mt-2 text-blue-100">Análisis Estadístico de la Población Trabajadora</p>
             </div>
 
+            <!-- Recomendaciones con IA: un solo botón genera todas las secciones, una por una -->
+            <div class="no-print section-card p-5 mb-6 flex flex-col md:flex-row md:items-center gap-4">
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-800">Recomendaciones con IA</p>
+                    <p id="estadoRecomendacionesIA" class="text-sm text-gray-500">Genera la interpretación de todas las secciones. Se van completando una por una.</p>
+                    <div id="progresoIA" class="ia-progreso hidden"><div id="progresoIARelleno" class="ia-progreso-relleno"></div></div>
+                </div>
+                <button id="btnRecomendacionesIA" class="rec-btn" onclick="generarTodasLasRecomendaciones()">Generar recomendaciones con IA</button>
+            </div>
+
             <!-- Género -->
             <section class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Género</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('genero')">Recomendaciones</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-container">
@@ -397,7 +429,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Edad</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('edad')">Recomendaciones</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-container">
@@ -436,7 +467,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Estado Civil</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('estadoCivil')">Recomendaciones</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-container">
@@ -475,7 +505,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Nivel Educativo</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('nivelEducativo')">Recomendaciones</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-container">
@@ -510,7 +539,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Número de Hijos</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('hijos')">Recomendaciones</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="chart-container">
@@ -545,7 +573,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Ciudad de Residencia</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('ciudad')">Recomendaciones</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full" id="tablaCiudad">
@@ -569,7 +596,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Distribución por Profesión u Oficio</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('profesion')">Recomendaciones</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full" id="tablaProfesion">
@@ -593,7 +619,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6 print-break">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Resultados Encuesta de Salud</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('encuestaSalud')">Recomendaciones</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full" id="tablaEncuestaSalud">
@@ -617,7 +642,6 @@
             <section class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold text-gray-800">Diagnósticos Principales (mdDx1)</h3>
-                    <button class="rec-btn no-print" onclick="generarRecomendacionIA('diagnosticos')">Recomendaciones</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full" id="tablaDiagnosticos">
@@ -745,6 +769,8 @@
 
         // Renderizar todo el informe
         function renderizarInforme(datos) {
+            reiniciarRecomendaciones();
+
             // Portada
             document.getElementById('empresaName').textContent = datos.empresaInfo?.empresa || datos.codEmpresa;
             document.getElementById('empresaNit').textContent = datos.empresaInfo?.nit ? `NIT: ${datos.empresaInfo.nit}` : '';
@@ -1098,24 +1124,7 @@
             btn.innerHTML = '<span class="loading-spinner"></span> Generando PDF profesional...';
             mostrarLoading(true);
 
-            // Recopilar todas las recomendaciones IA generadas
-            const recomendacionesIA = {};
-            const tipos = ['genero', 'edad', 'estadoCivil', 'nivelEducativo', 'hijos', 'ciudad', 'profesion', 'encuestaSalud', 'diagnosticos'];
-
-            tipos.forEach(tipo => {
-                const recomendacionBox = document.getElementById(`recomendacion-${tipo}`);
-                if (recomendacionBox && !recomendacionBox.classList.contains('hidden')) {
-                    const textElement = recomendacionBox.querySelector('.recomendacion-text');
-                    if (textElement && textElement.innerHTML) {
-                        // Extraer el texto sin HTML y guardar
-                        const textoSinHTML = textElement.innerText || textElement.textContent;
-                        if (textoSinHTML && !textoSinHTML.includes('Error') && !textoSinHTML.includes('Analizando')) {
-                            recomendacionesIA[tipo] = textoSinHTML;
-                        }
-                    }
-                }
-            });
-
+            // Solo las recomendaciones IA que se generaron completas
             console.log('📝 Recomendaciones IA recopiladas:', Object.keys(recomendacionesIA).length);
             console.log('📝 Detalle de recomendaciones:', recomendacionesIA);
 
@@ -1171,96 +1180,150 @@
             }
         }
 
-        // Generar recomendaciones con IA
-        async function generarRecomendacionIA(tipo) {
+        // ============================================
+        // Recomendaciones con IA
+        // Un solo botón genera todas las secciones en secuencia (una llamada a la vez),
+        // con reintentos, para no saturar OpenAI ni el servidor.
+        // ============================================
+        const TIPOS_RECOMENDACION = ['genero', 'edad', 'estadoCivil', 'nivelEducativo', 'hijos', 'ciudad', 'profesion', 'encuestaSalud', 'diagnosticos'];
+        const INTENTOS_RECOMENDACION = 3;
+        let recomendacionesIA = {};  // tipo -> texto generado (lo que se envía al PDF)
+        let generandoRecomendaciones = false;
+        let ejecucionRecomendaciones = 0;  // cambia al cargar otro informe: invalida la generación en curso
+
+        function datosParaRecomendacion(tipo) {
+            const e = datosInforme.estadisticas || {};
+            switch (tipo) {
+                case 'genero': return e.genero || {};
+                case 'edad': return e.edad || {};
+                case 'estadoCivil': return e.estadoCivil?.estados || {};
+                case 'nivelEducativo': return e.nivelEducativo?.niveles || {};
+                case 'hijos': return e.hijos?.grupos || {};
+                case 'ciudad': return e.ciudadResidencia || {};
+                case 'profesion': return e.profesionUOficio || {};
+                case 'encuestaSalud': return e.encuestaSalud || {};
+                case 'diagnosticos': return e.diagnosticos || {};
+            }
+        }
+
+        function mostrarEstadoRecomendacion(tipo, texto, clase) {
+            const box = document.getElementById(`recomendacion-${tipo}`);
+            const p = box.querySelector('.recomendacion-text');
+            box.classList.remove('hidden');
+            p.className = 'recomendacion-text' + (clase ? ` ${clase}` : '');
+            p.textContent = texto;
+        }
+
+        const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function pedirRecomendacion(tipo) {
+            let ultimoError = '';
+            for (let intento = 1; intento <= INTENTOS_RECOMENDACION; intento++) {
+                try {
+                    const response = await fetch('/api/informe-recomendaciones-ia', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tipo: tipo,
+                            codEmpresa: datosInforme.codEmpresa,
+                            datos: datosParaRecomendacion(tipo)
+                        })
+                    });
+                    const result = await response.json();
+                    const contenido = (result.recomendacion || '').replace(/\*\*/g, '').trim();
+                    if (result.success && contenido) return contenido;
+                    ultimoError = result.error || `HTTP ${response.status}`;
+                } catch (error) {
+                    ultimoError = error.message;  // incluye respuestas no-JSON (timeout del servidor)
+                }
+                console.warn(`Recomendación ${tipo}: intento ${intento} falló (${ultimoError})`);
+                if (intento < INTENTOS_RECOMENDACION) {
+                    mostrarEstadoRecomendacion(tipo, `Reintentando (${intento + 1} de ${INTENTOS_RECOMENDACION})…`, 'recomendacion-pendiente');
+                    await esperar(3000 * intento);
+                }
+            }
+            throw new Error(ultimoError);
+        }
+
+        function actualizarProgresoIA(hechas, total) {
+            document.getElementById('progresoIA').classList.remove('hidden');
+            document.getElementById('progresoIARelleno').style.width = `${total ? (hechas / total * 100) : 0}%`;
+        }
+
+        async function generarTodasLasRecomendaciones() {
             if (!datosInforme) {
                 alert('Primero genera el informe para obtener recomendaciones de IA');
                 return;
             }
+            if (generandoRecomendaciones) return;
 
-            const btn = event.target;
-            const recomendacionBox = document.getElementById(`recomendacion-${tipo}`);
-            const recomendacionText = recomendacionBox.querySelector('.recomendacion-text');
+            // Si faltan secciones, solo se piden esas; si ya están todas, se regeneran todas
+            let tipos = TIPOS_RECOMENDACION.filter(tipo => !recomendacionesIA[tipo]);
+            if (tipos.length === 0) {
+                tipos = [...TIPOS_RECOMENDACION];
+                recomendacionesIA = {};
+            }
 
-            // Mostrar estado de carga
+            generandoRecomendaciones = true;
+            const ejecucion = ++ejecucionRecomendaciones;
+            const btn = document.getElementById('btnRecomendacionesIA');
+            const btnPDF = document.getElementById('btnPDF');
+            const estado = document.getElementById('estadoRecomendacionesIA');
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner"></span> Generando...';
-            recomendacionBox.classList.remove('hidden');
-            recomendacionText.innerHTML = '<em>Analizando datos y generando recomendaciones...</em>';
+            btnPDF.disabled = true;
 
-            // Preparar datos según el tipo
-            let datos = {};
-            switch(tipo) {
-                case 'genero':
-                    datos = datosInforme.estadisticas?.genero || {};
-                    break;
-                case 'edad':
-                    datos = datosInforme.estadisticas?.edad || {};
-                    break;
-                case 'estadoCivil':
-                    // Enviar la subestructura 'estados'
-                    datos = datosInforme.estadisticas?.estadoCivil?.estados || {};
-                    break;
-                case 'nivelEducativo':
-                    // Enviar la subestructura 'niveles'
-                    datos = datosInforme.estadisticas?.nivelEducativo?.niveles || {};
-                    break;
-                case 'hijos':
-                    // Enviar la subestructura 'grupos'
-                    datos = datosInforme.estadisticas?.hijos?.grupos || {};
-                    break;
-                case 'ciudad':
-                    datos = datosInforme.estadisticas?.ciudadResidencia || {};
-                    break;
-                case 'profesion':
-                    datos = datosInforme.estadisticas?.profesionUOficio || {};
-                    break;
-                case 'encuestaSalud':
-                    datos = datosInforme.estadisticas?.encuestaSalud || {};
-                    break;
-                case 'diagnosticos':
-                    datos = datosInforme.estadisticas?.diagnosticos || {};
-                    break;
-                default:
-                    alert('Tipo de recomendación no válido');
-                    btn.disabled = false;
-                    btn.innerHTML = 'Recomendaciones';
-                    return;
-            }
+            tipos.forEach(tipo => mostrarEstadoRecomendacion(tipo, 'En espera…', 'recomendacion-pendiente'));
 
-            try {
-                const response = await fetch('/api/informe-recomendaciones-ia', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        tipo: tipo,
-                        codEmpresa: datosInforme.codEmpresa,
-                        datos: datos
-                    })
-                });
+            const fallidas = [];
+            for (let i = 0; i < tipos.length; i++) {
+                const tipo = tipos[i];
+                btn.innerHTML = `<span class="loading-spinner"></span> Generando ${i + 1} de ${tipos.length}…`;
+                estado.textContent = `Generando la sección ${i + 1} de ${tipos.length}. Puedes seguir revisando el informe mientras tanto.`;
+                actualizarProgresoIA(i, tipos.length);
+                mostrarEstadoRecomendacion(tipo, 'Analizando datos y generando recomendaciones…', 'recomendacion-pendiente');
 
-                const result = await response.json();
-
-                if (result.success) {
-                    // Formatear el texto de la recomendación con saltos de línea
-                    const contenido = result.recomendacion || result.content || '';
-                    const textoFormateado = contenido
-                        .replace(/\n/g, '<br>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
-                    recomendacionText.innerHTML = textoFormateado;
-                } else {
-                    recomendacionText.innerHTML = `<span style="color: #e53e3e;">Error: ${result.error || 'No se pudo generar la recomendación'}</span>`;
+                try {
+                    const texto = await pedirRecomendacion(tipo);
+                    if (ejecucion !== ejecucionRecomendaciones) return;
+                    recomendacionesIA[tipo] = texto;
+                    mostrarEstadoRecomendacion(tipo, texto);
+                } catch (error) {
+                    if (ejecucion !== ejecucionRecomendaciones) return;
+                    fallidas.push(tipo);
+                    mostrarEstadoRecomendacion(tipo, 'No se pudo generar esta recomendación. Presiona «Reintentar faltantes» para intentarlo de nuevo.', 'recomendacion-fallida');
                 }
-            } catch (error) {
-                console.error('Error al generar recomendación IA:', error);
-                recomendacionText.innerHTML = `<span style="color: #e53e3e;">Error de conexión: ${error.message}</span>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Recomendaciones';
             }
+
+            actualizarProgresoIA(tipos.length, tipos.length);
+            generandoRecomendaciones = false;
+            btn.disabled = false;
+            btnPDF.disabled = false;
+
+            if (fallidas.length) {
+                btn.textContent = `Reintentar faltantes (${fallidas.length})`;
+                estado.textContent = `${TIPOS_RECOMENDACION.length - fallidas.length} de ${TIPOS_RECOMENDACION.length} recomendaciones listas. Las faltantes no se incluirán en el PDF hasta que se generen.`;
+            } else {
+                btn.textContent = 'Volver a generar todas';
+                estado.textContent = 'Todas las recomendaciones están listas y se incluirán en el PDF.';
+            }
+        }
+
+        // Al cargar otra empresa o período, las recomendaciones anteriores ya no aplican
+        function reiniciarRecomendaciones() {
+            ejecucionRecomendaciones++;
+            generandoRecomendaciones = false;
+            recomendacionesIA = {};
+            document.getElementById('btnRecomendacionesIA').disabled = false;
+            document.getElementById('btnPDF').disabled = false;
+            TIPOS_RECOMENDACION.forEach(tipo => {
+                const box = document.getElementById(`recomendacion-${tipo}`);
+                box.classList.add('hidden');
+                box.querySelector('.recomendacion-text').textContent = '';
+            });
+            document.getElementById('btnRecomendacionesIA').textContent = 'Generar recomendaciones con IA';
+            document.getElementById('estadoRecomendacionesIA').textContent = 'Genera la interpretación de todas las secciones. Se van completando una por una.';
+            document.getElementById('progresoIA').classList.add('hidden');
+            document.getElementById('progresoIARelleno').style.width = '0';
         }
 
         // Función para descargar Excel con datos individuales
