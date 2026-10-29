@@ -1225,7 +1225,7 @@ def obtener_datos_historia_clinica_postgres(wix_id):
 
 TENANT_BSL_DEFAULTS = {
     "logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/logo-bsl.png",
-    "secondary_logo_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/static/medstar-logo.png",
+    "secondary_logo_url": "",
     "qr_url": "https://bsl-utilidades-yp78a.ondigitalocean.app/images/qr-validacion.jpg",
     "tenant_nombre": "BIENESTAR Y SALUD LABORAL SAS",
     "tenant_nit": "901175816-2",
@@ -1234,7 +1234,12 @@ TENANT_BSL_DEFAULTS = {
     "tenant_direccion": "Calle 134 # 7-83 cons 233, Bogotá D.C.",
     "tenant_web": "www.bsl.com.co",
     "tenant_email": "c.talero@bsl.com.co",
-    "tenant_telefono": "+ 57 601 580 2318"
+    "tenant_telefono": "+ 57 601 580 2318",
+    # Encabezado del certificado PDF (reemplaza nit/licencia/direccion/web/email en el header)
+    "tenant_encabezado": [
+        "BSL Salud Laboral | Medicina del Trabajo - Salud Ocupacional",
+        "NIT 900.844.030-8 | Calle 134 # 7-83 cons 233, Bogotá D.C."
+    ]
 }
 
 TENANT_QR_OVERRIDES = {
@@ -1294,6 +1299,7 @@ def obtener_datos_tenant(tenant_id):
 
         # Para no-BSL, los campos no configurados quedan vacíos (no heredan defaults BSL)
         datos['secondary_logo_url'] = ''
+        datos['tenant_encabezado'] = []
         datos['tenant_nit'] = ''
         datos['tenant_licencia'] = ''
         datos['tenant_distintivo'] = ''

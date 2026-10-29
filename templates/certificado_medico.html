@@ -533,11 +533,15 @@
                 <img src="{{ logo_url }}" alt="{{ tenant_nombre or 'Logo' }}">
                 {% endif %}
                 <div class="company-info">
+                    {% if tenant_encabezado %}
+                    {% for linea in tenant_encabezado %}{{ linea }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                    {% else %}
                     {% if tenant_nit %}Nit. {{ tenant_nit }}<br>{% endif %}
                     {% if tenant_licencia %}Licencia No. {{ tenant_licencia }}<br>{% endif %}
                     {% if tenant_direccion %}{{ tenant_direccion }}<br>{% endif %}
                     {% if tenant_web %}{{ tenant_web }}<br>{% endif %}
                     {% if tenant_email %}{{ tenant_email }}{% endif %}
+                    {% endif %}
                 </div>
             </div>
 
