@@ -399,40 +399,6 @@ def obtener_config_certificado_empresa(cod_empresa):
         print(f"⚠️ Error obteniendo config_certificado para {cod_empresa}: {e}")
         return {}
 
-
-def orden_oculta_adc(orden_id):
-    """True si a ESTE paciente se le quitó el anexo psicológico del certificado.
-
-    Va aparte de config_certificado porque esa es por empresa: la marca de la orden
-    ("HistoriaClinica".ocultar_adc_certificado, migración 0013 de PLATAFORMA2) deja
-    esconder el anexo a una sola persona sin tocar a las demás de su empresa.
-    Ante cualquier falla retorna False: el certificado sale como salía antes."""
-    try:
-        import psycopg2
-        postgres_password = os.getenv("POSTGRES_PASSWORD")
-        if not postgres_password or not orden_id:
-            return False
-        conn = psycopg2.connect(
-            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
-            port=int(os.getenv("POSTGRES_PORT", "25060")),
-            user=os.getenv("POSTGRES_USER", "doadmin"),
-            password=postgres_password,
-            database=os.getenv("POSTGRES_DB", "defaultdb"),
-            sslmode='require'
-        )
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT ocultar_adc_certificado FROM "HistoriaClinica" WHERE "_id" = %s',
-            (orden_id,)
-        )
-        row = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        return bool(row and row[0])
-    except Exception as e:
-        print(f"⚠️ Error leyendo ocultar_adc_certificado para {orden_id}: {e}")
-        return False
-
 # ===== MAPEO DE NOMBRES DE EXÁMENES (Variantes -> Nombre oficial de tabla examenes en PostgreSQL) =====
 # Los nombres normalizados deben coincidir EXACTAMENTE con la tabla "examenes" de PostgreSQL
 MAPEO_EXAMENES = {
@@ -3638,11 +3604,7 @@ def generar_certificado_medico():
         _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
-        # La marca de la orden gana sobre la de la empresa: un paciente puede tener el anexo
-        # psicológico oculto aunque su empresa lo muestre (migración 0013 de PLATAFORMA2).
-        datos_certificado["ocultar_adc"] = (
-            bool(_cfg_cert.get("ocultar_adc", False)) or orden_oculta_adc(data.get("wix_id"))
-        )
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML...")
@@ -3943,11 +3905,7 @@ def generar_certificado_medico_puppeteer():
         _cfg_cert = obtener_config_certificado_empresa(data.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
-        # La marca de la orden gana sobre la de la empresa: un paciente puede tener el anexo
-        # psicológico oculto aunque su empresa lo muestre (migración 0013 de PLATAFORMA2).
-        datos_certificado["ocultar_adc"] = (
-            bool(_cfg_cert.get("ocultar_adc", False)) or orden_oculta_adc(data.get("wix_id"))
-        )
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # PRE-PROCESAR IMÁGENES: convertir URLs de Wix a DO Spaces ANTES de renderizar
         print("🖼️ Pre-procesando imágenes para usar DO Spaces...")
@@ -7131,9 +7089,7 @@ def preview_certificado_html(wix_id):
         _cfg_cert = obtener_config_certificado_empresa(datos_wix.get("codEmpresa", ""))
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
-        datos_certificado["ocultar_adc"] = (
-            bool(_cfg_cert.get("ocultar_adc", False)) or orden_oculta_adc(wix_id)
-        )
+        datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")
