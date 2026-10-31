@@ -887,20 +887,15 @@
         <!-- PRUEBA DE OJOS DEL MÉDICO VIRTUAL (ASISTENTE-MEDICO-BSL) -->
         {# HistoriaClinica."pruebaOjos": tamizaje, fatiga y pupilas con la cámara del celular del paciente.
            La arma obtener_prueba_ojos_postgres (descargar_bsl.py); se oculta con ocultar_visiometria.
-           Viene del celular: Jinja escapa todo. Orientativa: el aviso va siempre. #}
+           Viene del celular: Jinja escapa todo. Título y sin nota de método: Daniel, 31-oct. #}
         {% if prueba_ojos %}
         <div class="section" style="margin-top: 30px;">
-            <div class="section-title">Tamizaje visual por cámara (médico virtual)</div>
+            <div class="section-title">Complemento resultados oculares</div>
             {% if not prueba_ojos.realizado %}
                 <div class="result-item">
                     <p>No se pudo realizar: {{ prueba_ojos.motivo or 'sin motivo registrado' }}</p>
                 </div>
             {% else %}
-                <p style="font-size: 9px; color: #666; margin: 0 0 10px;">
-                    Tamizaje con la cámara del celular del paciente{% if prueba_ojos.camara %} (cámara {{ prueba_ojos.camara }}){% endif %}.
-                    Orientativo, no diagnóstico: los puntos de corte no están validados y las cifras de pupila son experimentales.
-                    Cualquier hallazgo debe confirmarse con optometría.
-                </p>
                 {% if fotos_ojos %}
                 <div style="display: flex; gap: 16px; margin-bottom: 12px;">
                     {% for foto in fotos_ojos %}
