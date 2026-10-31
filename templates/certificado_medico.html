@@ -884,6 +884,71 @@
         </div>
         {% endif %}
 
+        <!-- PRUEBA DE OJOS DEL MÉDICO VIRTUAL (ASISTENTE-MEDICO-BSL) -->
+        {# HistoriaClinica."pruebaOjos": tamizaje, fatiga y pupilas con la cámara del celular del paciente.
+           La arma obtener_prueba_ojos_postgres (descargar_bsl.py); se oculta con ocultar_visiometria.
+           Viene del celular: Jinja escapa todo. Orientativa: el aviso va siempre. #}
+        {% if prueba_ojos %}
+        <div class="section" style="margin-top: 30px;">
+            <div class="section-title">Tamizaje visual por cámara (médico virtual)</div>
+            {% if not prueba_ojos.realizado %}
+                <div class="result-item">
+                    <p>No se pudo realizar: {{ prueba_ojos.motivo or 'sin motivo registrado' }}</p>
+                </div>
+            {% else %}
+                <p style="font-size: 9px; color: #666; margin: 0 0 10px;">
+                    Tamizaje con la cámara del celular del paciente{% if prueba_ojos.camara %} (cámara {{ prueba_ojos.camara }}){% endif %}.
+                    Orientativo, no diagnóstico: los puntos de corte no están validados y las cifras de pupila son experimentales.
+                    Cualquier hallazgo debe confirmarse con optometría.
+                </p>
+                {% if fotos_ojos %}
+                <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                    {% for foto in fotos_ojos %}
+                    <div style="text-align: center; font-size: 9px; color: #444;">
+                        <img src="{{ foto.src }}" alt="Ojo {{ foto.ojo }}" style="width: 220px; height: auto; border: 1px solid #ccc; display: block;">
+                        {{ 'Ojo derecho (OD)' if foto.ojo == 'OD' else 'Ojo izquierdo (OI)' }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% for sec in prueba_ojos.secciones or [] %}
+                <div class="adc-subsection" style="page-break-inside: avoid;">
+                    <div class="adc-subsection-title">{{ sec.title }}</div>
+                    {% if sec.note %}<p style="font-size: 9px; color: #666; margin: 0 0 6px;">{{ sec.note }}</p>{% endif %}
+                    {% if sec.rows %}
+                    {% set por_ojo = sec.rows | selectattr('od', 'defined') | list | length > 0 %}
+                    <table class="adc-table">
+                        <thead><tr>
+                            <th style="text-align: left;">Medida</th>
+                            {% if por_ojo %}<th>OD</th><th>OI</th>{% else %}<th>Valor</th>{% endif %}
+                            <th style="text-align: left;">Lectura</th>
+                        </tr></thead>
+                        <tbody>
+                        {% for fila in sec.rows %}
+                        <tr>
+                            <td style="text-align: left;">{{ fila.label }}{% if fila.exp %} <em>(experimental)</em>{% endif %}</td>
+                            {% if por_ojo and (fila.od is defined or fila.oi is defined) %}
+                            <td>{{ fila.od if fila.od is defined else '—' }}</td><td>{{ fila.oi if fila.oi is defined else '—' }}</td>
+                            {% elif por_ojo %}
+                            <td colspan="2">{{ fila.value if fila.value is defined else '—' }}</td>
+                            {% else %}
+                            <td>{{ fila.value if fila.value is defined else '—' }}</td>
+                            {% endif %}
+                            <td style="text-align: left;">{{ fila.reading or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                    {% for bandera in sec.flags or [] %}
+                    <p style="font-size: 9px; margin: 2px 0;">{{ '✓' if bandera[0] == 'ok' else '⚠' }} {{ bandera[1] }}</p>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- RESULTADOS DE AUDIOMETRÍA -->
         {# ocultar_audiometria: flag per-empresa leído de empresas.config_certificado (ver descargar_bsl.py) #}
         {% if ('Audiometría' in examenes or 'AUDIOMETRÍA' in examenes) and not ocultar_audiometria %}

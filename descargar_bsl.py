@@ -1419,6 +1419,78 @@ Ishihara: {ishihara_correctas}/{ishihara_total} ({ishihara_porcentaje}%)"""
         return None
 
 
+# Fotos de la prueba de ojos: las escribe ASISTENTE-MEDICO-BSL (grabacion.py) en Spaces, privadas.
+FOTO_OJO_RE = re.compile(r'^entrevistas-avatar/([A-Za-z0-9_-]{1,80})/\d{4}-\d{2}-\d{2}_\d{4}_[A-Za-z0-9_-]{1,60}/foto-\d{1,2}-ojo-(od|oi)\.jpg$')
+
+
+def obtener_prueba_ojos_postgres(orden_id):
+    """
+    Prueba de ojos que hace el médico virtual antes de la entrevista (ASISTENTE-MEDICO-BSL):
+    tamizaje, fatiga y pupilas, guardada en HistoriaClinica."pruebaOjos" (jsonb).
+
+    Las fotos de los ojos son privadas en Spaces (bucket bsl-fotos): se bajan con SPACES_KEY /
+    SPACES_SECRET y van incrustadas en base64, porque Puppeteer no puede pedirlas por URL. Sin esas
+    credenciales el certificado sale con las cifras y sin fotos. Solo se aceptan keys de la carpeta
+    de esa misma orden.
+
+    Returns:
+        (dict o None, list de {"ojo": "OD"|"OI", "src": data URI})
+    """
+    try:
+        import psycopg2
+
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        if not postgres_password or not orden_id:
+            return None, []
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "bslpostgres-do-user-19197755-0.k.db.ondigitalocean.com"),
+            port=int(os.getenv("POSTGRES_PORT", "25060")),
+            user=os.getenv("POSTGRES_USER", "doadmin"),
+            password=postgres_password,
+            database=os.getenv("POSTGRES_DB", "defaultdb"),
+            sslmode="require"
+        )
+        cur = conn.cursor()
+        cur.execute('SELECT "pruebaOjos" FROM "HistoriaClinica" WHERE _id = %s LIMIT 1;', (orden_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        prueba = row[0] if row else None
+        if isinstance(prueba, str):
+            prueba = json_module.loads(prueba)
+        if not isinstance(prueba, dict):
+            return None, []
+    except Exception as e:
+        print(f"❌ [PostgreSQL] Error al consultar la prueba de ojos: {e}")
+        return None, []
+
+    fotos = []
+    keys = []
+    for k in (prueba.get("fotos") or [])[:2]:
+        m = FOTO_OJO_RE.match(k) if isinstance(k, str) else None
+        if m and m.group(1) == orden_id:
+            keys.append(k)
+    if keys and os.getenv("SPACES_KEY") and os.getenv("SPACES_SECRET"):
+        try:
+            import boto3
+            s3 = boto3.client(
+                "s3",
+                endpoint_url=os.getenv("SPACES_ENDPOINT", "https://nyc3.digitaloceanspaces.com"),
+                region_name="nyc3",
+                aws_access_key_id=os.getenv("SPACES_KEY"),
+                aws_secret_access_key=os.getenv("SPACES_SECRET"),
+            )
+            for key in keys:
+                obj = s3.get_object(Bucket=os.getenv("SPACES_BUCKET", "bsl-fotos"), Key=key)
+                datos = base64.b64encode(obj["Body"].read()).decode()
+                fotos.append({"ojo": "OD" if "-ojo-od" in key else "OI", "src": f"data:image/jpeg;base64,{datos}"})
+        except Exception as e:
+            print(f"⚠️ No se pudieron bajar las fotos de la prueba de ojos de {orden_id}: {e}")
+    elif keys:
+        print("⚠️ Prueba de ojos sin fotos en el certificado: faltan SPACES_KEY / SPACES_SECRET")
+    return prueba, fotos
+
+
 def obtener_optometria_postgres(orden_id):
     """
     Consulta los datos de optometría profesional desde PostgreSQL usando el orden_id (wix_id).
@@ -7090,6 +7162,13 @@ def preview_certificado_html(wix_id):
         datos_certificado["ocultar_audiometria"] = bool(_cfg_cert.get("ocultar_audiometria", False))
         datos_certificado["ocultar_visiometria"] = bool(_cfg_cert.get("ocultar_visiometria", False))
         datos_certificado["ocultar_adc"] = bool(_cfg_cert.get("ocultar_adc", False))
+
+        # Prueba de ojos del médico virtual. Es un resultado visual: si la empresa oculta la
+        # visiometría, también se oculta esta.
+        if datos_certificado["ocultar_visiometria"]:
+            datos_certificado["prueba_ojos"], datos_certificado["fotos_ojos"] = None, []
+        else:
+            datos_certificado["prueba_ojos"], datos_certificado["fotos_ojos"] = obtener_prueba_ojos_postgres(wix_id)
 
         # Renderizar template HTML
         print("🎨 Renderizando plantilla HTML para preview...")
