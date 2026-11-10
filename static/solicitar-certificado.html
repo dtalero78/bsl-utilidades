@@ -409,7 +409,7 @@
                     // descarga solo (encabezado y datos; sin concepto, resultados ni firmas).
                     // La página del certificado muestra su propia espera y lo baja. Solo con
                     // el link que trae el id, nunca buscando por cédula.
-                    window.location.replace('/generar-certificado-desde-wix/' + encodeURIComponent(historiaId));
+                    window.location.replace('/generar-certificado-desde-wix/' + encodeURIComponent(historiaId) + '?quedar=1');
                     return;
                 } else {
                     showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
