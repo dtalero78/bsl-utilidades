@@ -237,10 +237,13 @@
                 document.getElementById('status').innerHTML = '<span class="success"><strong>✓ Certificado descargado exitosamente</strong></span>';
                 phraseElement.textContent = 'Documento generado correctamente. Revisa tu carpeta de descargas.';
 
-                // Cerrar ventana después de 3 segundos
-                setTimeout(() => {
-                    window.close();
-                }, 3000);
+                // Cerrar ventana después de 3 segundos. No si llegó desde el link del paciente
+                // (?quedar=1): ahí es su única página y en iPhone se cerraría antes de abrir el PDF.
+                if (new URLSearchParams(window.location.search).get('quedar') !== '1') {
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
+                }
             })
             .catch(error => {
                 // Detener loader

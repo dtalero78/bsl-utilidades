@@ -405,22 +405,12 @@
                     // No es un error del paciente ni algo que se arregle reintentando:
                     // falta el pago. Antes acá se mostraba "enviado exitosamente" y se le
                     // mandaba un PDF mutilado, así que el paciente recargaba sin entender.
-                    showMessage(data.message, 'error');
-                    // NO reabrir el formulario: reintentar no cambia nada hasta que pague.
-                    // Daniel, 10-nov-2026: igual puede descargar el PDF con el sello rojo
-                    // (encabezado y datos; sin concepto, resultados ni firmas). Solo con el
-                    // link que trae el id, nunca buscando por cédula.
-                    const descargar = document.createElement('a');
-                    descargar.className = 'btn';
-                    descargar.style.display = 'block';
-                    descargar.style.textAlign = 'center';
-                    descargar.style.textDecoration = 'none';
-                    descargar.style.marginTop = '16px';
-                    descargar.href = '/generar-certificado-desde-wix/' + encodeURIComponent(historiaId);
-                    descargar.target = '_blank';
-                    descargar.rel = 'noopener';
-                    descargar.textContent = 'Descargar certificado';
-                    messageDiv.insertAdjacentElement('afterend', descargar);
+                    // Daniel, 10-nov-2026: sin aviso ni botón, el PDF con el sello rojo se
+                    // descarga solo (encabezado y datos; sin concepto, resultados ni firmas).
+                    // La página del certificado muestra su propia espera y lo baja. Solo con
+                    // el link que trae el id, nunca buscando por cédula.
+                    window.location.replace('/generar-certificado-desde-wix/' + encodeURIComponent(historiaId) + '?quedar=1');
+                    return;
                 } else {
                     showMessage(data.message || 'Error al enviar el certificado. Por favor intenta nuevamente.', 'error');
                     // Mostrar el formulario nuevamente en caso de error
