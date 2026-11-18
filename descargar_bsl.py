@@ -78,10 +78,10 @@ def obtener_vigencia_certificado(cod_empresa, documento_identidad=None, vigencia
     if str(documento_identidad or "").strip() in ["53014728", "52781027", "1117518294", "1013651951"]:
         return "3 años"
 
-    if cod_empresa in ["GODRONE", "SITEL", "PARTICULAR", "COLDRONE", "COLDRON"]:
-        return "1 año"
+    if str(cod_empresa or "").strip().upper() in ["PARTICULAR", "SANITHELP-JJ"]:
+        return "3 años"
 
-    return "3 años"
+    return "1 año"
 
 
 # Empresas que se emiten como PARTICULAR en Bogotá:
