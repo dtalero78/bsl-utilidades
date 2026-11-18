@@ -837,6 +837,110 @@ def construir_payload_api2pdf(empresa, url_obj, documento):
 
 # ============== FUNCIONES AUXILIARES ==============
 
+# La foto y la firma del paciente en Spaces son PRIVADAS desde nov-2026.
+#
+# Hasta entonces se subían con ACL público y acá bastaba con poner la URL en el <img> del
+# certificado. Eran 56.945 fotos y 175.796 firmas abiertas a cualquiera que tuviera el
+# enlace, sin sesión, y son historia clínica: la plataforma (BSL-PLATAFORMA2) les quitó el
+# ACL público y ahora entrega enlaces firmados de corta duración.
+#
+# Este repo no recibe esos enlaces: lee las columnas `foto_url` / `firma_url` directo de la
+# misma base, donde está la URL **limpia**. Así que acá hay que bajar el objeto con
+# credenciales e incrustarlo en base64, que además es lo correcto para un PDF: WeasyPrint no
+# tiene sesión, y un certificado guardado no queda con un enlace reenviable adentro.
+#
+# Es el mismo patrón que ya usaban las fotos de la prueba de ojos (ver FOTO_OJO_RE más
+# abajo), con las mismas variables SPACES_KEY / SPACES_SECRET / SPACES_BUCKET.
+
+_SPACES_REGION = os.getenv("SPACES_REGION", "nyc3")
+_SPACES_BUCKET = os.getenv("SPACES_BUCKET", "bsl-fotos")
+
+_cliente_spaces_cache = []
+
+
+def _cliente_spaces():
+    """Cliente de Spaces, o None si no se pudo crear. Se crea una sola vez."""
+    if _cliente_spaces_cache:
+        return _cliente_spaces_cache[0]
+    if not (os.getenv("SPACES_KEY") and os.getenv("SPACES_SECRET")):
+        print("⚠️  Faltan SPACES_KEY / SPACES_SECRET: la foto y la firma del certificado saldrán rotas")
+        _cliente_spaces_cache.append(None)
+        return None
+    try:
+        import boto3
+        cliente = boto3.client(
+            "s3",
+            endpoint_url=os.getenv("SPACES_ENDPOINT", f"https://{_SPACES_REGION}.digitaloceanspaces.com"),
+            region_name=_SPACES_REGION,
+            aws_access_key_id=os.getenv("SPACES_KEY"),
+            aws_secret_access_key=os.getenv("SPACES_SECRET"),
+        )
+    except Exception as e:
+        print(f"⚠️  No se pudo crear el cliente de Spaces: {e}")
+        cliente = None
+    _cliente_spaces_cache.append(cliente)
+    return cliente
+
+
+def llave_de_spaces(url):
+    """
+    La llave del objeto dentro de nuestro bucket, o None si la URL no es de ahí.
+
+    Acepta el estilo virtual-hosted (el que guarda la plataforma), el de path y el del CDN
+    (`<bucket>.<region>.cdn.digitaloceanspaces.com`), porque puede haber filas viejas con
+    cualquiera de los tres.
+    """
+    if not url or not isinstance(url, str) or not url.startswith("http"):
+        return None
+    try:
+        from urllib.parse import urlparse, unquote
+        u = urlparse(url)
+    except Exception:
+        return None
+    ruta = unquote(u.path or "").lstrip("/")
+    if not ruta:
+        return None
+    host = (u.hostname or "").lower()
+    if host in (f"{_SPACES_BUCKET}.{_SPACES_REGION}.digitaloceanspaces.com",
+                f"{_SPACES_BUCKET}.{_SPACES_REGION}.cdn.digitaloceanspaces.com"):
+        return ruta
+    if host in (f"{_SPACES_REGION}.digitaloceanspaces.com",
+                f"{_SPACES_REGION}.cdn.digitaloceanspaces.com"):
+        if not ruta.startswith(f"{_SPACES_BUCKET}/"):
+            return None
+        return ruta[len(_SPACES_BUCKET) + 1:] or None
+    return None
+
+
+def incrustar_imagen_spaces(url, que="imagen"):
+    """
+    Baja un objeto privado nuestro y lo devuelve como `data:` URI para el <img> del PDF.
+
+    Lo que no sea de nuestro bucket (un data URI, una URL ajena, None) se devuelve sin
+    tocar. Si falla la bajada, devuelve la URL original: un certificado con la foto rota es
+    mejor que un certificado que no sale.
+    """
+    key = llave_de_spaces(url)
+    if not key:
+        return url
+    cliente = _cliente_spaces()
+    if cliente is None:
+        # El motivo ya lo dijo _cliente_spaces() (credenciales o boto3). Acá solo se dice
+        # qué quedó sin incrustar, y se devuelve la URL para no tumbar el certificado.
+        print(f"⚠️  {que} no se pudo incrustar: sin cliente de Spaces (saldrá rota)")
+        return url
+    try:
+        obj = cliente.get_object(Bucket=_SPACES_BUCKET, Key=key)
+        cuerpo = obj["Body"].read()
+        tipo = obj.get("ContentType") or "image/jpeg"
+        datos = base64.b64encode(cuerpo).decode()
+        print(f"🔒 {que} incrustada desde Spaces ({len(cuerpo) / 1024:.1f} KB)")
+        return f"data:{tipo};base64,{datos}"
+    except Exception as e:
+        print(f"⚠️  No se pudo bajar {que} de Spaces ({key}): {e}")
+        return url
+
+
 def obtener_datos_formulario_postgres(wix_id):
     """
     Obtiene TODOS los datos del formulario desde PostgreSQL usando el wix_id.
@@ -967,7 +1071,8 @@ def obtener_datos_formulario_postgres(wix_id):
         # Foto - Priorizar foto_url (URL pública de DO Spaces) sobre foto (data URI base64)
         if foto_url and foto_url.startswith("http"):
             print(f"📸 [PostgreSQL] Usando foto_url (DO Spaces): {foto_url[:80]}...")
-            datos_formulario['foto'] = foto_url
+            # El objeto es privado: se baja con credenciales y va incrustada en el PDF.
+            datos_formulario['foto'] = incrustar_imagen_spaces(foto_url, "la foto del paciente")
         elif foto and foto.startswith("data:image/"):
             foto_size_kb = len(foto) / 1024
             print(f"📸 [PostgreSQL] Usando foto base64: {foto_size_kb:.1f} KB")
@@ -1026,7 +1131,8 @@ def obtener_datos_formulario_postgres(wix_id):
         # Firma - Priorizar firma_url (DO Spaces) sobre firma (data URI base64 legacy)
         if firma_url and firma_url.startswith("http"):
             print(f"✍️  [PostgreSQL] Usando firma_url (DO Spaces): {firma_url[:80]}...")
-            datos_formulario['firma'] = firma_url
+            # Igual que la foto: objeto privado, va incrustada.
+            datos_formulario['firma'] = incrustar_imagen_spaces(firma_url, "la firma del paciente")
         elif firma and firma.startswith("data:image/"):
             firma_size_kb = len(firma) / 1024
             print(f"✍️  [PostgreSQL] Usando firma base64: {firma_size_kb:.1f} KB")
