@@ -1441,6 +1441,32 @@ def obtener_datos_tenant(tenant_id):
         return datos
 
 
+# Marcas con las que un certificado de OTRA IPS puede salir (?marca=<tenant>). Lista cerrada:
+# Daniel (19-nov-2026) pidió que los pacientes de BSL puedan bajar su certificado con los
+# datos de IPS VIP desde la página /certificado-vip de la plataforma.
+MARCAS_CERTIFICADO_PERMITIDAS = {'ipsVip'}
+
+
+def marca_certificado_de_request():
+    """La marca pedida en ?marca=, solo si está en la lista cerrada; si no, None."""
+    marca = (request.args.get('marca') or '').strip()
+    return marca if marca in MARCAS_CERTIFICADO_PERMITIDAS else None
+
+
+def datos_tenant_con_marca(tenant_id, marca):
+    """
+    Encabezado del certificado. Con marca: los datos de esa IPS (logo, razón social, NIT…),
+    pero el QR sigue siendo el de la IPS dueña de la orden: el QR lleva a la página de
+    validación de esa IPS, y la de VIP solo encuentra pacientes de VIP; con el QR de VIP,
+    un paciente de BSL saldría como "certificado no encontrado".
+    """
+    if not marca:
+        return obtener_datos_tenant(tenant_id)
+    datos = obtener_datos_tenant(marca)
+    datos['qr_url'] = obtener_datos_tenant(tenant_id).get('qr_url', TENANT_BSL_DEFAULTS['qr_url'])
+    return datos
+
+
 def obtener_logo_tenant(tenant_id):
     """Wrapper backward-compat: retorna solo la URL del logo."""
     return obtener_datos_tenant(tenant_id).get('logo_url', TENANT_BSL_DEFAULTS['logo_url'])
@@ -5335,10 +5361,11 @@ def generar_certificado_desde_wix(wix_id):
     # Obtener tenant_id del registro para mostrar logo correcto en el loader
     datos_hc = obtener_datos_historia_clinica_postgres(wix_id)
     tenant_id = datos_hc.get('tenant_id') if datos_hc else None
-    logo_url = obtener_logo_tenant(tenant_id)
+    marca = marca_certificado_de_request()
+    logo_url = obtener_logo_tenant(marca or tenant_id)
 
     # Mostrar página de loader
-    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url)
+    return render_template('certificado_loader.html', wix_id=wix_id, logo_url=logo_url, marca=marca or '')
 
 
 @app.route("/generar-certificado-desde-wix-puppeteer/<wix_id>", methods=["GET", "OPTIONS"])
@@ -6155,6 +6182,9 @@ def api_generar_certificado_pdf(wix_id):
         import time
         cache_buster = int(time.time() * 1000)  # timestamp en milisegundos
         preview_url = f"https://bsl-utilidades-yp78a.ondigitalocean.app/preview-certificado-html/{wix_id}?v={cache_buster}"
+        marca = marca_certificado_de_request()
+        if marca:
+            preview_url += f"&marca={marca}"
         print(f"🔗 URL del preview: {preview_url}")
 
         # Generar PDF usando Puppeteer
@@ -7190,7 +7220,7 @@ def preview_certificado_html(wix_id):
 
         # Datos del tenant (distintivo = ips_sede)
         _tenant_id_cert = datos_historia_postgres.get('tenant_id') if datos_historia_postgres else None
-        _tenant_data = obtener_datos_tenant(_tenant_id_cert)
+        _tenant_data = datos_tenant_con_marca(_tenant_id_cert, marca_certificado_de_request())
 
         # Preparar datos para el template
         datos_certificado = {

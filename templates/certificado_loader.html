@@ -212,7 +212,8 @@
 
         // Iniciar descarga en segundo plano
         const wixId = "{{ wix_id }}";
-        const downloadUrl = `/api/generar-certificado-pdf/${wixId}`;
+        const marca = "{{ marca }}";
+        const downloadUrl = `/api/generar-certificado-pdf/${wixId}` + (marca ? `?marca=${encodeURIComponent(marca)}` : '');
 
         fetch(downloadUrl)
             .then(response => {
